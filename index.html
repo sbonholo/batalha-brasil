@@ -1,0 +1,3630 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover, user-scalable=no" />
+<meta name="theme-color" content="#0a0a0a" />
+<title>Batalha Brasil — paródia</title>
+<style>
+* { box-sizing: border-box; }
+html, body { margin: 0; padding: 0; height: 100%; background: #000; color: #fff; overflow: hidden;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, "Helvetica Neue", sans-serif;
+  -webkit-tap-highlight-color: transparent; user-select: none;
+}
+#stage-wrap {
+  position: fixed; inset: 0; display: flex; align-items: center; justify-content: center;
+  background: #000;
+}
+canvas#stage {
+  width: 100%; height: 100%; max-width: 100vw; max-height: 100vh; object-fit: contain;
+  image-rendering: pixelated; image-rendering: crisp-edges;
+  background: #0a0a0a;
+}
+#hint {
+  position: fixed; left: 0; right: 0; bottom: 0; padding: 6px 10px;
+  font-size: 12px; color: #aab4c5; text-align: center; background: rgba(0,0,0,0.55);
+  letter-spacing: 0.5px; pointer-events: none;
+}
+#hint b { color: #ffd84a; }
+
+/* ---------- Paywall ---------- */
+#paywall {
+  position: fixed; inset: 0; z-index: 5;
+  background: linear-gradient(160deg, #0e3b2c 0%, #1a1a1a 60%, #0a1830 100%);
+  display: flex; align-items: center; justify-content: center;
+  padding: env(safe-area-inset-top) env(safe-area-inset-right)
+    env(safe-area-inset-bottom) env(safe-area-inset-left);
+}
+.paywall-card {
+  width: min(420px, 92vw); max-height: 92vh; overflow: auto;
+  background: linear-gradient(180deg, #131b2c 0%, #0a0f1a 100%);
+  border: 2px solid #2a3658; border-radius: 16px;
+  padding: 22px 22px 18px;
+  text-align: center; box-shadow: 0 20px 60px rgba(0,0,0,0.6);
+}
+.paywall-card h1 {
+  margin: 0 0 4px; font-size: 32px; letter-spacing: 3px;
+  background: linear-gradient(180deg, #ffe066 0%, #009c3b 60%, #002776 100%);
+  -webkit-background-clip: text; background-clip: text; color: transparent;
+  text-shadow: 0 1px 0 rgba(0,0,0,0.4);
+}
+.paywall-sub { margin: 0 0 14px; color: #cfd6e0; font-size: 14px; }
+.paywall-price {
+  display: inline-block; margin: 6px 0 12px; padding: 8px 16px;
+  border: 2px solid #32bcad; border-radius: 999px;
+  font-weight: 800; font-size: 20px; color: #32bcad; letter-spacing: 1px;
+}
+.qr-wrap {
+  width: 220px; height: 220px; margin: 0 auto 12px;
+  background: #fff; border-radius: 12px; padding: 10px;
+  position: relative;
+}
+.qr-wrap svg { width: 100%; height: 100%; display: block; }
+.qr-watermark {
+  position: absolute; left: 50%; top: 50%;
+  transform: translate(-50%, -50%) rotate(-12deg);
+  font-weight: 900; color: rgba(255, 60, 60, 0.85);
+  border: 3px solid rgba(255, 60, 60, 0.85);
+  padding: 4px 10px; font-size: 14px; letter-spacing: 2px;
+  pointer-events: none; background: rgba(255,255,255,0.85);
+  border-radius: 6px;
+}
+.pix-key {
+  font-family: ui-monospace, Menlo, Consolas, monospace;
+  background: #0a0f1a; border: 1px dashed #2a3658; border-radius: 8px;
+  padding: 8px; font-size: 13px; color: #9cc6ff; margin-bottom: 12px;
+  word-break: break-all;
+}
+#btn-paid {
+  width: 100%; padding: 14px;
+  border: none; border-radius: 12px; cursor: pointer;
+  background: linear-gradient(180deg, #32bcad 0%, #1a8d80 100%);
+  color: #062421; font-weight: 800; font-size: 18px; letter-spacing: 1px;
+  transition: transform 0.06s ease, filter 0.15s;
+}
+#btn-paid:hover { filter: brightness(1.1); }
+#btn-paid:active { transform: scale(0.97); }
+.demo-banner {
+  margin: 10px 0 0; padding: 8px; border-radius: 8px;
+  background: rgba(255, 80, 60, 0.12); border: 1px solid rgba(255, 80, 60, 0.4);
+  color: #ffb3a8; font-size: 11px; line-height: 1.45;
+}
+.controls-block {
+  margin-top: 14px; padding: 10px; border-radius: 8px;
+  background: rgba(255,255,255,0.04); border: 1px solid rgba(255,255,255,0.08);
+  color: #cfd6e0; font-size: 11px; text-align: left; line-height: 1.5;
+}
+.controls-block b { color: #ffd84a; }
+
+/* ---------- Title menu (HTML overlay over canvas) ---------- */
+#menu {
+  position: fixed; left: 0; right: 0;
+  bottom: 6%;
+  display: none;
+  flex-direction: column; align-items: center;
+  gap: 10px;
+  padding: 0 16px env(safe-area-inset-bottom);
+  z-index: 3;
+}
+#menu.show { display: flex; }
+.menu-btn {
+  width: min(360px, 92vw);
+  padding: 14px 18px;
+  border: none; border-radius: 14px;
+  cursor: pointer;
+  font-weight: 900; font-size: 18px; letter-spacing: 1.5px;
+  color: #1a0e00; text-align: center;
+  background: linear-gradient(180deg, #ffe066 0%, #ffb13a 100%);
+  box-shadow: 0 4px 0 rgba(0,0,0,0.4), 0 0 0 2px #c8902e;
+  transition: transform 0.05s ease, filter 0.15s;
+  font-family: "Impact", "Arial Black", system-ui, sans-serif;
+}
+.menu-btn:hover { filter: brightness(1.06); }
+.menu-btn:active { transform: translateY(2px); box-shadow: 0 2px 0 rgba(0,0,0,0.4), 0 0 0 2px #c8902e; }
+.menu-btn.facil   { background: linear-gradient(180deg, #6ee07a 0%, #2bb054 100%); box-shadow: 0 4px 0 rgba(0,0,0,0.4), 0 0 0 2px #1d7e3c; color: #082a12; }
+.menu-btn.medio   { background: linear-gradient(180deg, #ffe066 0%, #ffb13a 100%); box-shadow: 0 4px 0 rgba(0,0,0,0.4), 0 0 0 2px #c8902e; color: #1a0e00; }
+.menu-btn.dificil { background: linear-gradient(180deg, #ff6b6b 0%, #c8102e 100%); box-shadow: 0 4px 0 rgba(0,0,0,0.4), 0 0 0 2px #7a0a18; color: #2a0509; }
+.menu-btn.online {
+  background: linear-gradient(180deg, #3a4763 0%, #1c2540 100%);
+  color: #93a1b3; cursor: not-allowed; opacity: 0.9;
+  box-shadow: 0 4px 0 rgba(0,0,0,0.5), 0 0 0 2px #2a3658;
+}
+.menu-btn.online .em-breve {
+  display: block; font-size: 11px; letter-spacing: 1px;
+  margin-top: 2px; color: #ffd84a; font-family: system-ui, sans-serif; font-weight: 700;
+}
+#menu-title {
+  display: none;
+  font-family: "Impact", "Arial Black", system-ui, sans-serif;
+  color: #fff; letter-spacing: 2px; font-size: 13px;
+  margin-bottom: 4px; text-shadow: 0 2px 0 #000;
+  text-align: center;
+}
+#menu.show #menu-title { display: block; }
+
+/* ---------- Touch controls ---------- */
+#touch {
+  position: fixed; left: 0; right: 0; bottom: 0;
+  display: none;
+  pointer-events: none;
+  padding: 10px 14px env(safe-area-inset-bottom);
+  z-index: 4;
+}
+#touch.show { display: flex; justify-content: space-between; align-items: flex-end; }
+.dpad { position: relative; width: 168px; height: 168px; pointer-events: auto; flex-shrink: 0; }
+.actions { display: grid; grid-template-columns: repeat(3, 60px); gap: 10px; pointer-events: auto; flex-shrink: 0; }
+.tbtn {
+  background: rgba(0,0,0,0.45); color: #fff;
+  border: 2px solid rgba(255,255,255,0.35);
+  border-radius: 14px;
+  font-size: 16px; font-weight: 900; letter-spacing: 1px;
+  width: 60px; height: 60px;
+  display: flex; flex-direction: column; align-items: center; justify-content: center;
+  user-select: none; -webkit-touch-callout: none;
+  font-family: "Impact","Arial Black", system-ui, sans-serif;
+  text-align: center; line-height: 1;
+  padding: 0;
+}
+.tbtn .lbl { display: block; font-size: 8px; opacity: 0.75; margin-top: 1px; letter-spacing: 0.3px; font-weight: 700; }
+/* Narrow landscape phones — shrink controls so all 3 fit */
+@media (max-height: 480px), (max-width: 920px) {
+  .dpad { width: 140px; height: 140px; }
+  .actions { grid-template-columns: repeat(3, 50px); gap: 8px; }
+  .tbtn { width: 50px; height: 50px; font-size: 14px; border-radius: 12px; }
+  .tbtn .lbl { font-size: 7px; }
+  .dp-up    { top: 0;    left: 46px; }
+  .dp-left  { top: 46px; left: 0;    }
+  .dp-right { top: 46px; left: 92px; }
+  .dp-down  { top: 92px; left: 46px; }
+}
+.tbtn:active, .tbtn.is-down {
+  background: rgba(255, 215, 100, 0.55); color: #1a0e00;
+  border-color: rgba(255, 215, 100, 0.95);
+}
+.dpad .tbtn { position: absolute; }
+.dp-up    { top: 0;    left: 56px; }
+.dp-left  { top: 56px; left: 0;    }
+.dp-right { top: 56px; left: 112px;}
+.dp-down  { top: 112px;left: 56px; }
+.ab-punch   { background: rgba(255, 80, 60, 0.40); }
+.ab-kick    { background: rgba(80, 160, 255, 0.40); }
+.ab-special { background: rgba(255, 200, 60, 0.45); color: #1a0e00; }
+
+/* Always show touch controls on touch devices and small landscape screens */
+@media (hover: none) and (pointer: coarse) {
+  #touch.always-on { display: flex; justify-content: space-between; align-items: flex-end; }
+}
+
+/* ---------- Character select overlay ---------- */
+#select {
+  position: fixed; inset: 0; z-index: 3;
+  display: none;
+  flex-direction: column; align-items: center; justify-content: center;
+  background: rgba(10, 14, 26, 0.55);
+  padding: env(safe-area-inset-top) 16px env(safe-area-inset-bottom);
+  backdrop-filter: blur(2px);
+}
+#select.show { display: flex; }
+#select-title {
+  font-family: "Impact","Arial Black", system-ui, sans-serif;
+  font-size: clamp(22px, 3.4vw, 36px);
+  letter-spacing: 3px; color: #ffd84a;
+  text-shadow: 0 3px 0 #000, 0 0 12px rgba(0,0,0,0.6);
+  margin: 0 0 16px;
+}
+#select-row {
+  display: flex; align-items: center; justify-content: center;
+  gap: clamp(10px, 2vw, 24px);
+  width: 100%; max-width: 760px;
+}
+.select-card {
+  flex: 1 1 0;
+  display: flex; flex-direction: column; align-items: center;
+  background: linear-gradient(180deg, rgba(255,255,255,0.06), rgba(0,0,0,0.4));
+  border: 3px solid #2a3658; border-radius: 18px;
+  padding: 14px 10px;
+  cursor: pointer;
+  font-family: "Impact","Arial Black", system-ui, sans-serif;
+  color: #fff; letter-spacing: 1.5px;
+  transition: transform 0.07s ease, border-color 0.15s, box-shadow 0.15s;
+  min-width: 0;
+}
+.select-card.ze  { border-color: #c8102e; background: linear-gradient(180deg, rgba(200, 16, 46, 0.25), rgba(20, 8, 12, 0.6)); }
+.select-card.cap { border-color: #5a7547; background: linear-gradient(180deg, rgba(74, 93, 46, 0.30), rgba(15, 22, 8, 0.6)); }
+.select-card:hover { transform: translateY(-2px); }
+.select-card:active { transform: translateY(1px) scale(0.98); }
+.select-portrait {
+  width: clamp(80px, 14vw, 120px);
+  height: clamp(110px, 18vw, 160px);
+  image-rendering: pixelated;
+  display: block;
+}
+.select-name { font-size: clamp(13px, 1.6vw, 18px); margin-top: 6px; }
+.select-tag  { font-size: 10px; color: #cfd6e0; opacity: 0.85; }
+.select-go   {
+  margin-top: 8px; padding: 8px 14px;
+  background: #ffdf00; color: #1a0e00;
+  border-radius: 8px; font-size: 14px;
+}
+.select-card.ze .select-go  { background: #c8102e; color: #fff; }
+.select-card.cap .select-go { background: #4a5d2e; color: #ffdf00; }
+.select-vs {
+  font-family: "Impact", system-ui, sans-serif;
+  font-size: clamp(28px, 5vw, 56px);
+  color: #fff; -webkit-text-stroke: 2px #c8102e;
+  text-shadow: 0 4px 0 rgba(0,0,0,0.45);
+  flex: 0 0 auto;
+}
+#select-back {
+  margin-top: 18px;
+  background: transparent; color: #cfd6e0;
+  border: 2px solid rgba(255,255,255,0.4);
+  padding: 10px 18px; border-radius: 10px;
+  font-weight: 800; font-size: 14px;
+  cursor: pointer;
+}
+#select-back:hover { background: rgba(255,255,255,0.06); }
+.select-hint { color: #aab4c5; font-size: 11px; margin: 10px 0 0; text-align: center; }
+
+/* ---------- Pause button + modal ---------- */
+#pause-btn {
+  position: fixed; top: calc(env(safe-area-inset-top) + 8px); left: 12px; z-index: 4;
+  background: rgba(0,0,0,0.55); color: #fff;
+  border: 2px solid rgba(255, 215, 100, 0.55);
+  border-radius: 10px;
+  padding: 6px 12px; font-weight: 900; letter-spacing: 1px;
+  cursor: pointer; font-size: 13px;
+  font-family: "Impact","Arial Black", system-ui, sans-serif;
+}
+#pause-btn:hover { background: rgba(20,20,20,0.7); }
+#pause-btn:active { transform: scale(0.96); }
+
+#pause-modal {
+  position: fixed; inset: 0; z-index: 7;
+  display: none;
+  align-items: center; justify-content: center;
+  background: rgba(0,0,0,0.65);
+  backdrop-filter: blur(3px);
+  padding: 16px;
+}
+#pause-modal.show { display: flex; }
+.modal-card {
+  background: linear-gradient(180deg, #16203a 0%, #0a0f1a 100%);
+  border: 2px solid #2a3658; border-radius: 14px;
+  padding: 22px 20px; min-width: min(360px, 92vw);
+  text-align: center; box-shadow: 0 20px 60px rgba(0,0,0,0.7);
+}
+.modal-title {
+  font-family: "Impact","Arial Black", system-ui, sans-serif;
+  font-size: 24px; letter-spacing: 2px;
+  color: #ffd84a;
+  text-shadow: 0 2px 0 #000;
+  margin-bottom: 4px;
+}
+.modal-sub { color: #aab4c5; font-size: 12px; margin-bottom: 14px; }
+.modal-actions { display: flex; gap: 10px; justify-content: center; }
+.modal-btn {
+  flex: 1 1 0;
+  padding: 12px 18px; border: none; border-radius: 10px;
+  font-weight: 900; font-size: 16px; letter-spacing: 1.5px; cursor: pointer;
+  font-family: "Impact","Arial Black", system-ui, sans-serif;
+}
+.modal-btn.yes { background: linear-gradient(180deg, #ff6b6b, #c8102e); color: #fff; box-shadow: 0 3px 0 rgba(0,0,0,0.4); }
+.modal-btn.no  { background: linear-gradient(180deg, #6ee07a, #2bb054); color: #082a12; box-shadow: 0 3px 0 rgba(0,0,0,0.4); }
+.modal-btn:active { transform: translateY(2px); box-shadow: 0 1px 0 rgba(0,0,0,0.4); }
+
+/* ---------- Match-end actions ---------- */
+#end-actions {
+  position: fixed; left: 0; right: 0;
+  bottom: calc(env(safe-area-inset-bottom) + 14px);
+  z-index: 4;
+  display: none;
+  flex-direction: column; align-items: center;
+  gap: 10px; padding: 0 16px;
+}
+#end-actions.show { display: flex; }
+.end-btn {
+  width: min(360px, 92vw);
+  padding: 14px 18px; border: none; border-radius: 12px;
+  font-weight: 900; font-size: 17px; letter-spacing: 1.5px;
+  cursor: pointer;
+  font-family: "Impact","Arial Black", system-ui, sans-serif;
+  background: linear-gradient(180deg, #3a4763, #1c2540);
+  color: #fff;
+  box-shadow: 0 4px 0 rgba(0,0,0,0.5);
+}
+.end-btn.primary {
+  background: linear-gradient(180deg, #ffe066 0%, #ffb13a 100%);
+  color: #1a0e00; box-shadow: 0 4px 0 rgba(0,0,0,0.4), 0 0 0 2px #c8902e;
+}
+.end-btn:active { transform: translateY(2px); }
+
+/* ---------- Rotate device hint ---------- */
+#rotate {
+  position: fixed; inset: 0; z-index: 6;
+  background: #0a0a0a; color: #fff;
+  display: none; align-items: center; justify-content: center;
+  text-align: center; padding: 24px;
+  font-weight: 700; font-size: 18px;
+}
+#rotate .icon { font-size: 56px; margin-bottom: 12px; }
+@media (orientation: portrait) and (max-width: 768px) {
+  #rotate { display: flex; flex-direction: column; }
+}
+</style>
+</head>
+<body>
+
+<div id="paywall" aria-hidden="false">
+  <div class="paywall-card">
+    <h1>BATALHA BRASIL</h1>
+    <p class="paywall-sub">Pague para entrar na luta</p>
+    <div class="paywall-price">R$ 2,00 via Pix</div>
+    <div class="qr-wrap">
+      <svg viewBox="0 0 25 25" id="fakeQR" aria-label="QR Code de demonstração"></svg>
+      <div class="qr-watermark">DEMO</div>
+    </div>
+    <div class="pix-key">demo@batalhabrasil.example</div>
+    <button id="btn-paid">JÁ PAGUEI — JOGAR</button>
+    <div class="demo-banner">
+      <b>DEMONSTRAÇÃO</b> — nenhum pagamento real é processado. A chave Pix
+      acima é fictícia. Não envie dinheiro.
+    </div>
+    <div class="controls-block">
+      <b>Movimento:</b> ← → mover · ↑ pular · ↓ defender<br>
+      <b>Ataques:</b> A soco · S chute · D especial<br>
+      No celular: D-pad e botões na tela.
+    </div>
+  </div>
+</div>
+
+<div id="stage-wrap">
+  <canvas id="stage" width="960" height="540"></canvas>
+</div>
+
+<div id="menu" aria-hidden="true">
+  <div id="menu-title">ESCOLHA A DIFICULDADE</div>
+  <button class="menu-btn facil"   data-difficulty="facil">FÁCIL</button>
+  <button class="menu-btn medio"   data-difficulty="medio">MÉDIO</button>
+  <button class="menu-btn dificil" data-difficulty="dificil">DIFÍCIL</button>
+  <button class="menu-btn online" disabled aria-disabled="true">
+    2 JOGADORES ONLINE
+    <span class="em-breve">EM BREVE…</span>
+  </button>
+</div>
+
+<div id="select" aria-hidden="true">
+  <div id="select-title">ESCOLHA SEU LUTADOR</div>
+  <div id="select-row">
+    <button class="select-card ze" data-side="p1" aria-label="Jogar como Zé da Esquerda">
+      <canvas class="select-portrait" data-portrait="ze" width="120" height="160"></canvas>
+      <div class="select-name">ZÉ DA ESQUERDA</div>
+      <div class="select-tag">SINDICALISTA</div>
+      <div class="select-go">JOGAR</div>
+    </button>
+    <div class="select-vs">VS</div>
+    <button class="select-card cap" data-side="p2" aria-label="Jogar como Capitão Direita">
+      <canvas class="select-portrait" data-portrait="capitao" width="120" height="160"></canvas>
+      <div class="select-name">CAPITÃO DIREITA</div>
+      <div class="select-tag">MILITAR</div>
+      <div class="select-go">JOGAR</div>
+    </button>
+  </div>
+  <button id="select-back">← VOLTAR</button>
+  <p class="select-hint">O computador joga com o outro lutador.</p>
+</div>
+
+<button id="pause-btn" hidden aria-label="Pausar">⏸ PAUSAR</button>
+
+<div id="pause-modal" role="dialog" aria-modal="true" aria-labelledby="pause-modal-title">
+  <div class="modal-card">
+    <div id="pause-modal-title" class="modal-title">VOLTAR AO MENU?</div>
+    <div class="modal-sub">A luta atual será descartada.</div>
+    <div class="modal-actions">
+      <button class="modal-btn yes" data-action="back-to-menu">SIM</button>
+      <button class="modal-btn no"  data-action="resume">NÃO</button>
+    </div>
+  </div>
+</div>
+
+<div id="end-actions" aria-hidden="true">
+  <button class="end-btn primary" data-action="play-again">JOGAR NOVAMENTE</button>
+  <button class="end-btn"         data-action="back-to-menu">MENU PRINCIPAL</button>
+</div>
+
+<div id="touch" aria-hidden="true">
+  <div class="dpad">
+    <button class="tbtn dp-up"    data-key="up"    aria-label="Pular">▲</button>
+    <button class="tbtn dp-left"  data-key="left"  aria-label="Esquerda">◀</button>
+    <button class="tbtn dp-right" data-key="right" aria-label="Direita">▶</button>
+    <button class="tbtn dp-down"  data-key="down"  aria-label="Defender">▼</button>
+  </div>
+  <div class="actions">
+    <button class="tbtn ab-punch"   data-key="punch"   aria-label="Soco">A<span class="lbl">SOCO</span></button>
+    <button class="tbtn ab-kick"    data-key="kick"    aria-label="Chute">S<span class="lbl">CHUTE</span></button>
+    <button class="tbtn ab-special" data-key="special" aria-label="Especial">D<span class="lbl">ESPECIAL</span></button>
+  </div>
+</div>
+
+<div id="rotate" aria-hidden="true">
+  <div class="icon">📱↻</div>
+  Vire o celular para o modo paisagem<br>para jogar.
+</div>
+
+<div id="hint">
+  Setas: mover · ↑ pular · ↓ defender · <b>A</b> soco · <b>S</b> chute · <b>D</b> especial &nbsp;·&nbsp; Paródia • Apenas entretenimento
+</div>
+
+<script>
+"use strict";
+(function () {
+  // ============================================================
+  // CONFIG
+  // ============================================================
+  const W = 960, H = 540, GROUND_Y = 470;
+  const WALL_L = 60, WALL_R = W - 60;
+  const FW = 60, FH = 110;
+  const TICK_HZ = 60, TICK_DT = 1 / TICK_HZ;
+  const ROUND_TIME = 99;
+  const MAX_HP = 100;
+  const WINS_TO_WIN = 2;            // best of 3
+  const READY_FRAMES = 110;
+  const ROUND_END_FRAMES = 170;
+  const PAID_KEY = "batalhaBrasilPaid";
+
+  // ============================================================
+  // FIGHTER SPECS — pure parody archetypes
+  // ============================================================
+  const ZE = {
+    key: "ze",
+    name: "ZÉ DA ESQUERDA",
+    short: "ZÉ",
+    side: "p1",
+    skin: "#b88550",          // warm brown
+    skinHi: "#d8a979",        // skin highlight
+    skinShade: "#8B5A2B",     // skin mid-shadow
+    skinDark: "#5a3818",      // deep shadow
+    hair: "#bbbbbb",          // grey hair ring
+    hairDark: "#888888",
+    beard: "#f0f0f0",         // white-grey beard front
+    beardMid: "#dddddd",
+    beardShadow: "#aaaaaa",   // beard underside shadow
+    beardFleck: "#888888",
+    shirt: "#c8102e",         // PT red
+    shirtDark: "#8a0a1a",
+    shirtLight: "#ec4060",    // highlight
+    starWhite: "#ffffff",
+    pants: "#1a1a26",         // dark navy-black
+    pantsDark: "#0a0a14",
+    pantsLight: "#2a2a3a",
+    boots: "#5a3a1c",         // brown work boots
+    bootsDark: "#241608",
+    bootsHi: "#7a5028",
+    belt: "#1a0e08",
+    buckle: "#ffdf00",
+    glove: "#b88550",         // bare fist matches skin
+    accent: "#ffdf00",
+    speed: 215,
+    jumpV: -630,
+    moveLabels: { punch: "SOCO SINDICAL", kick: "CHUTE PETISTA", special: "ABRAÇO POPULAR" },
+    auraColor: "rgba(255, 60, 60, 0.55)",
+    auraColor2: "rgba(255, 220, 80, 0.55)",
+  };
+
+  const CAPITAO = {
+    key: "capitao",
+    name: "CAPITÃO DIREITA",
+    short: "CAP",
+    side: "p2",
+    skin: "#b89a78",          // olive/tan
+    skinHi: "#d8b890",
+    skinShade: "#8B7355",
+    skinDark: "#5a4828",
+    hair: "#2a1d12",          // slick-back dark
+    hairHi: "#3e2a18",
+    hairGrey: "#7a6a5a",      // grey temples
+    cap: "#2a3818",           // olive beret
+    capDark: "#1a2410",
+    capHi: "#3e5028",
+    capBand: "#0e1408",
+    capStar: "#ffdf00",
+    capRedAccent: "#9a1418",
+    shirt: "#4a5d2e",         // base camo
+    shirtHi: "#5e7340",
+    camoA: "#2a3818",         // dark blotches
+    camoB: "#7a8a4a",         // light blotches
+    camoC: "#a88a55",         // tan blotches
+    camoD: "#3a4a22",         // mid green
+    pants: "#3d4a20",
+    pantsDark: "#1f290e",
+    pantsHi: "#4d5d28",
+    boots: "#0a0a0a",
+    bootsDark: "#000000",
+    bootsHi: "#26262a",
+    belt: "#1a1208",
+    buckle: "#9a9a9a",
+    glove: "#1a1208",
+    accent: "#ffdf00",
+    epaulette: "#d4a020",     // gold shoulder
+    epauletteDark: "#7a5810",
+    medal1: "#ffe066",
+    medal2: "#3a5acc",
+    medal3: "#c8102e",
+    speed: 215,
+    jumpV: -650,
+    moveLabels: { punch: "CORONHADA", kick: "CHUTE PATRIOTA", special: "ORDEM E PROGRESSO" },
+    auraColor: "rgba(80, 200, 100, 0.55)",
+    auraColor2: "rgba(255, 220, 80, 0.55)",
+  };
+
+  // ============================================================
+  // MOVES — uniform mechanics, distinct visuals
+  // ============================================================
+  const MOVES = {
+    punch:   { startup: 5,  active: 3, recovery: 9,  total: 17, dmg: 8,  range: 64, reach: 50, knockX: 220, knockY: -160, cd: 4,   hitstop: 4, shake: 3 },
+    kick:    { startup: 8,  active: 4, recovery: 14, total: 26, dmg: 12, range: 92, reach: 62, knockX: 290, knockY: -220, cd: 12,  hitstop: 6, shake: 5 },
+    special: { startup: 14, active: 6, recovery: 22, total: 42, dmg: 26, range: 80, reach: 70, knockX: 520, knockY: -360, cd: 110, hitstop: 10, shake: 12 },
+  };
+
+  // ============================================================
+  // STATE
+  // ============================================================
+  const canvas = document.getElementById("stage");
+  // `ctx` is a `let` so we can temporarily redirect drawing to other canvases
+  // (used by the character-select card portraits). drawZe/drawCapitao read
+  // this file-scoped variable directly.
+  let ctx = canvas.getContext("2d");
+  ctx.imageSmoothingEnabled = false;
+
+  let phase = "title";                 // title | select | ready | fight | roundEnd | matchEnd
+  let phaseT = 0;
+  let round = 1;
+  let wins = { p1: 0, p2: 0 };
+  let timer = ROUND_TIME;
+  let lastWinner = null;               // "p1" | "p2" | "draw"
+  let p1, p2;
+  const effects = [];                  // burst comics, hit sparks, dust, aura
+  let shake = 0;
+  let hitstop = 0;
+  const crowd = [];
+  let titlePulse = 0;
+  let timeNow = 0;                     // animation seconds since boot
+  let currentDifficulty = "medio";     // facil | medio | dificil
+  let playerSide = "p1";               // "p1" = playing Zé (left); "p2" = playing Capitão (right)
+  let paused = false;                  // pause modal open
+
+  const inputState = { p1: blankInputs(), p2: blankInputs() };
+
+  // ============================================================
+  // CPU AI — difficulty profiles
+  // ============================================================
+  const DIFFICULTIES = {
+    facil: {
+      label: "FÁCIL",
+      reactionMin: 22, reactionMax: 38,    // frames between decisions
+      approachThresh: 150,                  // px center-to-center to start attacking
+      atkChance: 0.40,                      // chance to attack when in range
+      kickChance: 0.20,                     // weighting once attacking
+      specialChance: 0.05,
+      blockChance: 0.10,                    // when foe is close + attacking
+      wrongDirChance: 0.18,                 // walk wrong way
+      jumpChance: 0.005,                    // per frame when far-mid range
+      whiffPunish: false,
+    },
+    medio: {
+      label: "MÉDIO",
+      reactionMin: 12, reactionMax: 24,
+      approachThresh: 120,
+      atkChance: 0.65,
+      kickChance: 0.35,
+      specialChance: 0.18,
+      blockChance: 0.32,
+      wrongDirChance: 0.05,
+      jumpChance: 0.010,
+      whiffPunish: true,
+    },
+    dificil: {
+      label: "DIFÍCIL",
+      reactionMin: 6,  reactionMax: 14,
+      approachThresh: 105,
+      atkChance: 0.80,
+      kickChance: 0.45,
+      specialChance: 0.30,
+      blockChance: 0.55,
+      wrongDirChance: 0.0,
+      jumpChance: 0.018,
+      whiffPunish: true,
+    },
+  };
+
+  let aiCooldown = 0;
+  let aiHeld = blankInputs(); // sticky decision so movement is held for several frames
+
+  // Synthesize the *Edge flags so the AI's attack inputs are seen as button
+  // presses by applyInputs() — it only triggers attacks on edge-detected input.
+  function finalizeAi(inp) {
+    inp.punchEdge   = !!inp.punch;
+    inp.kickEdge    = !!inp.kick;
+    inp.specialEdge = !!inp.special;
+    return inp;
+  }
+
+  function aiInputs(self, foe, difficulty) {
+    const d = DIFFICULTIES[difficulty] || DIFFICULTIES.medio;
+    if (self.stance === "ko" || isLockedStance(self.stance)) {
+      aiHeld = blankInputs();
+      return finalizeAi(blankInputs());
+    }
+    if (aiCooldown > 0) {
+      aiCooldown--;
+      // Keep walking decision alive between thinks (no attacks during cooldown)
+      const cont = blankInputs();
+      cont.left = aiHeld.left; cont.right = aiHeld.right;
+      cont.down = aiHeld.down;
+      return finalizeAi(cont);
+    }
+
+    const inp = blankInputs();
+    const dx = foe.x - self.x;
+    const adx = Math.abs(dx);
+    const towardLeft = dx < 0;
+
+    // Block when foe is mid-attack and close
+    if (adx < 150 && isAttackingStance(foe.stance) && Math.random() < d.blockChance) {
+      inp.down = true;
+      aiHeld = inp;
+      aiCooldown = 6 + (Math.random() * 6 | 0);
+      return finalizeAi(inp);
+    }
+
+    // Whiff-punish: foe just finished attacking and is in recovery
+    if (d.whiffPunish && adx < 200 && foe.stance === "idle" && self.cd.punch === 0 && Math.random() < 0.55) {
+      if (towardLeft) inp.left = true; else inp.right = true;
+      inp.punch = true;
+      aiHeld = inp;
+      aiCooldown = d.reactionMin;
+      return finalizeAi(inp);
+    }
+
+    // Approach if too far
+    if (adx > d.approachThresh) {
+      const wrong = Math.random() < d.wrongDirChance;
+      if (wrong) {
+        if (towardLeft) inp.right = true; else inp.left = true;
+      } else {
+        if (towardLeft) inp.left = true; else inp.right = true;
+      }
+      // occasional jump-in
+      if (Math.random() < d.jumpChance) inp.up = true;
+      aiHeld = inp;
+      aiCooldown = (d.reactionMin + Math.random() * (d.reactionMax - d.reactionMin)) | 0;
+      return finalizeAi(inp);
+    }
+
+    // In range — pick an attack. Roll once, then prefer the highest-priority
+    // available move under that roll (special > kick > punch).
+    const r = Math.random();
+    let chose = false;
+    if (r < d.specialChance && self.cd.special === 0) {
+      inp.special = true; chose = true;
+    } else if (r < d.specialChance + d.kickChance && self.cd.kick === 0) {
+      inp.kick = true; chose = true;
+    } else if (r < d.atkChance && self.cd.punch === 0) {
+      inp.punch = true; chose = true;
+    } else if (self.cd.punch === 0 && Math.random() < 0.5) {
+      // Fallback: if no roll matched but punch is ready, swing anyway —
+      // prevents the CPU from staring at the player when in range.
+      inp.punch = true; chose = true;
+    } else {
+      // small back-step / spacing
+      if (Math.random() < 0.3) {
+        if (towardLeft) inp.right = true; else inp.left = true;
+      }
+    }
+    aiHeld = inp;
+    aiCooldown = chose
+      ? (d.reactionMin + 4 + Math.random() * (d.reactionMax - d.reactionMin)) | 0
+      : (d.reactionMin + Math.random() * (d.reactionMax - d.reactionMin)) | 0;
+    return finalizeAi(inp);
+  }
+
+  function blankInputs() {
+    return { left:false, right:false, up:false, down:false, punch:false, kick:false, special:false,
+             punchEdge:false, kickEdge:false, specialEdge:false };
+  }
+
+  // ============================================================
+  // FIGHTER FACTORY
+  // ============================================================
+  function makeFighter(spec, side) {
+    return {
+      spec, side,
+      x: side === "p1" ? 280 : W - 280,
+      y: GROUND_Y, vx: 0, vy: 0,
+      hp: MAX_HP, maxHp: MAX_HP,
+      facing: side === "p1" ? 1 : -1,
+      stance: "idle", stanceT: 0, stanceDur: 0,
+      attackKind: null, hitConnected: false,
+      cd: { punch: 0, kick: 0, special: 0 },
+      onGround: true, blocking: false,
+      flash: 0,
+    };
+  }
+
+  function newMatch() {
+    p1 = makeFighter(ZE, "p1");
+    p2 = makeFighter(CAPITAO, "p2");
+    round = 1;
+    wins.p1 = 0; wins.p2 = 0;
+    timer = ROUND_TIME;
+    phase = "ready"; phaseT = 0;
+    lastWinner = null;
+    effects.length = 0;
+    shake = 0; hitstop = 0;
+    aiCooldown = 0; aiHeld = blankInputs();
+    inputState.p1 = blankInputs();
+    inputState.p2 = blankInputs();
+    paused = false;
+    hidePauseModal();
+    hideEndActions();
+    showPauseBtn();
+  }
+
+  // Title menu → difficulty button click goes here
+  function startSelect(difficulty) {
+    if (difficulty) currentDifficulty = difficulty;
+    hideMenu();
+    showSelect();
+    phase = "select";
+    phaseT = 0;
+  }
+
+  // Character select → card click goes here
+  function startMatch(side) {
+    playerSide = (side === "p2") ? "p2" : "p1";
+    hideSelect();
+    hidePauseBtn();   // showPauseBtn fires at the bottom of newMatch
+    newMatch();
+  }
+
+  function backToTitle() {
+    phase = "title";
+    phaseT = 0;
+    paused = false;
+    hidePauseModal();
+    hideEndActions();
+    hidePauseBtn();
+    hideSelect();
+    showMenu();
+  }
+
+  // Replay same matchup, same difficulty, same character pick
+  function replayMatch() {
+    hideEndActions();
+    newMatch();
+  }
+
+  // ---------- DOM helpers ----------
+  function el(id) { return document.getElementById(id); }
+  function showMenu()         { const m = el("menu");        if (m){ m.classList.add("show");    m.setAttribute("aria-hidden", "false"); } }
+  function hideMenu()         { const m = el("menu");        if (m){ m.classList.remove("show"); m.setAttribute("aria-hidden", "true");  } }
+  function showSelect()       { const m = el("select");      if (m){ m.classList.add("show");    m.setAttribute("aria-hidden", "false"); } }
+  function hideSelect()       { const m = el("select");      if (m){ m.classList.remove("show"); m.setAttribute("aria-hidden", "true");  } }
+  function showPauseBtn()     { const m = el("pause-btn");   if (m){ m.hidden = false; } }
+  function hidePauseBtn()     { const m = el("pause-btn");   if (m){ m.hidden = true;  } }
+  function showPauseModal()   { const m = el("pause-modal"); if (m){ m.classList.add("show"); } }
+  function hidePauseModal()   { const m = el("pause-modal"); if (m){ m.classList.remove("show"); } }
+  function showEndActions()   { const m = el("end-actions"); if (m){ m.classList.add("show"); } }
+  function hideEndActions()   { const m = el("end-actions"); if (m){ m.classList.remove("show"); } }
+
+  function resetForNextRound() {
+    p1 = makeFighter(ZE, "p1");
+    p2 = makeFighter(CAPITAO, "p2");
+    timer = ROUND_TIME;
+    phase = "ready"; phaseT = 0;
+    effects.length = 0;
+    shake = 0; hitstop = 0;
+  }
+
+  // ============================================================
+  // INPUT — single player (Zé). Arrows + A/S/D.
+  // P2 (Capitão) is driven by the CPU.
+  // ============================================================
+  const KEYMAP_P1 = {
+    ArrowLeft: "left", ArrowRight: "right", ArrowUp: "up", ArrowDown: "down",
+    KeyA: "punch", KeyS: "kick", KeyD: "special",
+  };
+
+  // edge-detect prev-frame state
+  const prevHeld = { p1: blankInputs(), p2: blankInputs() };
+
+  document.addEventListener("keydown", (e) => {
+    if (e.repeat) return;
+    if (KEYMAP_P1[e.code]) { inputState.p1[KEYMAP_P1[e.code]] = true; e.preventDefault(); }
+    if (e.code === "Escape") {
+      if (phase === "fight" || phase === "ready" || phase === "roundEnd") {
+        if (paused) { paused = false; hidePauseModal(); }
+        else { paused = true; showPauseModal(); }
+        e.preventDefault();
+      } else if (phase === "select") {
+        hideSelect(); phase = "title"; phaseT = 0; showMenu();
+      }
+    }
+    if (e.code === "Enter") {
+      if (phase === "title") { startSelect("medio"); }
+      else if (phase === "select") { startMatch(playerSide); }
+      else if (phase === "matchEnd" && phaseT > 60) { replayMatch(); }
+    }
+    // Quick character pick from the keyboard during select
+    if (phase === "select") {
+      if (e.code === "ArrowLeft")  playerSide = "p1";
+      if (e.code === "ArrowRight") playerSide = "p2";
+    }
+  }, { passive: false });
+
+  document.addEventListener("keyup", (e) => {
+    if (KEYMAP_P1[e.code]) { inputState.p1[KEYMAP_P1[e.code]] = false; e.preventDefault(); }
+  }, { passive: false });
+
+  function refreshEdges() {
+    for (const side of ["p1", "p2"]) {
+      const cur = inputState[side];
+      const prv = prevHeld[side];
+      cur.punchEdge   = cur.punch   && !prv.punch;
+      cur.kickEdge    = cur.kick    && !prv.kick;
+      cur.specialEdge = cur.special && !prv.special;
+      prv.punch = cur.punch; prv.kick = cur.kick; prv.special = cur.special;
+      prv.left = cur.left; prv.right = cur.right; prv.up = cur.up; prv.down = cur.down;
+    }
+  }
+
+  // ============================================================
+  // ENGINE
+  // ============================================================
+  function isAttackingStance(s) { return s === "punch" || s === "kick" || s === "special"; }
+  function isLockedStance(s) { return isAttackingStance(s) || s === "hurt"; }
+
+  function startStance(f, stance, dur, kind) {
+    f.stance = stance;
+    f.stanceT = 0;
+    f.stanceDur = dur;
+    f.attackKind = kind || null;
+    f.hitConnected = false;
+  }
+
+  function applyInputs(f, inp) {
+    if (f.cd.punch > 0) f.cd.punch--;
+    if (f.cd.kick > 0) f.cd.kick--;
+    if (f.cd.special > 0) f.cd.special--;
+    if (f.flash > 0) f.flash--;
+
+    if (f.stance === "ko") { f.vx *= 0.85; return; }
+    if (isLockedStance(f.stance)) { f.vx *= 0.88; return; }
+
+    // Attack triggers (edge-detected, ground only, priority special > kick > punch)
+    if (f.onGround) {
+      if (inp.specialEdge && f.cd.special === 0) {
+        const m = MOVES.special;
+        startStance(f, "special", m.total, "special");
+        f.cd.special = m.cd; f.vx = 0; return;
+      }
+      if (inp.kickEdge && f.cd.kick === 0) {
+        const m = MOVES.kick;
+        startStance(f, "kick", m.total, "kick");
+        f.cd.kick = m.cd; f.vx = 0; return;
+      }
+      if (inp.punchEdge && f.cd.punch === 0) {
+        const m = MOVES.punch;
+        startStance(f, "punch", m.total, "punch");
+        f.cd.punch = m.cd; f.vx = 0; return;
+      }
+    }
+
+    // Block: down + no horizontal + on ground
+    f.blocking = !!inp.down && f.onGround && !inp.left && !inp.right;
+
+    // Movement
+    let target = 0;
+    if (!f.blocking) {
+      if (inp.left)  target -= f.spec.speed;
+      if (inp.right) target += f.spec.speed;
+    }
+    if (f.onGround) {
+      f.vx = target;
+    } else {
+      f.vx += (target - f.vx) * 0.10;
+    }
+
+    // Jump
+    if (inp.up && f.onGround && !f.blocking) {
+      f.vy = f.spec.jumpV;
+      f.onGround = false;
+    }
+
+    // Stance label
+    if (!f.onGround) f.stance = "jump";
+    else if (f.blocking) f.stance = "block";
+    else if (Math.abs(f.vx) > 5) f.stance = "walk";
+    else f.stance = "idle";
+  }
+
+  function integrate(f) {
+    if (!f.onGround) f.vy += 1800 * TICK_DT;
+    f.x += f.vx * TICK_DT;
+    f.y += f.vy * TICK_DT;
+    if (f.x < WALL_L + FW / 2) f.x = WALL_L + FW / 2;
+    if (f.x > WALL_R - FW / 2) f.x = WALL_R - FW / 2;
+    if (f.y >= GROUND_Y) {
+      f.y = GROUND_Y; f.vy = 0;
+      if (!f.onGround) {
+        f.onGround = true;
+        spawnDust(f.x, GROUND_Y, 6);
+      }
+    } else f.onGround = false;
+
+    if (isLockedStance(f.stance)) {
+      f.stanceT++;
+      if (f.stanceT >= f.stanceDur) {
+        f.stance = "idle"; f.stanceT = 0; f.stanceDur = 0; f.attackKind = null;
+      }
+    }
+  }
+
+  // Push fighters apart so they can't occupy the same space on the ground.
+  // Lets jumps pass over (preserves cross-up potential) and skips KO'd bodies.
+  function resolveBodyCollision() {
+    if (p1.stance === "ko" || p2.stance === "ko") return;
+    if (!p1.onGround || !p2.onGround) return;
+    const dx = p2.x - p1.x;
+    const dist = Math.abs(dx);
+    if (dist >= FW) return;
+    const overlap = FW - dist;
+    const sign = dx >= 0 ? 1 : -1;
+    p1.x -= (overlap / 2) * sign;
+    p2.x += (overlap / 2) * sign;
+    // If a wall absorbed one fighter's push, give the rest of the push to the other.
+    const minX = WALL_L + FW / 2;
+    const maxX = WALL_R - FW / 2;
+    if (p1.x < minX) { p2.x += (minX - p1.x) * sign; p1.x = minX; }
+    else if (p1.x > maxX) { p2.x -= (p1.x - maxX) * sign; p1.x = maxX; }
+    if (p2.x < minX) { p1.x -= (minX - p2.x) * sign; p2.x = minX; }
+    else if (p2.x > maxX) { p1.x += (p2.x - maxX) * sign; p2.x = maxX; }
+    p1.x = Math.max(minX, Math.min(maxX, p1.x));
+    p2.x = Math.max(minX, Math.min(maxX, p2.x));
+  }
+
+  function attackHitbox(f) {
+    if (!isAttackingStance(f.stance) || !f.attackKind) return null;
+    const m = MOVES[f.attackKind];
+    if (f.stanceT < m.startup) return null;
+    if (f.stanceT >= m.startup + m.active) return null;
+    const fx = f.facing === 1 ? f.x + FW / 2 : f.x - FW / 2 - m.range;
+    return { x: fx, y: f.y - FH + 14, w: m.range, h: m.reach };
+  }
+
+  function bodyBox(f) {
+    return { x: f.x - FW / 2, y: f.y - FH, w: FW, h: FH };
+  }
+
+  function rectOverlap(a, b) {
+    return a.x < b.x + b.w && a.x + a.w > b.x && a.y < b.y + b.h && a.y + a.h > b.y;
+  }
+
+  function resolveHits() {
+    const pairs = [[p1, p2], [p2, p1]];
+    for (const [att, def] of pairs) {
+      const hb = attackHitbox(att);
+      if (!hb || att.hitConnected || !att.attackKind) continue;
+      const body = bodyBox(def);
+      if (!rectOverlap(hb, body)) continue;
+      if (def.stance === "ko") continue;
+
+      att.hitConnected = true;
+      const m = MOVES[att.attackKind];
+      const attFromFront = (att.x - def.x) * def.facing > 0;
+      const blocked = def.blocking && attFromFront && def.onGround;
+      const dmg = blocked ? Math.max(1, Math.round(m.dmg * 0.2)) : m.dmg;
+      def.hp = Math.max(0, def.hp - dmg);
+      def.flash = 6;
+      const dir = att.facing;
+      const cx = hb.x + hb.w / 2, cy = hb.y + hb.h / 2;
+
+      if (blocked) {
+        def.vx = dir * 90;
+        spawnSpark(cx, cy, "#9cc6ff");
+        spawnText(cx, cy - 10, "BLOQUEIO!", "#9cc6ff");
+        shake = Math.max(shake, 2);
+        hitstop = Math.max(hitstop, 2);
+      } else {
+        def.vx = dir * m.knockX;
+        def.vy = m.knockY;
+        def.onGround = false;
+        startStance(def, "hurt", 14);
+        spawnSpark(cx, cy, "#ffd84a");
+        spawnComic(cx, cy, randomComicWord(att.attackKind));
+        if (att.attackKind === "special") spawnAura(att);
+        shake = Math.max(shake, m.shake);
+        hitstop = Math.max(hitstop, m.hitstop);
+
+        if (def.hp <= 0) {
+          startStance(def, "ko", 9999);
+          def.vy = -380;
+          def.vx = dir * 220;
+          def.onGround = false;
+          spawnComic(cx, cy - 30, "K.O.!", true);
+          shake = Math.max(shake, 18);
+          hitstop = Math.max(hitstop, 22);
+        }
+      }
+    }
+  }
+
+  function updateFacing() {
+    for (const [a, b] of [[p1, p2], [p2, p1]]) {
+      if (isLockedStance(a.stance) || a.stance === "ko") continue;
+      a.facing = b.x > a.x ? 1 : -1;
+    }
+  }
+
+  function endRoundCheck() {
+    if (phase !== "fight") return;
+    let winner = null;
+    if (p1.hp <= 0 && p2.hp <= 0) winner = "draw";
+    else if (p1.hp <= 0) winner = "p2";
+    else if (p2.hp <= 0) winner = "p1";
+    else if (timer <= 0) {
+      if (p1.hp > p2.hp) winner = "p1";
+      else if (p2.hp > p1.hp) winner = "p2";
+      else winner = "draw";
+    }
+    if (winner !== null) {
+      lastWinner = winner;
+      if (winner === "p1") wins.p1++;
+      else if (winner === "p2") wins.p2++;
+      phase = "roundEnd"; phaseT = 0;
+    }
+  }
+
+  function step() {
+    if (paused) return;
+    if (hitstop > 0) { hitstop--; updateEffects(); return; }
+    refreshEdges();
+
+    if (phase === "title") {
+      titlePulse += TICK_DT;
+      return;
+    }
+
+    if (phase === "ready") {
+      phaseT++;
+      applyInputs(p1, blankInputs());
+      applyInputs(p2, blankInputs());
+      integrate(p1); integrate(p2);
+      updateFacing();
+      updateEffects();
+      if (phaseT >= READY_FRAMES) { phase = "fight"; phaseT = 0; }
+      return;
+    }
+
+    if (phase === "roundEnd") {
+      phaseT++;
+      applyInputs(p1, blankInputs());
+      applyInputs(p2, blankInputs());
+      integrate(p1); integrate(p2);
+      updateEffects();
+      if (phaseT >= ROUND_END_FRAMES) {
+        if (wins.p1 >= WINS_TO_WIN || wins.p2 >= WINS_TO_WIN) {
+          phase = "matchEnd"; phaseT = 0;
+          hidePauseBtn();
+        } else {
+          round++;
+          resetForNextRound();
+        }
+      }
+      return;
+    }
+
+    if (phase === "matchEnd") {
+      phaseT++;
+      updateEffects();
+      // Show the end buttons after the K.O. settles
+      if (phaseT === 60) showEndActions();
+      return;
+    }
+
+    // ===== FIGHT =====
+    // The human always uses inputState.p1 — we just route it to whichever
+    // fighter they picked, and let the AI drive the other.
+    if (playerSide === "p1") {
+      applyInputs(p1, inputState.p1);
+      applyInputs(p2, aiInputs(p2, p1, currentDifficulty));
+    } else {
+      applyInputs(p1, aiInputs(p1, p2, currentDifficulty));
+      applyInputs(p2, inputState.p1);
+    }
+    integrate(p1); integrate(p2);
+    resolveBodyCollision();
+    updateFacing();
+    resolveHits();
+    updateEffects();
+
+    timer -= TICK_DT;
+    if (timer < 0) timer = 0;
+    endRoundCheck();
+  }
+
+  // ============================================================
+  // EFFECTS
+  // ============================================================
+  function spawnComic(x, y, text, big) {
+    effects.push({
+      kind: "comic", x, y, text,
+      life: 26, max: 26, rot: (Math.random() - 0.5) * 0.5,
+      big: !!big,
+    });
+  }
+  function spawnSpark(x, y, color) {
+    for (let i = 0; i < 14; i++) {
+      const a = Math.random() * Math.PI * 2;
+      const v = 220 + Math.random() * 220;
+      effects.push({
+        kind: "spark", x, y,
+        vx: Math.cos(a) * v, vy: Math.sin(a) * v - 80,
+        life: 22 + Math.random() * 10, max: 30, color,
+      });
+    }
+  }
+  function spawnDust(x, y, n) {
+    for (let i = 0; i < n; i++) {
+      const a = (Math.random() - 0.5) * Math.PI;
+      const v = 80 + Math.random() * 100;
+      effects.push({
+        kind: "dust", x, y,
+        vx: Math.cos(a) * v * (Math.random() < 0.5 ? -1 : 1),
+        vy: -Math.abs(Math.sin(a) * v) * 0.6,
+        life: 14 + Math.random() * 8, max: 22,
+        color: "rgba(220, 200, 160, 0.85)",
+      });
+    }
+  }
+  function spawnText(x, y, text, color) {
+    effects.push({ kind: "text", x, y, text, color, life: 32, max: 32, rise: 0 });
+  }
+  function spawnAura(f) {
+    effects.push({ kind: "aura", f, life: 18, max: 18 });
+  }
+
+  function updateEffects() {
+    for (const e of effects) {
+      if (e.kind === "comic") { e.life--; }
+      else if (e.kind === "spark") {
+        e.vy += 1500 * TICK_DT;
+        e.x += e.vx * TICK_DT; e.y += e.vy * TICK_DT;
+        e.life--;
+      } else if (e.kind === "dust") {
+        e.x += e.vx * TICK_DT; e.y += e.vy * TICK_DT;
+        e.vy += 200 * TICK_DT;
+        e.life--;
+      } else if (e.kind === "text") {
+        e.rise += 1; e.life--;
+      } else if (e.kind === "aura") { e.life--; }
+    }
+    for (let i = effects.length - 1; i >= 0; i--) if (effects[i].life <= 0) effects.splice(i, 1);
+    if (shake > 0) shake = Math.max(0, shake - 1);
+  }
+
+  const COMIC_WORDS_PUNCH = ["PAU!", "SOCO!", "ÔPA!", "VAPT!"];
+  const COMIC_WORDS_KICK = ["TCHAU!", "BIFE!", "CHUTÃO!", "PÁ!"];
+  const COMIC_WORDS_SPECIAL = ["PORRADA!", "ÊITA!", "BUM!", "CARAMBA!"];
+  function randomComicWord(kind) {
+    const arr = kind === "punch" ? COMIC_WORDS_PUNCH
+              : kind === "kick" ? COMIC_WORDS_KICK
+              : COMIC_WORDS_SPECIAL;
+    return arr[(Math.random() * arr.length) | 0];
+  }
+
+  // ============================================================
+  // CROWD INIT
+  // ============================================================
+  function buildCrowd() {
+    crowd.length = 0;
+    const colors = ["#1f2a44", "#2c1f44", "#43293f", "#2d3a52", "#1f3a35"];
+    for (let i = 0; i < 38; i++) {
+      crowd.push({
+        x: 30 + i * (W - 60) / 37 + (Math.random() - 0.5) * 8,
+        baseY: GROUND_Y + 16 + (Math.random() * 6),
+        r: 9 + Math.random() * 3,
+        phase: Math.random() * Math.PI * 2,
+        speed: 1.6 + Math.random() * 1.4,
+        color: colors[i % colors.length],
+      });
+    }
+  }
+
+  // ============================================================
+  // RENDER
+  // ============================================================
+  function render() {
+    const sx = (Math.random() - 0.5) * shake;
+    const sy = (Math.random() - 0.5) * shake;
+
+    ctx.save();
+    ctx.translate(sx, sy);
+
+    drawSky();
+    drawDistantSkyline();
+    drawCongressBuilding();
+    drawEsplanada();
+    drawCrowd();
+    drawGround();
+
+    if (phase === "title" || phase === "select") {
+      // Both phases show the marquee title art behind their HTML overlay
+      drawTitle();
+    } else {
+      // Active attacker draws on top so the punching arm / kicking leg overlaps
+      // the opponent's body. Otherwise back-to-front by x.
+      let order;
+      const a1 = isAttackingStance(p1.stance);
+      const a2 = isAttackingStance(p2.stance);
+      if (a1 && !a2) order = [p2, p1];
+      else if (a2 && !a1) order = [p1, p2];
+      else order = p1.x <= p2.x ? [p1, p2] : [p2, p1];
+      drawFighter(order[0]);
+      drawFighter(order[1]);
+      drawAuras();
+      drawEffects();
+      drawHud();
+      drawPhaseOverlay();
+    }
+
+    ctx.restore();
+
+    // hit flash on top
+    if (p1 && p1.flash > 3 && phase !== "title") {
+      ctx.fillStyle = "rgba(255,255,255,0.06)";
+      ctx.fillRect(0, 0, W, H);
+    }
+  }
+
+  // ---------- BACKGROUND ----------
+  function drawSky() {
+    const g = ctx.createLinearGradient(0, 0, 0, H);
+    g.addColorStop(0, "#ff9b3a");
+    g.addColorStop(0.35, "#ff5a8a");
+    g.addColorStop(0.7, "#5b3a8a");
+    g.addColorStop(1, "#1a1d3a");
+    ctx.fillStyle = g;
+    ctx.fillRect(0, 0, W, H);
+
+    // Sun
+    ctx.fillStyle = "rgba(255, 230, 140, 0.95)";
+    ctx.beginPath(); ctx.arc(W * 0.7, 130, 60, 0, Math.PI * 2); ctx.fill();
+    ctx.fillStyle = "rgba(255, 230, 140, 0.25)";
+    ctx.beginPath(); ctx.arc(W * 0.7, 130, 90, 0, Math.PI * 2); ctx.fill();
+
+    // clouds
+    ctx.fillStyle = "rgba(255, 230, 200, 0.55)";
+    drawCloud(160, 90, 60);
+    drawCloud(420, 60, 40);
+    drawCloud(820, 110, 50);
+  }
+  function drawCloud(cx, cy, r) {
+    ctx.beginPath();
+    ctx.arc(cx, cy, r, 0, Math.PI * 2);
+    ctx.arc(cx + r * 0.7, cy + 4, r * 0.8, 0, Math.PI * 2);
+    ctx.arc(cx - r * 0.7, cy + 4, r * 0.7, 0, Math.PI * 2);
+    ctx.fill();
+  }
+
+  function drawDistantSkyline() {
+    ctx.fillStyle = "rgba(15, 20, 40, 0.55)";
+    const heights = [42, 60, 36, 78, 54, 30, 88, 50, 64, 40, 70, 46, 58, 36, 72, 48, 90, 44];
+    let cur = 0;
+    for (let i = 0; i < heights.length; i++) {
+      const w = 56;
+      ctx.fillRect(cur, GROUND_Y - 110 - heights[i] * 0.3, w, heights[i] + 110);
+      cur += w;
+    }
+  }
+
+  function drawCongressBuilding() {
+    const cx = W / 2;
+    const baseY = GROUND_Y - 16;
+
+    // Reflection pool (subtle)
+    ctx.fillStyle = "rgba(80, 120, 180, 0.35)";
+    ctx.fillRect(cx - 320, baseY - 4, 640, 6);
+
+    // Slab base (long horizontal)
+    ctx.fillStyle = "#f3efe1";
+    ctx.fillRect(cx - 300, baseY - 36, 600, 36);
+    ctx.strokeStyle = "rgba(0,0,0,0.2)";
+    ctx.lineWidth = 1;
+    ctx.strokeRect(cx - 300, baseY - 36, 600, 36);
+
+    // Slab columns / window stripes
+    ctx.fillStyle = "rgba(0,0,0,0.25)";
+    for (let i = 0; i < 24; i++) {
+      ctx.fillRect(cx - 290 + i * 25, baseY - 30, 1.5, 24);
+    }
+
+    // Twin towers (Congresso)
+    ctx.fillStyle = "#f8f4e6";
+    ctx.fillRect(cx - 14, baseY - 220, 11, 184);
+    ctx.fillRect(cx + 3, baseY - 220, 11, 184);
+    // Tower windows
+    ctx.fillStyle = "rgba(80, 100, 140, 0.55)";
+    for (let i = 0; i < 22; i++) {
+      ctx.fillRect(cx - 12, baseY - 215 + i * 8, 7, 4);
+      ctx.fillRect(cx + 5, baseY - 215 + i * 8, 7, 4);
+    }
+
+    // Senate dome (regular hemisphere) on LEFT
+    ctx.fillStyle = "#f3efe1";
+    ctx.beginPath();
+    ctx.moveTo(cx - 180, baseY - 36);
+    ctx.arc(cx - 130, baseY - 36, 50, Math.PI, 0, false);
+    ctx.lineTo(cx - 80, baseY - 36);
+    ctx.closePath();
+    ctx.fill();
+    ctx.strokeStyle = "rgba(0,0,0,0.2)";
+    ctx.stroke();
+
+    // Chamber bowl (inverted hemisphere) on RIGHT
+    ctx.fillStyle = "#f3efe1";
+    ctx.beginPath();
+    ctx.moveTo(cx + 80, baseY - 36);
+    ctx.lineTo(cx + 80, baseY - 86);
+    ctx.arc(cx + 130, baseY - 86, 50, Math.PI, 0, true);
+    ctx.lineTo(cx + 180, baseY - 36);
+    ctx.closePath();
+    ctx.fill();
+    ctx.stroke();
+
+    // Brazilian flag pole + flag, tiny on top of slab
+    ctx.fillStyle = "#444";
+    ctx.fillRect(cx - 270, baseY - 90, 1.5, 54);
+    drawTinyFlag(cx - 270, baseY - 88);
+  }
+
+  function drawTinyFlag(px, py) {
+    ctx.fillStyle = "#009c3b";
+    ctx.fillRect(px + 1, py, 22, 14);
+    ctx.fillStyle = "#ffdf00";
+    ctx.beginPath();
+    ctx.moveTo(px + 12, py + 2);
+    ctx.lineTo(px + 22, py + 7);
+    ctx.lineTo(px + 12, py + 12);
+    ctx.lineTo(px + 2, py + 7);
+    ctx.closePath();
+    ctx.fill();
+    ctx.fillStyle = "#002776";
+    ctx.beginPath(); ctx.arc(px + 12, py + 7, 3, 0, Math.PI * 2); ctx.fill();
+  }
+
+  function drawEsplanada() {
+    // Receding flagstones suggesting depth
+    ctx.fillStyle = "rgba(100, 90, 80, 0.5)";
+    ctx.fillRect(0, GROUND_Y - 12, W, 12);
+    ctx.fillStyle = "rgba(0, 0, 0, 0.18)";
+    for (let i = 0; i < 30; i++) {
+      ctx.fillRect((i * W / 30) | 0, GROUND_Y - 12, 1, 12);
+    }
+  }
+
+  function drawCrowd() {
+    for (const c of crowd) {
+      const bob = Math.sin(timeNow * c.speed + c.phase) * 3;
+      ctx.fillStyle = c.color;
+      ctx.beginPath();
+      ctx.arc(c.x, c.baseY + bob, c.r, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.fillRect(c.x - c.r, c.baseY + bob, c.r * 2, c.r + 4);
+      // occasional waving stick
+      if ((c.phase * 7 | 0) % 4 === 0) {
+        ctx.fillStyle = "#ffdf00";
+        ctx.fillRect(c.x - 1, c.baseY + bob - c.r - 14, 2, 14);
+      }
+    }
+  }
+
+  function drawGround() {
+    // arena floor
+    ctx.fillStyle = "#221a14";
+    ctx.fillRect(0, GROUND_Y, W, H - GROUND_Y);
+    // floor stripes
+    ctx.fillStyle = "#332720";
+    for (let i = 0; i < 12; i++) ctx.fillRect(0, GROUND_Y + 6 + i * 8, W, 1);
+    // green/yellow ring border on arena
+    ctx.fillStyle = "#009c3b";
+    ctx.fillRect(0, GROUND_Y, W, 4);
+    ctx.fillStyle = "#ffdf00";
+    ctx.fillRect(0, GROUND_Y + 4, W, 2);
+  }
+
+  // ---------- FIGHTER ----------
+  function drawFighter(f) {
+    const t = timeNow;
+    ctx.save();
+    ctx.translate(f.x, f.y);
+    ctx.scale(f.facing, 1);
+
+    // shadow
+    ctx.fillStyle = "rgba(0, 0, 0, 0.4)";
+    ctx.beginPath();
+    ctx.ellipse(0, 0, 34, 8, 0, 0, Math.PI * 2);
+    ctx.fill();
+
+    if (f.spec.key === "ze") drawZe(f, t);
+    else drawCapitao(f, t);
+
+    // hit flash overlay (white)
+    if (f.flash > 0) {
+      ctx.globalCompositeOperation = "source-atop";
+      ctx.fillStyle = `rgba(255, 255, 255, ${0.5 * (f.flash / 6)})`;
+      ctx.fillRect(-FW, -FH - 10, FW * 2, FH + 20);
+      ctx.globalCompositeOperation = "source-over";
+    }
+
+    ctx.restore();
+  }
+
+  function poseOffsets(f, t) {
+    // returns body bob, leg shuffle phase, lean
+    let bob = 0, legShuffle = 0, lean = 0, crouchY = 0;
+    if (f.stance === "idle") bob = Math.sin(t * 3) * 1.2;
+    else if (f.stance === "walk") {
+      bob = Math.abs(Math.sin(t * 12)) * -2;
+      legShuffle = Math.sin(t * 12);
+    } else if (f.stance === "jump") bob = -2;
+    else if (f.stance === "block") { crouchY = 8; bob = 0; }
+    else if (f.stance === "hurt") { lean = -6; bob = 4; }
+    else if (f.stance === "ko") { lean = 0; }
+    return { bob, legShuffle, lean, crouchY };
+  }
+
+  function attackPhase(f) {
+    // returns 'startup', 'active', 'recovery', or null
+    if (!isAttackingStance(f.stance) || !f.attackKind) return null;
+    const m = MOVES[f.attackKind];
+    if (f.stanceT < m.startup) return "startup";
+    if (f.stanceT < m.startup + m.active) return "active";
+    return "recovery";
+  }
+
+  // ---------- ZÉ DA ESQUERDA (Lula parody) ----------
+  // Short rotund body with massive belly bulge. All curves, no rectangles.
+  function drawZe(f, t) {
+    const s = f.spec;
+    const off = poseOffsets(f, t);
+    const yShift = off.bob + off.lean + off.crouchY;
+    const ph = attackPhase(f);
+    if (f.stance === "ko") { drawZeKO(f); return; }
+
+    // Anatomy keypoints (local to fighter — y=0 is feet, y=-FH is top of head)
+    const cyHead = -FH + 22 + yShift;       // head center y
+    const rHead  = 24;                       // head radius
+    const yShoulder = cyHead + rHead - 6;   // shoulder line (ABOVE neck base)
+    const yBelly = -32 + yShift;            // widest belly point
+    const yWaist = -16 + yShift;            // belt line
+    const halfShoulder = 26;
+    const halfBelly = 38;                    // wide rotund belly
+    const halfWaist = 32;
+
+    // Legs first so they sit behind the body
+    drawZeLegs(f, off, yShift);
+
+    // Aura (behind body)
+    if (ph === "active" && f.attackKind === "special") {
+      ctx.save();
+      ctx.globalAlpha = 0.45;
+      const r = 60 + Math.sin(t * 30) * 4;
+      ctx.fillStyle = gradRad3(0, cyHead + 24, r,
+        "rgba(255, 230, 102, 0.9)", "rgba(255, 80, 80, 0.5)", "rgba(0,0,0,0)");
+      ctx.beginPath(); ctx.arc(0, cyHead + 24, r, 0, Math.PI * 2); ctx.fill();
+      ctx.restore();
+    }
+
+    // ----- Body silhouette: rotund pear shape with big belly -----
+    // Single closed path traced clockwise from left shoulder.
+    ctx.beginPath();
+    ctx.moveTo(-halfShoulder, yShoulder);
+    // Left shoulder slope
+    ctx.bezierCurveTo(
+      -halfShoulder - 4, yShoulder + 6,
+      -halfBelly + 2, yBelly - 12,
+      -halfBelly, yBelly
+    );
+    // Left belly arc out and down
+    ctx.bezierCurveTo(
+      -halfBelly + 1, yBelly + 12,
+      -halfWaist - 3, yWaist - 4,
+      -halfWaist, yWaist
+    );
+    // Across belt
+    ctx.lineTo(halfWaist, yWaist);
+    // Right side mirror
+    ctx.bezierCurveTo(
+      halfWaist + 3, yWaist - 4,
+      halfBelly - 1, yBelly + 12,
+      halfBelly, yBelly
+    );
+    ctx.bezierCurveTo(
+      halfBelly - 2, yBelly - 12,
+      halfShoulder + 4, yShoulder + 6,
+      halfShoulder, yShoulder
+    );
+    // Top of shoulders with neck cutout
+    ctx.lineTo(8, yShoulder);
+    ctx.quadraticCurveTo(0, yShoulder + 5, -8, yShoulder);
+    ctx.closePath();
+
+    // Fill with horizontal-ish gradient (mid-tone center, dark edges)
+    ctx.fillStyle = gradLin3(-halfBelly, 0, halfBelly, 0,
+      s.shirtDark, s.shirt, s.shirtLight);
+    ctx.fill();
+    outlinePath(1.5, "rgba(0,0,0,0.45)");
+
+    // Belly volume highlight (top-left, suggests big round form)
+    ctx.fillStyle = "rgba(255, 255, 255, 0.18)";
+    ctx.beginPath();
+    ctx.ellipse(-12, yBelly - 4, 16, 12, -0.3, 0, Math.PI * 2);
+    ctx.fill();
+    // Belly curve underline shadow
+    ctx.fillStyle = "rgba(0, 0, 0, 0.18)";
+    ctx.beginPath();
+    ctx.ellipse(0, yBelly + 14, halfBelly - 4, 6, 0, 0, Math.PI);
+    ctx.fill();
+
+    // Arms (behind torso to allow front-arm overlap)
+    drawZeArms(f, ph, yShoulder, yBelly, off, s);
+
+    // Neck (skin)
+    ctx.fillStyle = gradLin(0, yShoulder - 8, 0, yShoulder + 4, s.skinHi, s.skinShade);
+    ctx.beginPath();
+    ctx.moveTo(-9, yShoulder + 2);
+    ctx.quadraticCurveTo(-9, yShoulder - 6, -7, cyHead + rHead - 4);
+    ctx.lineTo(7, cyHead + rHead - 4);
+    ctx.quadraticCurveTo(9, yShoulder - 6, 9, yShoulder + 2);
+    ctx.closePath();
+    ctx.fill();
+
+    // Shirt collar V-notch (over neck)
+    ctx.fillStyle = s.shirtDark;
+    ctx.beginPath();
+    ctx.moveTo(-9, yShoulder);
+    ctx.quadraticCurveTo(0, yShoulder + 9, 9, yShoulder);
+    ctx.lineTo(7, yShoulder + 1);
+    ctx.quadraticCurveTo(0, yShoulder + 6, -7, yShoulder + 1);
+    ctx.closePath();
+    ctx.fill();
+
+    // Belt (curved across the belly)
+    ctx.fillStyle = gradLin3(-halfWaist, yWaist, halfWaist, yWaist,
+      "#0a0604", s.belt, "#0a0604");
+    ctx.beginPath();
+    ctx.moveTo(-halfWaist - 2, yWaist - 4);
+    ctx.quadraticCurveTo(0, yWaist - 7, halfWaist + 2, yWaist - 4);
+    ctx.quadraticCurveTo(halfWaist + 2, yWaist + 3, halfWaist - 2, yWaist + 4);
+    ctx.lineTo(-halfWaist + 2, yWaist + 4);
+    ctx.quadraticCurveTo(-halfWaist - 2, yWaist + 3, -halfWaist - 2, yWaist - 4);
+    ctx.closePath();
+    ctx.fill();
+    outlinePath(1, "rgba(0,0,0,0.6)");
+    // Buckle (gold rounded square)
+    ctx.fillStyle = gradLin(-6, yWaist - 4, 6, yWaist + 4, "#fff5a8", "#c89018");
+    ctx.beginPath();
+    ctx.roundRect ? ctx.roundRect(-7, yWaist - 5, 14, 8, 2) : ctx.rect(-7, yWaist - 5, 14, 8);
+    ctx.fill();
+    outlinePath(1, "rgba(0,0,0,0.65)");
+
+    // PT WHITE STAR centered high on chest, above the belly bulge
+    drawZeStar(0, yBelly - 6);
+
+    // Head last (on top)
+    drawZeHead(f, cyHead, rHead, s);
+  }
+
+  function drawZeStar(cx, cy) {
+    const r = 12;
+    ctx.save();
+    ctx.translate(cx, cy);
+    // Shadow halo
+    ctx.fillStyle = "rgba(0, 0, 0, 0.25)";
+    drawStar(0, 1, r + 0.5, 5);
+    // White fill with subtle radial highlight
+    ctx.fillStyle = gradRad(-2, -3, r + 2, "#ffffff", "#dedede");
+    drawStar(0, 0, r, 5);
+    // Outline
+    ctx.lineWidth = 1.4;
+    ctx.strokeStyle = "rgba(60, 0, 0, 0.5)";
+    ctx.stroke();
+    ctx.restore();
+  }
+
+  function drawZeHead(f, cy, r, s) {
+    // ===== U-shaped grey hair ring (back/sides only, leaves bald top exposed) =====
+    // Drawn FIRST so the skin head sits on top, leaving only a sliver of grey
+    // visible around the temples/back of the dome.
+    ctx.fillStyle = gradLin(0, cy - r, 0, cy + r, s.hair, s.hairDark);
+    ctx.beginPath();
+    // Outer arc (around the back/sides)
+    ctx.arc(0, cy + 2, r + 1, Math.PI * 0.95, Math.PI * 0.05, false);
+    // Inner contour going back the other way (smaller)
+    ctx.bezierCurveTo(
+      r - 6, cy - r * 0.3,
+      r - 8, cy - r * 0.6,
+      r - 10, cy - r * 0.7
+    );
+    ctx.lineTo(-(r - 10), cy - r * 0.7);
+    ctx.bezierCurveTo(
+      -(r - 8), cy - r * 0.6,
+      -(r - 6), cy - r * 0.3,
+      -(r + 1), cy + 2 - r * 0.05
+    );
+    ctx.closePath();
+    ctx.fill();
+
+    // ===== Skin head (large round, with radial gradient for 3D feel) =====
+    ctx.fillStyle = gradRad3(-r * 0.4, cy - r * 0.4, r + 6,
+      s.skinHi, s.skin, s.skinShade);
+    ctx.beginPath();
+    ctx.arc(0, cy, r, 0, Math.PI * 2);
+    ctx.fill();
+    outlinePath(1.4, "rgba(40, 20, 0, 0.4)");
+
+    // Bald-top highlight (smooth dome)
+    ctx.fillStyle = "rgba(255, 255, 255, 0.18)";
+    ctx.beginPath();
+    ctx.ellipse(-4, cy - r * 0.55, r * 0.55, 6, -0.2, 0, Math.PI * 2);
+    ctx.fill();
+
+    // Cheek warmth (ruddy)
+    ctx.fillStyle = "rgba(200, 80, 60, 0.32)";
+    ctx.beginPath(); ctx.ellipse(-12, cy + 5, 7, 5, 0, 0, Math.PI * 2); ctx.fill();
+    ctx.beginPath(); ctx.ellipse(12,  cy + 5, 7, 5, 0, 0, Math.PI * 2); ctx.fill();
+
+    // Right-side shadow on face (depth)
+    ctx.fillStyle = "rgba(60, 30, 0, 0.18)";
+    ctx.beginPath();
+    ctx.ellipse(8, cy + 6, 12, 14, 0, 0, Math.PI * 2);
+    ctx.fill();
+
+    // Ears
+    ctx.fillStyle = gradLin(-r, cy, -r + 5, cy + 5, s.skinShade, s.skinDark);
+    ctx.beginPath();
+    ctx.ellipse(-r + 1, cy + 3, 3, 5, 0, 0, Math.PI * 2); ctx.fill();
+    ctx.fillStyle = gradLin(r - 5, cy, r, cy + 5, s.skin, s.skinShade);
+    ctx.beginPath();
+    ctx.ellipse(r - 1, cy + 3, 3, 5, 0, 0, Math.PI * 2); ctx.fill();
+
+    // ===== Eyebrows (thick grey, slightly upturned for warm feel) =====
+    ctx.fillStyle = s.hairDark;
+    ctx.beginPath();
+    ctx.moveTo(-15, cy - 6);
+    ctx.bezierCurveTo(-12, cy - 10, -6, cy - 9, -3, cy - 6);
+    ctx.lineTo(-3, cy - 3);
+    ctx.bezierCurveTo(-7, cy - 5, -12, cy - 4, -15, cy - 3);
+    ctx.closePath(); ctx.fill();
+    ctx.beginPath();
+    ctx.moveTo(15, cy - 6);
+    ctx.bezierCurveTo(12, cy - 10, 6, cy - 9, 3, cy - 6);
+    ctx.lineTo(3, cy - 3);
+    ctx.bezierCurveTo(7, cy - 5, 12, cy - 4, 15, cy - 3);
+    ctx.closePath(); ctx.fill();
+
+    // ===== Eyes (small, warm squint) =====
+    if (f.stance === "hurt") {
+      ctx.fillStyle = "#111";
+      ctx.fillRect(-9, cy, 5, 2);
+      ctx.fillRect(4, cy, 5, 2);
+    } else {
+      // Eye-socket subtle shadow
+      ctx.fillStyle = "rgba(60, 30, 0, 0.20)";
+      ctx.beginPath(); ctx.ellipse(-7, cy + 1, 5, 3, 0, 0, Math.PI * 2); ctx.fill();
+      ctx.beginPath(); ctx.ellipse(7, cy + 1, 5, 3, 0, 0, Math.PI * 2); ctx.fill();
+      // Whites of eyes — slightly squinting (lower portion only)
+      ctx.fillStyle = "#fdfdfd";
+      ctx.beginPath();
+      ctx.ellipse(-7, cy + 1, 4, 2.2, 0, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.beginPath();
+      ctx.ellipse(7, cy + 1, 4, 2.2, 0, 0, Math.PI * 2);
+      ctx.fill();
+      // Iris/pupil
+      ctx.fillStyle = "#1a1208";
+      ctx.beginPath(); ctx.arc(-7, cy + 1, 1.7, 0, Math.PI * 2); ctx.fill();
+      ctx.beginPath(); ctx.arc(7,  cy + 1, 1.7, 0, Math.PI * 2); ctx.fill();
+      // Eye highlights
+      ctx.fillStyle = "#fff";
+      ctx.beginPath(); ctx.arc(-6, cy + 0, 0.7, 0, Math.PI * 2); ctx.fill();
+      ctx.beginPath(); ctx.arc(8,  cy + 0, 0.7, 0, Math.PI * 2); ctx.fill();
+      // Crow's-feet wrinkles (the friendly squint)
+      ctx.strokeStyle = "rgba(60, 30, 0, 0.5)";
+      ctx.lineWidth = 0.9; ctx.lineCap = "round";
+      ctx.beginPath();
+      ctx.moveTo(-15, cy + 3); ctx.quadraticCurveTo(-13, cy + 2, -11, cy + 3);
+      ctx.moveTo(11, cy + 3);  ctx.quadraticCurveTo(13, cy + 2, 15, cy + 3);
+      ctx.stroke();
+      ctx.lineCap = "butt";
+    }
+
+    // ===== Bulbous nose =====
+    // Bridge
+    ctx.fillStyle = s.skinShade;
+    ctx.beginPath();
+    ctx.moveTo(-2, cy);
+    ctx.bezierCurveTo(-3, cy + 4, -3, cy + 7, -2, cy + 8);
+    ctx.lineTo(2, cy + 8);
+    ctx.bezierCurveTo(3, cy + 7, 3, cy + 4, 2, cy);
+    ctx.closePath();
+    ctx.fill();
+    // Round nose tip (the bulb)
+    ctx.fillStyle = gradRad(-1, cy + 7, 6, s.skinHi, s.skinShade);
+    ctx.beginPath();
+    ctx.arc(0, cy + 8, 5, 0, Math.PI * 2);
+    ctx.fill();
+    outlinePath(1, "rgba(0,0,0,0.3)");
+    // Nostrils
+    ctx.fillStyle = "rgba(0,0,0,0.5)";
+    ctx.beginPath();
+    ctx.ellipse(-1.8, cy + 10, 1.2, 1, 0, 0, Math.PI * 2); ctx.fill();
+    ctx.beginPath();
+    ctx.ellipse(1.8, cy + 10, 1.2, 1, 0, 0, Math.PI * 2); ctx.fill();
+
+    // ===== MASSIVE BEARD — covers the entire lower 60% of the face =====
+    // Bottom layer (darker grey shadow) extends slightly outside white layer
+    ctx.fillStyle = s.beardShadow;
+    ctx.beginPath();
+    ctx.moveTo(-r + 1, cy + 6);
+    ctx.bezierCurveTo(-r - 4, cy + r * 0.55, -r * 0.6, cy + r + 4, 0, cy + r + 6);
+    ctx.bezierCurveTo(r * 0.6, cy + r + 4, r + 4, cy + r * 0.55, r - 1, cy + 6);
+    // upper edge curves above the mouth
+    ctx.bezierCurveTo(r * 0.65, cy + 12, r * 0.3, cy + 9, r * 0.18, cy + 11);
+    ctx.bezierCurveTo(r * 0.05, cy + 14, -r * 0.05, cy + 14, -r * 0.18, cy + 11);
+    ctx.bezierCurveTo(-r * 0.3, cy + 9, -r * 0.65, cy + 12, -r + 1, cy + 6);
+    ctx.closePath();
+    ctx.fill();
+
+    // White-grey middle layer
+    ctx.fillStyle = s.beardMid;
+    ctx.beginPath();
+    ctx.moveTo(-r + 4, cy + 7);
+    ctx.bezierCurveTo(-r - 1, cy + r * 0.5, -r * 0.55, cy + r + 1, 0, cy + r + 3);
+    ctx.bezierCurveTo(r * 0.55, cy + r + 1, r + 1, cy + r * 0.5, r - 4, cy + 7);
+    ctx.bezierCurveTo(r * 0.55, cy + 13, r * 0.25, cy + 10, r * 0.16, cy + 12);
+    ctx.bezierCurveTo(r * 0.05, cy + 15, -r * 0.05, cy + 15, -r * 0.16, cy + 12);
+    ctx.bezierCurveTo(-r * 0.25, cy + 10, -r * 0.55, cy + 13, -r + 4, cy + 7);
+    ctx.closePath();
+    ctx.fill();
+
+    // Brightest white front layer (smaller, leaves grey edges visible)
+    ctx.fillStyle = s.beard;
+    ctx.beginPath();
+    ctx.moveTo(-r + 7, cy + 8);
+    ctx.bezierCurveTo(-r + 3, cy + r * 0.45, -r * 0.5, cy + r - 2, 0, cy + r);
+    ctx.bezierCurveTo(r * 0.5, cy + r - 2, r - 3, cy + r * 0.45, r - 7, cy + 8);
+    ctx.bezierCurveTo(r * 0.45, cy + 14, r * 0.22, cy + 11, r * 0.14, cy + 13);
+    ctx.bezierCurveTo(r * 0.05, cy + 16, -r * 0.05, cy + 16, -r * 0.14, cy + 13);
+    ctx.bezierCurveTo(-r * 0.22, cy + 11, -r * 0.45, cy + 14, -r + 7, cy + 8);
+    ctx.closePath();
+    ctx.fill();
+
+    // Beard texture wisps (random short curves)
+    ctx.strokeStyle = s.beardFleck; ctx.lineWidth = 0.7;
+    ctx.lineCap = "round";
+    ctx.beginPath();
+    const wisps = [
+      [-12, 16, -10, 22], [-6, 18, -4, 24], [0, 19, 0, 26],
+      [6, 18, 5, 24], [12, 16, 11, 22], [-16, 14, -14, 19],
+      [16, 14, 14, 19], [-3, 22, -2, 28], [3, 22, 2, 28],
+    ];
+    for (const [x1, y1, x2, y2] of wisps) {
+      ctx.moveTo(x1, cy + y1);
+      ctx.quadraticCurveTo((x1 + x2) / 2, cy + (y1 + y2) / 2 + 1, x2, cy + y2);
+    }
+    ctx.stroke();
+    ctx.lineCap = "butt";
+
+    // ===== Mustache (separate, fluffy, curving over upper lip) =====
+    ctx.fillStyle = s.beardMid;
+    ctx.beginPath();
+    ctx.moveTo(-11, cy + 10);
+    ctx.quadraticCurveTo(-7, cy + 14, -1, cy + 13);
+    ctx.quadraticCurveTo(1, cy + 13, 7, cy + 14);
+    ctx.quadraticCurveTo(11, cy + 14, 11, cy + 10);
+    ctx.bezierCurveTo(8, cy + 16, 4, cy + 17, 0, cy + 16);
+    ctx.bezierCurveTo(-4, cy + 17, -8, cy + 16, -11, cy + 10);
+    ctx.closePath();
+    ctx.fill();
+    ctx.fillStyle = s.beard;
+    ctx.beginPath();
+    ctx.moveTo(-9, cy + 11);
+    ctx.quadraticCurveTo(-5, cy + 14, 0, cy + 13);
+    ctx.quadraticCurveTo(5, cy + 14, 9, cy + 11);
+    ctx.bezierCurveTo(7, cy + 15, 3, cy + 16, 0, cy + 15);
+    ctx.bezierCurveTo(-3, cy + 16, -7, cy + 15, -9, cy + 11);
+    ctx.closePath();
+    ctx.fill();
+
+    // ===== Mouth — warm smile peeking out under mustache =====
+    if (f.stance === "hurt") {
+      ctx.fillStyle = "#3a0a0a";
+      ctx.beginPath();
+      ctx.ellipse(0, cy + 17, 4, 2, 0, 0, Math.PI * 2);
+      ctx.fill();
+    } else {
+      // Smile arc
+      ctx.strokeStyle = "#3a1010";
+      ctx.lineWidth = 1.6;
+      ctx.lineCap = "round";
+      ctx.beginPath();
+      ctx.moveTo(-5, cy + 17);
+      ctx.quadraticCurveTo(0, cy + 20, 5, cy + 17);
+      ctx.stroke();
+      // Tooth glint (subtle)
+      ctx.strokeStyle = "rgba(255,255,255,0.45)";
+      ctx.lineWidth = 0.8;
+      ctx.beginPath();
+      ctx.moveTo(-3, cy + 18);
+      ctx.lineTo(3, cy + 18);
+      ctx.stroke();
+      ctx.lineCap = "butt";
+    }
+  }
+
+  // ===== Lula's curved arms — tapered cylinders, not rectangles =====
+  function drawZeArms(f, ph, yShoulder, yBelly, off, s) {
+    const sh = s;
+    const fistFill = gradRad(0, 0, 8, sh.skinHi, sh.skinShade);
+
+    // BACK arm — drawn first so the front arm overlays it
+    drawZeUpperArm(f, -22, yShoulder + 4, -28, yBelly + 6, /*backArm*/ true, sh);
+    // back fist
+    ctx.fillStyle = sh.skin;
+    ctx.beginPath();
+    ctx.arc(-30, yBelly + 12, 5.5, 0, Math.PI * 2);
+    ctx.fill();
+    outlinePath(1, "rgba(0,0,0,0.4)");
+
+    // FRONT arm — pose-dependent
+    if (ph === "active" && f.attackKind === "punch") {
+      // SOCO SINDICAL — straight forward jab
+      const sx = 20, sy = yShoulder + 4;
+      const ex = 56, ey = yShoulder + 8;
+      taperedLimb(sx, sy, 16, ex, ey, 12, 4, gradLin3(sx, 0, ex, 0, sh.shirtDark, sh.shirt, sh.shirtLight), true);
+      // Bare fist (round, with shading)
+      ctx.fillStyle = gradRad(ex + 6, ey - 2, 10, sh.skinHi, sh.skinShade);
+      ctx.beginPath();
+      ctx.arc(ex + 8, ey + 2, 8, 0, Math.PI * 2);
+      ctx.fill();
+      outlinePath(1.3, "rgba(0,0,0,0.5)");
+      // Knuckle dimples
+      ctx.fillStyle = "rgba(0,0,0,0.18)";
+      ctx.beginPath(); ctx.arc(ex + 11, ey - 3, 0.9, 0, Math.PI * 2); ctx.fill();
+      ctx.beginPath(); ctx.arc(ex + 13, ey + 1, 0.9, 0, Math.PI * 2); ctx.fill();
+      ctx.beginPath(); ctx.arc(ex + 12, ey + 5, 0.9, 0, Math.PI * 2); ctx.fill();
+      drawMotionLines(30, ey + 4, 4);
+    } else if (ph === "active" && f.attackKind === "kick") {
+      // Arms tucked / down-back for balance — slight curve back
+      drawZeUpperArm(f, 18, yShoulder + 4, 12, yBelly + 12, false, sh);
+      ctx.fillStyle = sh.skin;
+      ctx.beginPath(); ctx.arc(12, yBelly + 18, 5.5, 0, Math.PI * 2); ctx.fill();
+      outlinePath(1, "rgba(0,0,0,0.4)");
+    } else if (ph === "active" && f.attackKind === "special") {
+      // ABRAÇO POPULAR — both arms forward with HUG curve, heart between fists
+      // Upper hug arm (right shoulder forward+up)
+      taperedLimb(20, yShoulder + 2, 16, 50, yShoulder, 12, 6,
+        gradLin3(20, 0, 50, 0, sh.shirtDark, sh.shirt, sh.shirtLight), true);
+      // Lower hug arm (right shoulder forward+down)
+      taperedLimb(20, yShoulder + 12, 16, 50, yShoulder + 28, 12, -6,
+        gradLin3(20, 0, 50, 0, sh.shirtDark, sh.shirt, sh.shirtLight), true);
+      // Fists
+      ctx.fillStyle = gradRad(54, yShoulder, 10, sh.skinHi, sh.skinShade);
+      ctx.beginPath(); ctx.arc(56, yShoulder + 2, 7, 0, Math.PI * 2); ctx.fill();
+      outlinePath(1.2, "rgba(0,0,0,0.4)");
+      ctx.fillStyle = gradRad(54, yShoulder + 28, 10, sh.skinHi, sh.skinShade);
+      ctx.beginPath(); ctx.arc(56, yShoulder + 28, 7, 0, Math.PI * 2); ctx.fill();
+      outlinePath(1.2, "rgba(0,0,0,0.4)");
+      // Heart between embracing fists
+      drawHeart(58, yShoulder + 14, 8);
+    } else if (f.stance === "block") {
+      // Cross-guard, both arms up + curved
+      taperedLimb(-18, yShoulder + 2, 14, -10, yShoulder + 30, 14, 4,
+        gradLin3(-18, 0, -10, 0, sh.shirtDark, sh.shirt, sh.shirtLight), true);
+      taperedLimb(18, yShoulder + 2, 14, 10, yShoulder + 30, 14, -4,
+        gradLin3(10, 0, 18, 0, sh.shirtLight, sh.shirt, sh.shirtDark), true);
+      // Fists at top
+      ctx.fillStyle = sh.skin;
+      ctx.beginPath(); ctx.arc(-14, yShoulder - 2, 6, 0, Math.PI * 2); ctx.fill();
+      outlinePath(1, "rgba(0,0,0,0.4)");
+      ctx.beginPath(); ctx.arc(14, yShoulder - 2, 6, 0, Math.PI * 2); ctx.fill();
+      outlinePath(1, "rgba(0,0,0,0.4)");
+    } else if (ph === "startup") {
+      // Chambered fist near hip
+      taperedLimb(20, yShoulder + 4, 16, -2, yBelly + 6, 12, -2,
+        gradLin3(-2, 0, 20, 0, sh.shirtLight, sh.shirt, sh.shirtDark), true);
+      ctx.fillStyle = sh.skin;
+      ctx.beginPath(); ctx.arc(-4, yBelly + 12, 6, 0, Math.PI * 2); ctx.fill();
+      outlinePath(1, "rgba(0,0,0,0.4)");
+    } else {
+      // Idle / walk — arm hangs at side, slight curve outward at belly
+      taperedLimb(20, yShoulder + 4, 16, 30, yBelly + 14, 12, 4,
+        gradLin3(18, 0, 30, 0, sh.shirtLight, sh.shirt, sh.shirtDark), true);
+      // Hand
+      ctx.fillStyle = sh.skin;
+      ctx.beginPath(); ctx.arc(31, yBelly + 20, 5.5, 0, Math.PI * 2); ctx.fill();
+      outlinePath(1, "rgba(0,0,0,0.4)");
+    }
+
+    // KICK leg override (extended forward)
+    if (ph === "active" && f.attackKind === "kick") {
+      const ky = yBelly + 22;
+      taperedLimb(8, ky, 16, 56, ky + 4, 14, 4,
+        gradLin3(8, 0, 56, 0, sh.pantsDark, sh.pants, sh.pantsLight), true);
+      // Boot at the end
+      drawZeBootShape(60, ky + 6, 1);
+      drawMotionLines(28, ky + 4, 3);
+    }
+  }
+
+  // A single shaded upper-arm cylinder ending in the (off-screen) hand
+  function drawZeUpperArm(f, x1, y1, x2, y2, isBack, s) {
+    taperedLimb(
+      x1, y1, 14,
+      x2, y2, 12,
+      isBack ? -3 : 3,
+      gradLin3(x1, 0, x2, 0,
+        isBack ? s.shirtDark : s.shirtLight,
+        s.shirt,
+        isBack ? s.shirt : s.shirtDark),
+      true
+    );
+  }
+
+  // ===== Lula's legs — short stubby tapered cylinders + rounded boots =====
+  function drawZeLegs(f, off, yShift) {
+    const yTop = -16 + yShift;
+    const yBot = -2;             // boot top
+    const halfW = 11;             // upper-leg width (chunky)
+    const halfWBot = 8;           // ankle width (taper)
+
+    if (f.stance === "walk") {
+      const a = off.legShuffle * 6;
+      drawZeOneLeg(-12 + a, yTop, halfW, halfWBot, yBot, f.spec);
+      drawZeOneLeg(12 - a, yTop, halfW, halfWBot, yBot, f.spec);
+      // Boots positioned with shuffle
+      drawZeBootShape(-14 + a * 1.2, yBot + 3, 0);
+      drawZeBootShape(14 - a * 1.2, yBot + 3, 0);
+    } else if (f.stance === "jump") {
+      // Knees up — shorter visible leg
+      drawZeOneLeg(-11, yTop - 2, halfW, halfWBot, yBot - 6, f.spec);
+      drawZeOneLeg(11, yTop - 2, halfW, halfWBot, yBot - 6, f.spec);
+      drawZeBootShape(-13, yBot - 3, 0);
+      drawZeBootShape(13, yBot - 3, 0);
+    } else {
+      drawZeOneLeg(-12, yTop, halfW, halfWBot, yBot, f.spec);
+      drawZeOneLeg(12, yTop, halfW, halfWBot, yBot, f.spec);
+      drawZeBootShape(-14, yBot + 3, 0);
+      drawZeBootShape(14, yBot + 3, 0);
+    }
+  }
+  function drawZeOneLeg(cx, yTop, hw, hwBot, yBot, s) {
+    // Tapered curved pant leg, slight outer bow
+    ctx.beginPath();
+    ctx.moveTo(cx - hw, yTop);
+    ctx.bezierCurveTo(cx - hw - 1, yTop + 6, cx - hwBot - 1, yBot - 4, cx - hwBot, yBot);
+    ctx.lineTo(cx + hwBot, yBot);
+    ctx.bezierCurveTo(cx + hwBot + 1, yBot - 4, cx + hw + 1, yTop + 6, cx + hw, yTop);
+    ctx.closePath();
+    ctx.fillStyle = gradLin3(cx - hw, 0, cx + hw, 0, s.pantsDark, s.pants, s.pantsLight);
+    ctx.fill();
+    outlinePath(1.2, "rgba(0,0,0,0.5)");
+    // Centerline crease
+    ctx.strokeStyle = "rgba(255,255,255,0.1)";
+    ctx.lineWidth = 1;
+    ctx.beginPath();
+    ctx.moveTo(cx, yTop + 4); ctx.lineTo(cx, yBot - 4);
+    ctx.stroke();
+  }
+  // dir: -1 (rotated 90° = kick) or 0 (normal)
+  function drawZeBootShape(cx, cy, dir) {
+    const s = ZE;
+    if (dir === 1) {
+      // Kick boot — points forward (right)
+      ctx.fillStyle = gradLin3(cx, cy - 6, cx, cy + 6, s.bootsHi, s.boots, s.bootsDark);
+      ctx.beginPath();
+      ctx.moveTo(cx - 8, cy - 8);
+      ctx.bezierCurveTo(cx - 4, cy - 10, cx + 8, cy - 8, cx + 14, cy - 4);
+      ctx.bezierCurveTo(cx + 18, cy - 1, cx + 18, cy + 4, cx + 14, cy + 7);
+      ctx.bezierCurveTo(cx + 4, cy + 10, cx - 4, cy + 9, cx - 8, cy + 8);
+      ctx.closePath();
+      ctx.fill();
+      outlinePath(1.3, "rgba(0,0,0,0.55)");
+      // Sole stripe
+      ctx.fillStyle = s.bootsDark;
+      ctx.beginPath();
+      ctx.moveTo(cx + 14, cy + 4);
+      ctx.bezierCurveTo(cx + 6, cy + 10, cx - 2, cy + 9, cx - 8, cy + 8);
+      ctx.lineTo(cx - 8, cy + 6);
+      ctx.bezierCurveTo(cx - 2, cy + 7, cx + 6, cy + 8, cx + 14, cy + 2);
+      ctx.closePath();
+      ctx.fill();
+      return;
+    }
+    // Normal boot — rounded toe forward, heel behind
+    ctx.fillStyle = gradLin3(cx - 12, 0, cx + 12, 0, s.bootsDark, s.boots, s.bootsHi);
+    ctx.beginPath();
+    ctx.moveTo(cx - 10, cy - 5);
+    ctx.bezierCurveTo(cx - 13, cy - 4, cx - 13, cy + 3, cx - 10, cy + 5);
+    ctx.bezierCurveTo(cx - 4, cy + 7, cx + 8, cy + 7, cx + 13, cy + 4);
+    ctx.bezierCurveTo(cx + 16, cy + 2, cx + 16, cy - 2, cx + 13, cy - 4);
+    ctx.bezierCurveTo(cx + 4, cy - 6, cx - 4, cy - 6, cx - 10, cy - 5);
+    ctx.closePath();
+    ctx.fill();
+    outlinePath(1.3, "rgba(0,0,0,0.55)");
+    // Sole separation
+    ctx.fillStyle = s.bootsDark;
+    ctx.beginPath();
+    ctx.moveTo(cx - 11, cy + 3);
+    ctx.bezierCurveTo(cx - 4, cy + 6, cx + 8, cy + 6, cx + 14, cy + 3);
+    ctx.lineTo(cx + 14, cy + 5);
+    ctx.bezierCurveTo(cx + 8, cy + 8, cx - 4, cy + 8, cx - 11, cy + 5);
+    ctx.closePath();
+    ctx.fill();
+  }
+
+  function drawZeKO(f) {
+    // Lying on the back (rotated -90°). Legs to the right, head to the left.
+    const s = f.spec;
+    ctx.save();
+    ctx.translate(-2, -8);
+    ctx.rotate(-Math.PI / 2);
+
+    // Legs (drawn in rotated frame, so "x" is depth, "y" is along the body)
+    ctx.fillStyle = gradLin3(-22, 0, 22, 0, s.pantsDark, s.pants, s.pantsLight);
+    ctx.beginPath();
+    ctx.moveTo(-12, -16);
+    ctx.bezierCurveTo(-18, 0, -18, 26, -12, 36);
+    ctx.lineTo(0, 36);
+    ctx.bezierCurveTo(-2, 26, -2, 0, 0, -16);
+    ctx.closePath();
+    ctx.fill();
+    ctx.beginPath();
+    ctx.moveTo(0, -16);
+    ctx.bezierCurveTo(2, 0, 2, 26, 0, 36);
+    ctx.lineTo(12, 36);
+    ctx.bezierCurveTo(18, 26, 18, 0, 12, -16);
+    ctx.closePath();
+    ctx.fill();
+    outlinePath(1.2, "rgba(0,0,0,0.5)");
+
+    // Boots — soles up
+    ctx.fillStyle = gradLin(0, 30, 0, 50, s.bootsHi, s.bootsDark);
+    ctx.beginPath();
+    ctx.ellipse(-6, 42, 9, 7, 0, 0, Math.PI * 2); ctx.fill();
+    ctx.beginPath();
+    ctx.ellipse(6, 42, 9, 7, 0, 0, Math.PI * 2); ctx.fill();
+
+    // Big rotund torso silhouette (looking at his profile from above-side)
+    ctx.fillStyle = gradLin3(-30, 0, 30, 0, s.shirtDark, s.shirt, s.shirtLight);
+    ctx.beginPath();
+    ctx.moveTo(-22, -20);
+    ctx.bezierCurveTo(-30, -10, -30, 0, -22, 8);
+    ctx.bezierCurveTo(-12, 14, 12, 14, 22, 8);
+    ctx.bezierCurveTo(30, 0, 30, -10, 22, -20);
+    ctx.closePath();
+    ctx.fill();
+    outlinePath(1.4, "rgba(0,0,0,0.45)");
+
+    // PT star on chest
+    ctx.fillStyle = "#fff";
+    drawStar(0, -4, 7, 5);
+    outlinePath(1, "rgba(0,0,0,0.4)");
+
+    // Belt + buckle
+    ctx.fillStyle = s.belt;
+    ctx.fillRect(-22, 14, 44, 5);
+    ctx.fillStyle = s.buckle;
+    ctx.beginPath();
+    ctx.roundRect ? ctx.roundRect(-5, 13, 10, 7, 1.5) : ctx.rect(-5, 13, 10, 7);
+    ctx.fill();
+    outlinePath(1, "rgba(0,0,0,0.5)");
+
+    // Head (with hair ring + bald top)
+    ctx.fillStyle = s.hair;
+    ctx.beginPath(); ctx.arc(0, -38, 19, 0, Math.PI * 2); ctx.fill();
+    ctx.fillStyle = gradRad(-4, -42, 22, s.skinHi, s.skinShade);
+    ctx.beginPath(); ctx.arc(0, -40, 17, 0, Math.PI * 2); ctx.fill();
+    outlinePath(1.2, "rgba(0,0,0,0.4)");
+
+    // Massive beard splayed out
+    ctx.fillStyle = s.beardMid;
+    ctx.beginPath();
+    ctx.moveTo(-16, -28);
+    ctx.bezierCurveTo(-22, -20, -20, -10, -10, -8);
+    ctx.lineTo(10, -8);
+    ctx.bezierCurveTo(20, -10, 22, -20, 16, -28);
+    ctx.bezierCurveTo(8, -22, -8, -22, -16, -28);
+    ctx.closePath();
+    ctx.fill();
+    ctx.fillStyle = s.beard;
+    ctx.beginPath();
+    ctx.moveTo(-14, -28);
+    ctx.bezierCurveTo(-19, -19, -17, -11, -8, -10);
+    ctx.lineTo(8, -10);
+    ctx.bezierCurveTo(17, -11, 19, -19, 14, -28);
+    ctx.bezierCurveTo(7, -23, -7, -23, -14, -28);
+    ctx.closePath();
+    ctx.fill();
+
+    // X eyes
+    ctx.strokeStyle = "#111"; ctx.lineWidth = 2.5;
+    ctx.lineCap = "round";
+    ctx.beginPath();
+    ctx.moveTo(-9, -45); ctx.lineTo(-3, -39);
+    ctx.moveTo(-9, -39); ctx.lineTo(-3, -45);
+    ctx.moveTo(3, -45);  ctx.lineTo(9, -39);
+    ctx.moveTo(3, -39);  ctx.lineTo(9, -45);
+    ctx.stroke();
+    ctx.lineCap = "butt";
+
+    ctx.restore();
+  }
+
+  // ---------- CAPITÃO DIREITA (Bolsonaro parody) ----------
+  // Tall, lean, ramrod-straight military posture. All bezier curves.
+  function drawCapitao(f, t) {
+    const s = f.spec;
+    const off = poseOffsets(f, t);
+    const yShift = off.bob + off.lean + off.crouchY;
+    const ph = attackPhase(f);
+    if (f.stance === "ko") { drawCapitaoKO(f); return; }
+
+    // Anatomy keypoints (taller than Lula!)
+    const cyHead = -FH + 14 + yShift;       // head sits HIGH — top of head at y≈-114
+    const rxHead = 17;                       // narrow head (vs Lula's 24)
+    const ryHead = 22;
+    const yShoulder = cyHead + ryHead - 4;  // shoulder line
+    const yChest = yShoulder + 18;
+    const yWaist = -22 + yShift;            // waist (higher than Lula's belt for longer legs)
+    const halfShoulder = 22;                 // narrow shoulders
+    const halfChest = 20;
+    const halfWaist = 17;
+
+    // Long thin legs first (behind body)
+    drawCapitaoLegs(f, off, yShift, yWaist);
+
+    // Aura (behind body)
+    if (ph === "active" && f.attackKind === "special") {
+      ctx.save();
+      ctx.globalAlpha = 0.5;
+      const r = 64 + Math.sin(t * 30) * 4;
+      ctx.fillStyle = gradRad3(0, cyHead + 28, r,
+        "rgba(255, 230, 102, 0.9)", "rgba(80, 200, 100, 0.5)", "rgba(0,0,0,0)");
+      ctx.beginPath(); ctx.arc(0, cyHead + 28, r, 0, Math.PI * 2); ctx.fill();
+      ctx.restore();
+    }
+
+    // ===== Torso silhouette (long, lean, slight chest definition) =====
+    ctx.beginPath();
+    ctx.moveTo(-halfShoulder, yShoulder);
+    // Left side: shoulder → chest → waist (subtle taper)
+    ctx.bezierCurveTo(
+      -halfShoulder - 1, yShoulder + 8,
+      -halfChest - 1, yChest,
+      -halfChest, yChest + 4
+    );
+    ctx.bezierCurveTo(
+      -halfChest, yChest + 12,
+      -halfWaist - 1, yWaist - 6,
+      -halfWaist, yWaist
+    );
+    // Across waist
+    ctx.lineTo(halfWaist, yWaist);
+    // Right side mirror
+    ctx.bezierCurveTo(
+      halfWaist + 1, yWaist - 6,
+      halfChest, yChest + 12,
+      halfChest, yChest + 4
+    );
+    ctx.bezierCurveTo(
+      halfChest + 1, yChest,
+      halfShoulder + 1, yShoulder + 8,
+      halfShoulder, yShoulder
+    );
+    // Top of shoulders + neck cutout
+    ctx.lineTo(7, yShoulder);
+    ctx.quadraticCurveTo(0, yShoulder + 4, -7, yShoulder);
+    ctx.closePath();
+
+    // Base camo fill — vertical gradient with mid-green
+    ctx.fillStyle = gradLin3(0, yShoulder, 0, yWaist,
+      s.shirtHi, s.shirt, s.camoD);
+    ctx.fill();
+    outlinePath(1.5, "rgba(0,0,0,0.5)");
+
+    // ===== CAMO BLOBS — irregular organic shapes (4 shades) =====
+    drawCamoBlobs(s, yShoulder, yWaist, halfChest);
+
+    // Diagonal tactical seam down the center
+    ctx.strokeStyle = "rgba(0,0,0,0.32)"; ctx.lineWidth = 0.8;
+    ctx.beginPath();
+    ctx.moveTo(0, yShoulder + 4);
+    ctx.lineTo(0, yWaist - 4);
+    ctx.stroke();
+
+    // Subtle vertical button line (left of center)
+    ctx.fillStyle = "rgba(255, 220, 100, 0.5)";
+    for (let i = 0; i < 4; i++) {
+      ctx.beginPath();
+      ctx.arc(-3, yShoulder + 12 + i * 8, 1.2, 0, Math.PI * 2);
+      ctx.fill();
+    }
+
+    // Arms (drawn between torso and head/shoulders for layering)
+    drawCapitaoArms(f, ph, yShoulder, yChest, yWaist, off, s);
+
+    // Neck (skin, narrow long)
+    ctx.fillStyle = gradLin(0, yShoulder - 6, 0, yShoulder + 4, s.skinHi, s.skinShade);
+    ctx.beginPath();
+    ctx.moveTo(-6, yShoulder + 1);
+    ctx.bezierCurveTo(-7, yShoulder - 4, -6, cyHead + ryHead - 4, -5, cyHead + ryHead - 4);
+    ctx.lineTo(5, cyHead + ryHead - 4);
+    ctx.bezierCurveTo(6, cyHead + ryHead - 4, 7, yShoulder - 4, 6, yShoulder + 1);
+    ctx.closePath();
+    ctx.fill();
+
+    // V-neck collar over neck
+    ctx.fillStyle = s.camoA;
+    ctx.beginPath();
+    ctx.moveTo(-8, yShoulder);
+    ctx.quadraticCurveTo(0, yShoulder + 8, 8, yShoulder);
+    ctx.lineTo(6, yShoulder + 1);
+    ctx.quadraticCurveTo(0, yShoulder + 5, -6, yShoulder + 1);
+    ctx.closePath();
+    ctx.fill();
+
+    // ===== Gold epaulettes on shoulders =====
+    drawEpaulette(-halfShoulder + 4, yShoulder + 1, -1, s);
+    drawEpaulette(halfShoulder - 4, yShoulder + 1, 1, s);
+
+    // ===== Medal ribbons on left chest (3 stacked horizontal bars) =====
+    drawMedalBar(-12, yChest - 4, s.medal2);     // blue
+    drawMedalBar(-12, yChest + 1, s.medal3);     // red
+    drawMedalBar(-12, yChest + 6, s.shirtHi);    // green
+    // Yellow star pin on right chest
+    ctx.fillStyle = s.accent;
+    drawStar(11, yChest, 4, 5);
+    outlinePath(1, "rgba(0,0,0,0.5)");
+
+    // ===== Belt =====
+    ctx.fillStyle = gradLin3(-halfWaist, yWaist, halfWaist, yWaist,
+      "#0a0604", s.belt, "#0a0604");
+    ctx.beginPath();
+    ctx.moveTo(-halfWaist - 1, yWaist - 3);
+    ctx.quadraticCurveTo(0, yWaist - 5, halfWaist + 1, yWaist - 3);
+    ctx.quadraticCurveTo(halfWaist + 1, yWaist + 3, halfWaist - 1, yWaist + 4);
+    ctx.lineTo(-halfWaist + 1, yWaist + 4);
+    ctx.quadraticCurveTo(-halfWaist - 1, yWaist + 3, -halfWaist - 1, yWaist - 3);
+    ctx.closePath();
+    ctx.fill();
+    // Steel buckle
+    ctx.fillStyle = gradLin(-5, yWaist - 4, 5, yWaist + 4, "#d4d4d4", "#5a5a5a");
+    ctx.beginPath();
+    ctx.roundRect ? ctx.roundRect(-6, yWaist - 4, 12, 7, 1.5) : ctx.rect(-6, yWaist - 4, 12, 7);
+    ctx.fill();
+    outlinePath(1, "rgba(0,0,0,0.7)");
+
+    // Head last
+    drawCapitaoHead(f, cyHead, rxHead, ryHead, s);
+  }
+
+  function drawCamoBlobs(s, yTop, yBot, hw) {
+    // Generate irregular freeform blob paths (cached pattern via deterministic positions)
+    // Three layers: dark, mid, tan accents.
+    const blobs = [
+      // [cx, cy, rx, ry, rot, color]
+      [-12, yTop + 8,  9, 6, 0.3, s.camoA],
+      [10,  yTop + 18, 11, 7, -0.4, s.camoA],
+      [-8,  yTop + 30, 8, 6, 0.5, s.camoA],
+      [13,  yTop + 42, 7, 5, 0.1, s.camoA],
+      [-15, yBot - 6,  6, 4, -0.3, s.camoA],
+      [4,   yTop + 14, 5, 4, 0.2,  s.camoB],
+      [14,  yTop + 6,  5, 3, -0.5, s.camoB],
+      [-15, yTop + 24, 5, 3, 0.6,  s.camoB],
+      [6,   yTop + 36, 5, 3, -0.1, s.camoB],
+      [-3,  yBot - 8,  4, 3, 0.0,  s.camoB],
+      [-7,  yTop + 5,  3, 2, 0,    s.camoC],
+      [9,   yTop + 28, 3, 2, 0.4,  s.camoC],
+      [-15, yTop + 16, 3, 2, -0.2, s.camoC],
+    ];
+    for (const [cx, cy, rx, ry, rot, color] of blobs) {
+      // Make blob organic — not pure ellipse, slight asymmetry
+      ctx.fillStyle = color;
+      ctx.beginPath();
+      const cos = Math.cos(rot), sin = Math.sin(rot);
+      // 8-point organic path
+      const points = 8;
+      for (let i = 0; i < points; i++) {
+        const ang = (i / points) * Math.PI * 2;
+        const wobble = 0.85 + 0.3 * Math.sin(ang * 3 + cx);
+        const lx = Math.cos(ang) * rx * wobble;
+        const ly = Math.sin(ang) * ry * wobble;
+        const px = cx + lx * cos - ly * sin;
+        const py = cy + lx * sin + ly * cos;
+        if (i === 0) ctx.moveTo(px, py);
+        else {
+          // Smooth via quadratic Bezier between sample points
+          const prevAng = ((i - 0.5) / points) * Math.PI * 2;
+          const pw = 0.85 + 0.3 * Math.sin(prevAng * 3 + cx);
+          const cpx_l = Math.cos(prevAng) * rx * pw * 1.1;
+          const cpy_l = Math.sin(prevAng) * ry * pw * 1.1;
+          const cpx = cx + cpx_l * cos - cpy_l * sin;
+          const cpy = cy + cpx_l * sin + cpy_l * cos;
+          ctx.quadraticCurveTo(cpx, cpy, px, py);
+        }
+      }
+      ctx.closePath();
+      ctx.fill();
+    }
+  }
+
+  function drawEpaulette(cx, cy, dir, s) {
+    // Gold shoulder pad with bullion fringe
+    ctx.fillStyle = gradLin(cx, cy - 3, cx, cy + 4, s.epaulette, s.epauletteDark);
+    ctx.beginPath();
+    ctx.moveTo(cx - 6, cy - 2);
+    ctx.bezierCurveTo(cx - 4, cy - 5, cx + 4, cy - 5, cx + 6, cy - 2);
+    ctx.lineTo(cx + 8 * dir, cy + 3);
+    ctx.bezierCurveTo(cx + 4 * dir, cy + 5, cx - 4 * dir, cy + 5, cx - 6 * dir, cy + 4);
+    ctx.closePath();
+    ctx.fill();
+    outlinePath(1, "rgba(0,0,0,0.6)");
+    // Bullion fringe (3 short verticals)
+    ctx.strokeStyle = s.epauletteDark; ctx.lineWidth = 1;
+    ctx.beginPath();
+    for (let i = -2; i <= 2; i++) {
+      ctx.moveTo(cx + i * 2, cy + 3);
+      ctx.lineTo(cx + i * 2, cy + 6);
+    }
+    ctx.stroke();
+  }
+
+  function drawMedalBar(cx, cy, color) {
+    // Horizontal medal ribbon (12px wide, 4px tall) with tiny pin clasp
+    ctx.fillStyle = color;
+    ctx.beginPath();
+    ctx.roundRect ? ctx.roundRect(cx, cy, 12, 4, 1) : ctx.rect(cx, cy, 12, 4);
+    ctx.fill();
+    outlinePath(0.8, "rgba(0,0,0,0.6)");
+    // Highlight stripe
+    ctx.fillStyle = "rgba(255,255,255,0.25)";
+    ctx.fillRect(cx + 1, cy + 1, 10, 1);
+  }
+
+  function drawCapitaoHead(f, cy, rx, ry, s) {
+    // ===== Slick-back hair cap (drawn first, sits on top of head) =====
+    // We draw it as a curve covering the upper 60% of the head.
+    ctx.fillStyle = gradLin(0, cy - ry, 0, cy, s.hairHi, s.hair);
+    ctx.beginPath();
+    ctx.moveTo(-rx + 1, cy - 4);
+    ctx.bezierCurveTo(
+      -rx - 1, cy - ry * 0.5,
+      -rx * 0.6, cy - ry - 2,
+      0, cy - ry - 2
+    );
+    ctx.bezierCurveTo(
+      rx * 0.6, cy - ry - 2,
+      rx + 1, cy - ry * 0.5,
+      rx - 1, cy - 4
+    );
+    ctx.bezierCurveTo(
+      rx - 4, cy - 4,
+      rx - 6, cy - 6,
+      rx - 8, cy - 5
+    );
+    ctx.lineTo(-(rx - 8), cy - 5);
+    ctx.bezierCurveTo(
+      -(rx - 6), cy - 6,
+      -(rx - 4), cy - 4,
+      -rx + 1, cy - 4
+    );
+    ctx.closePath();
+    ctx.fill();
+    // Grey at temples
+    ctx.fillStyle = s.hairGrey;
+    ctx.beginPath();
+    ctx.ellipse(-rx + 1, cy - 4, 3, 4, 0.3, 0, Math.PI * 2); ctx.fill();
+    ctx.beginPath();
+    ctx.ellipse(rx - 1,  cy - 4, 3, 4, -0.3, 0, Math.PI * 2); ctx.fill();
+    // Hair sheen (highlight)
+    ctx.fillStyle = "rgba(255, 255, 255, 0.15)";
+    ctx.beginPath();
+    ctx.ellipse(-3, cy - ry * 0.6, rx * 0.55, 3, -0.1, 0, Math.PI * 2);
+    ctx.fill();
+
+    // ===== LEAN narrow face — tall ellipse =====
+    ctx.fillStyle = gradRad3(-rx * 0.4, cy - ry * 0.3, ry,
+      s.skinHi, s.skin, s.skinShade);
+    ctx.beginPath();
+    ctx.ellipse(0, cy, rx, ry, 0, 0, Math.PI * 2);
+    ctx.fill();
+    outlinePath(1.3, "rgba(0,0,0,0.45)");
+
+    // ===== Strong angular jaw — bezier-defined for sharp lines =====
+    // Replace bottom of face with a more angular shape (chin protrudes).
+    ctx.fillStyle = s.skin;
+    ctx.beginPath();
+    ctx.moveTo(-rx + 1, cy + 8);
+    ctx.bezierCurveTo(
+      -rx + 1, cy + 14,
+      -rx + 5, cy + ry - 2,
+      -3,      cy + ry + 2
+    );
+    ctx.lineTo(3, cy + ry + 2);
+    ctx.bezierCurveTo(
+      rx - 5, cy + ry - 2,
+      rx - 1, cy + 14,
+      rx - 1, cy + 8
+    );
+    ctx.lineTo(rx - 4, cy + 8);
+    ctx.lineTo(-(rx - 4), cy + 8);
+    ctx.closePath();
+    ctx.fill();
+    // Jaw shadow (defines the angular line)
+    ctx.strokeStyle = s.skinDark;
+    ctx.lineWidth = 1.5;
+    ctx.lineCap = "round";
+    ctx.beginPath();
+    ctx.moveTo(-rx + 2, cy + 12);
+    ctx.bezierCurveTo(-rx + 6, cy + ry, -3, cy + ry + 1, 0, cy + ry + 2);
+    ctx.bezierCurveTo(3, cy + ry + 1, rx - 6, cy + ry, rx - 2, cy + 12);
+    ctx.stroke();
+    ctx.lineCap = "butt";
+
+    // Cheek hollow shadow (suggests sharp cheekbones)
+    ctx.fillStyle = "rgba(60, 30, 0, 0.25)";
+    ctx.beginPath();
+    ctx.ellipse(-rx + 5, cy + 8, 4, 6, 0, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.beginPath();
+    ctx.ellipse(rx - 5,  cy + 8, 4, 6, 0, 0, Math.PI * 2);
+    ctx.fill();
+    // Cheekbone highlight
+    ctx.fillStyle = "rgba(255, 255, 255, 0.10)";
+    ctx.beginPath();
+    ctx.ellipse(-rx + 8, cy + 1, 3, 4, -0.2, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.beginPath();
+    ctx.ellipse(rx - 8,  cy + 1, 3, 4, 0.2, 0, Math.PI * 2);
+    ctx.fill();
+
+    // Ears (small, tight to skull)
+    ctx.fillStyle = gradLin(-rx, cy, -rx + 4, cy + 4, s.skinShade, s.skinDark);
+    ctx.beginPath();
+    ctx.ellipse(-rx + 1, cy + 3, 2.5, 4, 0, 0, Math.PI * 2); ctx.fill();
+    ctx.beginPath();
+    ctx.ellipse(rx - 1, cy + 3, 2.5, 4, 0, 0, Math.PI * 2); ctx.fill();
+
+    // ===== Heavy angled eyebrows (furrowed, angry) =====
+    ctx.fillStyle = "#0a0608";
+    ctx.beginPath();
+    ctx.moveTo(-13, cy - 6);
+    ctx.bezierCurveTo(-10, cy - 8, -5, cy - 5, -3, cy - 2);
+    ctx.lineTo(-3, cy);
+    ctx.bezierCurveTo(-7, cy - 3, -10, cy - 3, -13, cy - 2);
+    ctx.closePath();
+    ctx.fill();
+    ctx.beginPath();
+    ctx.moveTo(13, cy - 6);
+    ctx.bezierCurveTo(10, cy - 8, 5, cy - 5, 3, cy - 2);
+    ctx.lineTo(3, cy);
+    ctx.bezierCurveTo(7, cy - 3, 10, cy - 3, 13, cy - 2);
+    ctx.closePath();
+    ctx.fill();
+    // Furrow line between brows
+    ctx.strokeStyle = "rgba(60, 30, 0, 0.55)";
+    ctx.lineWidth = 0.9;
+    ctx.beginPath();
+    ctx.moveTo(-1, cy - 1);
+    ctx.lineTo(-1, cy + 3);
+    ctx.moveTo(1, cy - 1);
+    ctx.lineTo(1, cy + 3);
+    ctx.stroke();
+
+    // ===== Squinting eyes — narrow horizontal slits =====
+    if (f.stance === "hurt") {
+      ctx.fillStyle = "#111";
+      ctx.fillRect(-9, cy + 1, 5, 2);
+      ctx.fillRect(4, cy + 1, 5, 2);
+    } else {
+      // Eye sockets (deep set)
+      ctx.fillStyle = "rgba(40, 20, 0, 0.22)";
+      ctx.beginPath();
+      ctx.ellipse(-7, cy + 2, 5, 2.5, 0, 0, Math.PI * 2); ctx.fill();
+      ctx.beginPath();
+      ctx.ellipse(7, cy + 2, 5, 2.5, 0, 0, Math.PI * 2); ctx.fill();
+      // Whites (very narrow slits)
+      ctx.fillStyle = "#fff";
+      ctx.beginPath();
+      ctx.moveTo(-10, cy + 1);
+      ctx.bezierCurveTo(-8, cy, -4, cy, -3, cy + 1);
+      ctx.bezierCurveTo(-4, cy + 3, -8, cy + 3, -10, cy + 1);
+      ctx.closePath(); ctx.fill();
+      ctx.beginPath();
+      ctx.moveTo(10, cy + 1);
+      ctx.bezierCurveTo(8, cy, 4, cy, 3, cy + 1);
+      ctx.bezierCurveTo(4, cy + 3, 8, cy + 3, 10, cy + 1);
+      ctx.closePath(); ctx.fill();
+      // Pupils — dark, partially hidden by lid
+      ctx.fillStyle = "#0e0e0e";
+      ctx.beginPath();
+      ctx.arc(-7, cy + 1.5, 1.6, 0, Math.PI * 2); ctx.fill();
+      ctx.beginPath();
+      ctx.arc(7,  cy + 1.5, 1.6, 0, Math.PI * 2); ctx.fill();
+      // Upper lid line for squint
+      ctx.strokeStyle = "rgba(0,0,0,0.5)";
+      ctx.lineWidth = 1;
+      ctx.beginPath();
+      ctx.moveTo(-10, cy);  ctx.bezierCurveTo(-8, cy - 1, -4, cy - 1, -3, cy);
+      ctx.moveTo(10, cy);   ctx.bezierCurveTo(8, cy - 1, 4, cy - 1, 3, cy);
+      ctx.stroke();
+      // Eye-bag shading
+      ctx.fillStyle = "rgba(60, 30, 0, 0.18)";
+      ctx.fillRect(-10, cy + 4, 7, 1.2);
+      ctx.fillRect(4,   cy + 4, 7, 1.2);
+    }
+
+    // ===== Long sharp nose with bridge ridge =====
+    ctx.fillStyle = gradLin(-2, cy + 4, 2, cy + 13, s.skinHi, s.skinShade);
+    ctx.beginPath();
+    ctx.moveTo(-1.5, cy + 4);
+    ctx.bezierCurveTo(-2, cy + 8, -3, cy + 12, -3, cy + 13);
+    ctx.lineTo(3, cy + 13);
+    ctx.bezierCurveTo(3, cy + 12, 2, cy + 8, 1.5, cy + 4);
+    ctx.closePath();
+    ctx.fill();
+    // Bridge ridge highlight
+    ctx.strokeStyle = "rgba(255,255,255,0.30)";
+    ctx.lineWidth = 0.8;
+    ctx.beginPath();
+    ctx.moveTo(0, cy + 5); ctx.lineTo(0, cy + 12);
+    ctx.stroke();
+    // Right side of nose shadow
+    ctx.strokeStyle = "rgba(60, 30, 0, 0.4)";
+    ctx.lineWidth = 0.8;
+    ctx.beginPath();
+    ctx.moveTo(2, cy + 6); ctx.lineTo(3, cy + 13);
+    ctx.stroke();
+    // Nostrils
+    ctx.fillStyle = "rgba(0,0,0,0.5)";
+    ctx.beginPath();
+    ctx.ellipse(-1.5, cy + 14, 1, 0.8, 0, 0, Math.PI * 2); ctx.fill();
+    ctx.beginPath();
+    ctx.ellipse(1.5, cy + 14, 1, 0.8, 0, 0, Math.PI * 2); ctx.fill();
+
+    // ===== Thin-lipped frown =====
+    ctx.strokeStyle = "#2a0808";
+    ctx.lineWidth = 1.6;
+    ctx.lineCap = "round";
+    ctx.beginPath();
+    ctx.moveTo(-6, cy + 17.5);
+    ctx.bezierCurveTo(-3, cy + 17, 3, cy + 17, 6, cy + 17.5);
+    ctx.stroke();
+    // Slight downturn corners (sneer)
+    ctx.beginPath();
+    ctx.moveTo(-6, cy + 17.5); ctx.lineTo(-7, cy + 18.5);
+    ctx.moveTo(6, cy + 17.5);  ctx.lineTo(7, cy + 18.5);
+    ctx.stroke();
+    ctx.lineCap = "butt";
+
+    // Pronounced chin cleft
+    ctx.fillStyle = "rgba(60, 30, 0, 0.4)";
+    ctx.beginPath();
+    ctx.ellipse(0, cy + 21, 1, 2.5, 0, 0, Math.PI * 2);
+    ctx.fill();
+
+    // ===== Olive military beret with yellow star =====
+    // Brim band (dark, sits low on the brow line)
+    ctx.fillStyle = s.capBand;
+    ctx.beginPath();
+    ctx.moveTo(-rx, cy - 6);
+    ctx.bezierCurveTo(-rx - 2, cy - 9, rx + 2, cy - 9, rx + 2, cy - 6);
+    ctx.lineTo(rx + 2, cy - 4);
+    ctx.bezierCurveTo(rx, cy - 5, -rx, cy - 5, -rx, cy - 4);
+    ctx.closePath();
+    ctx.fill();
+    // Beret crown — tilted ellipse
+    ctx.fillStyle = gradRad(0, cy - 17, rx + 4, s.capHi, s.capDark);
+    ctx.beginPath();
+    ctx.ellipse(3, cy - 14, rx + 4, 9, -0.22, 0, Math.PI * 2);
+    ctx.fill();
+    outlinePath(1.3, "rgba(0,0,0,0.65)");
+    // Beret highlight crease
+    ctx.fillStyle = "rgba(255,255,255,0.15)";
+    ctx.beginPath();
+    ctx.ellipse(-1, cy - 17, rx - 2, 3, -0.22, 0, Math.PI * 2);
+    ctx.fill();
+    // Red trim accent strip on the band
+    ctx.fillStyle = s.capRedAccent;
+    ctx.fillRect(-rx + 4, cy - 7, rx * 0.9, 2);
+    // Beret yellow STAR insignia (tilted with the beret)
+    ctx.save();
+    ctx.translate(8, cy - 16);
+    ctx.rotate(-0.2);
+    ctx.fillStyle = s.capStar;
+    drawStar(0, 0, 4.5, 5);
+    outlinePath(1, "rgba(0,0,0,0.7)");
+    ctx.restore();
+  }
+
+  function drawCapMedal(x, y, gold, ribbon) {
+    // tiny rectangular ribbon with circular medal pendant
+    ctx.fillStyle = ribbon;
+    ctx.fillRect(x, y, 8, 4);
+    ctx.fillStyle = gold;
+    ctx.beginPath(); ctx.arc(x + 4, y + 6, 2.6, 0, Math.PI * 2); ctx.fill();
+    ctx.strokeStyle = "rgba(0,0,0,0.5)"; ctx.lineWidth = 0.8;
+    ctx.stroke();
+  }
+
+  function drawCapLeg(x, y, w, h, s) {
+    ctx.fillStyle = s.pantsDark;
+    rectChunky(x - 1, y - 1, w + 2, h + 2);
+    ctx.fillStyle = s.pants;
+    ctx.fillRect(x, y, w, h);
+    // tactical knee detail
+    ctx.fillStyle = s.pantsDark;
+    ctx.fillRect(x + 2, y + h - 14, w - 4, 2);
+    // Combat boots — tall
+    ctx.fillStyle = s.bootsDark;
+    rectChunky(x - 3, y + h - 4, w + 6, 12);
+    ctx.fillStyle = s.boots;
+    ctx.fillRect(x - 2, y + h - 3, w + 4, 10);
+    // Boot lace stripe
+    ctx.fillStyle = "rgba(255,255,255,0.10)";
+    ctx.fillRect(x + w / 2 - 1, y + h - 2, 2, 8);
+  }
+
+  function drawCapitaoArms(f, ph, yShoulder, yChest, yWaist, off, s) {
+    // BACK arm — drawn behind torso
+    drawCapUpperArm(-18, yShoulder + 6, -22, yWaist, true, s);
+    ctx.fillStyle = s.glove;
+    ctx.beginPath(); ctx.arc(-22, yWaist + 6, 5, 0, Math.PI * 2); ctx.fill();
+    outlinePath(1, "rgba(0,0,0,0.5)");
+
+    if (ph === "active" && f.attackKind === "punch") {
+      // CORONHADA — long forward jab
+      const sx = 18, sy = yShoulder + 6;
+      const ex = 58, ey = yShoulder + 10;
+      taperedLimb(sx, sy, 14, ex, ey, 11, 4,
+        gradLin3(sx, 0, ex, 0, s.shirtHi, s.shirt, s.camoA), true);
+      // Tactical dark glove
+      ctx.fillStyle = gradRad(ex + 8, ey - 1, 10, "#3a3a3a", "#0a0a0a");
+      ctx.beginPath();
+      ctx.arc(ex + 8, ey + 2, 7.5, 0, Math.PI * 2);
+      ctx.fill();
+      outlinePath(1.4, "rgba(0,0,0,0.7)");
+      // Yellow chevron on knuckles
+      ctx.fillStyle = s.accent;
+      ctx.fillRect(ex + 4, ey + 1, 8, 2);
+      drawMotionLines(30, ey + 4, 4);
+    } else if (ph === "active" && f.attackKind === "kick") {
+      // Arms back / down for balance
+      drawCapUpperArm(18, yShoulder + 6, 12, yWaist + 4, false, s);
+      ctx.fillStyle = s.glove;
+      ctx.beginPath(); ctx.arc(12, yWaist + 10, 5, 0, Math.PI * 2); ctx.fill();
+      outlinePath(1, "rgba(0,0,0,0.5)");
+    } else if (ph === "active" && f.attackKind === "special") {
+      // ORDEM E PROGRESSO — back arm salutes, front arm extended forward
+      drawCapUpperArm(-18, yShoulder + 6, -10, yShoulder - 22, true, s);
+      // Saluting hand at brow
+      ctx.fillStyle = s.skinHi;
+      ctx.beginPath();
+      ctx.ellipse(-10, yShoulder - 24, 8, 5, -0.3, 0, Math.PI * 2);
+      ctx.fill();
+      outlinePath(1.2, "rgba(0,0,0,0.5)");
+      // Front arm extended
+      taperedLimb(18, yShoulder + 6, 14, 50, yShoulder + 4, 11, 4,
+        gradLin3(18, 0, 50, 0, s.shirtHi, s.shirt, s.camoA), true);
+      ctx.fillStyle = gradRad(54, yShoulder, 10, "#3a3a3a", "#0a0a0a");
+      ctx.beginPath();
+      ctx.arc(54, yShoulder + 4, 7, 0, Math.PI * 2);
+      ctx.fill();
+      outlinePath(1.3, "rgba(0,0,0,0.7)");
+      // ORDEM ribbon
+      ctx.fillStyle = "#fff";
+      ctx.beginPath();
+      ctx.roundRect ? ctx.roundRect(50, yShoulder - 14, 32, 14, 2) : ctx.rect(50, yShoulder - 14, 32, 14);
+      ctx.fill();
+      outlinePath(1.2, "rgba(0,0,0,0.55)");
+      ctx.save();
+      ctx.scale(f.facing, 1);
+      ctx.fillStyle = "#002776";
+      ctx.font = "900 11px system-ui";
+      ctx.textAlign = "center";
+      ctx.fillText("ORDEM", 66 * f.facing, yShoulder - 5);
+      ctx.restore();
+    } else if (f.stance === "block") {
+      // Cross-guard, both forearms up
+      taperedLimb(-16, yShoulder + 6, 14, -8, yShoulder + 32, 13, 4,
+        gradLin3(-16, 0, -8, 0, s.shirtHi, s.shirt, s.camoA), true);
+      taperedLimb(16, yShoulder + 6, 14, 8, yShoulder + 32, 13, -4,
+        gradLin3(8, 0, 16, 0, s.camoA, s.shirt, s.shirtHi), true);
+      ctx.fillStyle = s.glove;
+      ctx.beginPath(); ctx.arc(-12, yShoulder + 2, 5, 0, Math.PI * 2); ctx.fill();
+      outlinePath(1, "rgba(0,0,0,0.5)");
+      ctx.beginPath(); ctx.arc(12, yShoulder + 2, 5, 0, Math.PI * 2); ctx.fill();
+      outlinePath(1, "rgba(0,0,0,0.5)");
+    } else if (ph === "startup") {
+      // Chamber across waist
+      taperedLimb(18, yShoulder + 6, 14, -3, yWaist - 2, 11, -3,
+        gradLin3(-3, 0, 18, 0, s.camoA, s.shirt, s.shirtHi), true);
+      ctx.fillStyle = s.glove;
+      ctx.beginPath(); ctx.arc(-5, yWaist + 2, 5, 0, Math.PI * 2); ctx.fill();
+      outlinePath(1, "rgba(0,0,0,0.5)");
+    } else {
+      // Idle / walk — straight ramrod arm at side
+      taperedLimb(18, yShoulder + 6, 14, 18, yWaist + 2, 11, 2,
+        gradLin3(15, 0, 18, 0, s.shirtHi, s.shirt, s.camoA), true);
+      // Hand
+      ctx.fillStyle = s.glove;
+      ctx.beginPath(); ctx.arc(18, yWaist + 8, 5, 0, Math.PI * 2); ctx.fill();
+      outlinePath(1, "rgba(0,0,0,0.5)");
+    }
+
+    // KICK leg override (extended forward)
+    if (ph === "active" && f.attackKind === "kick") {
+      const ky = yWaist + 18;
+      taperedLimb(8, ky, 14, 56, ky + 2, 12, 4,
+        gradLin3(8, 0, 56, 0, s.pantsHi, s.pants, s.pantsDark), true);
+      drawCapBoot(60, ky + 4, 1);
+      // Tiny BR flag fluttering
+      ctx.fillStyle = "#009c3b";
+      ctx.beginPath();
+      ctx.moveTo(70, ky - 4);
+      ctx.bezierCurveTo(76, ky - 6, 80, ky - 2, 78, ky + 2);
+      ctx.lineTo(72, ky + 2);
+      ctx.closePath(); ctx.fill();
+      ctx.fillStyle = "#ffdf00";
+      ctx.beginPath();
+      ctx.moveTo(72, ky + 1);
+      ctx.lineTo(78, ky + 1);
+      ctx.lineTo(78, ky + 5);
+      ctx.lineTo(72, ky + 5);
+      ctx.closePath(); ctx.fill();
+      drawMotionLines(28, ky + 4, 4);
+    }
+  }
+
+  function drawCapUpperArm(x1, y1, x2, y2, isBack, s) {
+    taperedLimb(
+      x1, y1, 13,
+      x2, y2, 11,
+      isBack ? -3 : 3,
+      gradLin3(x1, 0, x2, 0,
+        isBack ? s.camoA : s.shirtHi,
+        s.shirt,
+        isBack ? s.shirt : s.camoA),
+      true
+    );
+  }
+
+  // ===== Capitão's long thin legs (replaces drawCapLeg helper) =====
+  function drawCapitaoLegs(f, off, yShift, yWaist) {
+    const yTop = yWaist + 4;
+    const yBot = -2;
+    const halfW = 9;
+    const halfWBot = 7;
+
+    if (f.stance === "walk") {
+      const a = off.legShuffle * 8;
+      drawCapOneLeg(-9 + a, yTop, halfW, halfWBot, yBot, f.spec);
+      drawCapOneLeg(9 - a, yTop, halfW, halfWBot, yBot, f.spec);
+      drawCapBoot(-11 + a * 1.3, yBot + 4, 0);
+      drawCapBoot(11 - a * 1.3, yBot + 4, 0);
+    } else if (f.stance === "jump") {
+      drawCapOneLeg(-9, yTop - 2, halfW, halfWBot, yBot - 6, f.spec);
+      drawCapOneLeg(9, yTop - 2, halfW, halfWBot, yBot - 6, f.spec);
+      drawCapBoot(-11, yBot - 2, 0);
+      drawCapBoot(11, yBot - 2, 0);
+    } else {
+      drawCapOneLeg(-9, yTop, halfW, halfWBot, yBot, f.spec);
+      drawCapOneLeg(9, yTop, halfW, halfWBot, yBot, f.spec);
+      drawCapBoot(-11, yBot + 4, 0);
+      drawCapBoot(11, yBot + 4, 0);
+    }
+  }
+  function drawCapOneLeg(cx, yTop, hw, hwBot, yBot, s) {
+    ctx.beginPath();
+    ctx.moveTo(cx - hw, yTop);
+    ctx.bezierCurveTo(cx - hw - 1, yTop + 8, cx - hwBot - 1, yBot - 6, cx - hwBot, yBot);
+    ctx.lineTo(cx + hwBot, yBot);
+    ctx.bezierCurveTo(cx + hwBot + 1, yBot - 6, cx + hw + 1, yTop + 8, cx + hw, yTop);
+    ctx.closePath();
+    ctx.fillStyle = gradLin3(cx - hw, 0, cx + hw, 0, s.pantsDark, s.pants, s.pantsHi);
+    ctx.fill();
+    outlinePath(1.2, "rgba(0,0,0,0.55)");
+    // Tactical pocket detail (rectangle on outer thigh)
+    ctx.fillStyle = s.pantsDark;
+    ctx.beginPath();
+    ctx.roundRect ? ctx.roundRect(cx + (hw - 5), yTop + 8, 4, 8, 1) : ctx.rect(cx + (hw - 5), yTop + 8, 4, 8);
+    ctx.fill();
+    // Knee pad seam
+    ctx.strokeStyle = "rgba(0,0,0,0.4)"; ctx.lineWidth = 1;
+    ctx.beginPath();
+    ctx.moveTo(cx - hw + 1, yTop + (yBot - yTop) * 0.55);
+    ctx.bezierCurveTo(cx, yTop + (yBot - yTop) * 0.6, cx, yTop + (yBot - yTop) * 0.6, cx + hw - 1, yTop + (yBot - yTop) * 0.55);
+    ctx.stroke();
+  }
+  function drawCapBoot(cx, cy, dir) {
+    const s = CAPITAO;
+    if (dir === 1) {
+      // Kick boot — extended forward
+      ctx.fillStyle = gradLin3(cx, cy - 6, cx, cy + 6, s.bootsHi, s.boots, s.bootsDark);
+      ctx.beginPath();
+      ctx.moveTo(cx - 8, cy - 8);
+      ctx.bezierCurveTo(cx - 4, cy - 11, cx + 8, cy - 9, cx + 16, cy - 4);
+      ctx.bezierCurveTo(cx + 20, cy, cx + 20, cy + 4, cx + 16, cy + 7);
+      ctx.bezierCurveTo(cx + 4, cy + 10, cx - 4, cy + 9, cx - 8, cy + 8);
+      ctx.closePath();
+      ctx.fill();
+      outlinePath(1.3, "rgba(0,0,0,0.65)");
+      // Sole stripe
+      ctx.fillStyle = s.bootsDark;
+      ctx.beginPath();
+      ctx.moveTo(cx + 16, cy + 4);
+      ctx.bezierCurveTo(cx + 6, cy + 10, cx - 2, cy + 9, cx - 8, cy + 8);
+      ctx.lineTo(cx - 8, cy + 6);
+      ctx.bezierCurveTo(cx - 2, cy + 7, cx + 6, cy + 8, cx + 16, cy + 2);
+      ctx.closePath();
+      ctx.fill();
+      return;
+    }
+    // Standing boot — tall, angular military combat boot
+    // Upper shaft
+    ctx.fillStyle = gradLin3(cx - 8, 0, cx + 8, 0, s.boots, s.bootsHi, s.boots);
+    ctx.beginPath();
+    ctx.moveTo(cx - 7, cy - 8);
+    ctx.bezierCurveTo(cx - 8, cy - 6, cx - 8, cy + 4, cx - 7, cy + 5);
+    ctx.lineTo(cx + 7, cy + 5);
+    ctx.bezierCurveTo(cx + 8, cy + 4, cx + 8, cy - 6, cx + 7, cy - 8);
+    ctx.closePath();
+    ctx.fill();
+    outlinePath(1.2, "rgba(0,0,0,0.6)");
+    // Toe / sole (separated by line)
+    ctx.fillStyle = gradLin(cx - 10, cy + 5, cx + 10, cy + 8, s.bootsDark, s.bootsHi);
+    ctx.beginPath();
+    ctx.moveTo(cx - 9, cy + 5);
+    ctx.bezierCurveTo(cx - 11, cy + 6, cx + 11, cy + 6, cx + 12, cy + 5);
+    ctx.bezierCurveTo(cx + 12, cy + 9, cx - 9, cy + 9, cx - 9, cy + 5);
+    ctx.closePath();
+    ctx.fill();
+    outlinePath(1.2, "rgba(0,0,0,0.7)");
+    // Bootlaces (3 horizontal stripes)
+    ctx.strokeStyle = "rgba(180, 180, 180, 0.5)";
+    ctx.lineWidth = 0.7;
+    ctx.beginPath();
+    for (let i = 0; i < 3; i++) {
+      ctx.moveTo(cx - 4, cy - 4 + i * 3);
+      ctx.lineTo(cx + 4, cy - 4 + i * 3);
+    }
+    ctx.stroke();
+  }
+
+  function drawCapitaoKO(f) {
+    const s = f.spec;
+    ctx.save();
+    ctx.translate(-2, -8);
+    ctx.rotate(-Math.PI / 2);
+    // Long thin legs
+    ctx.fillStyle = gradLin3(-22, 0, 22, 0, s.pantsDark, s.pants, s.pantsHi);
+    ctx.beginPath();
+    ctx.moveTo(-9, -16);
+    ctx.bezierCurveTo(-13, 0, -13, 30, -9, 42);
+    ctx.lineTo(-3, 42);
+    ctx.bezierCurveTo(-3, 30, -3, 0, -3, -16);
+    ctx.closePath(); ctx.fill();
+    ctx.beginPath();
+    ctx.moveTo(3, -16);
+    ctx.bezierCurveTo(3, 0, 3, 30, 3, 42);
+    ctx.lineTo(9, 42);
+    ctx.bezierCurveTo(13, 30, 13, 0, 9, -16);
+    ctx.closePath(); ctx.fill();
+    outlinePath(1.2, "rgba(0,0,0,0.5)");
+    // Boots (sole-up)
+    ctx.fillStyle = gradLin(0, 36, 0, 56, s.bootsHi, s.bootsDark);
+    ctx.beginPath();
+    ctx.ellipse(-6, 50, 8, 6, 0, 0, Math.PI * 2); ctx.fill();
+    ctx.beginPath();
+    ctx.ellipse(6, 50, 8, 6, 0, 0, Math.PI * 2); ctx.fill();
+    // Lean torso
+    ctx.fillStyle = gradLin3(-22, 0, 22, 0, s.camoA, s.shirt, s.shirtHi);
+    ctx.beginPath();
+    ctx.moveTo(-18, -20);
+    ctx.bezierCurveTo(-22, -10, -22, 0, -18, 8);
+    ctx.bezierCurveTo(-10, 14, 10, 14, 18, 8);
+    ctx.bezierCurveTo(22, 0, 22, -10, 18, -20);
+    ctx.closePath(); ctx.fill();
+    outlinePath(1.4, "rgba(0,0,0,0.45)");
+    // Camo blobs
+    ctx.fillStyle = s.camoB;
+    ctx.beginPath(); ctx.ellipse(-10, -8, 5, 3, 0, 0, Math.PI * 2); ctx.fill();
+    ctx.beginPath(); ctx.ellipse(8, 0, 6, 3, 0, 0, Math.PI * 2); ctx.fill();
+    // Yellow star
+    ctx.fillStyle = s.accent;
+    drawStar(0, -6, 3.5, 5);
+    // Belt
+    ctx.fillStyle = s.belt;
+    ctx.fillRect(-18, 14, 36, 5);
+    // Head - long lean shape
+    ctx.fillStyle = s.hair;
+    ctx.beginPath(); ctx.ellipse(0, -38, 16, 17, 0, 0, Math.PI * 2); ctx.fill();
+    ctx.fillStyle = gradRad(-2, -42, 18, s.skinHi, s.skinShade);
+    ctx.beginPath(); ctx.ellipse(0, -38, 14, 16, 0, 0, Math.PI * 2); ctx.fill();
+    outlinePath(1.2, "rgba(0,0,0,0.45)");
+    // X eyes
+    ctx.strokeStyle = "#111"; ctx.lineWidth = 2.5; ctx.lineCap = "round";
+    ctx.beginPath();
+    ctx.moveTo(-7, -42); ctx.lineTo(-2, -36);
+    ctx.moveTo(-7, -36); ctx.lineTo(-2, -42);
+    ctx.moveTo(2, -42);  ctx.lineTo(7, -36);
+    ctx.moveTo(2, -36);  ctx.lineTo(7, -42);
+    ctx.stroke();
+    ctx.lineCap = "butt";
+    // Beret on the floor
+    ctx.fillStyle = s.cap;
+    ctx.beginPath(); ctx.ellipse(20, -50, 12, 5, 0, 0, Math.PI * 2); ctx.fill();
+    outlinePath(1, "rgba(0,0,0,0.6)");
+    ctx.fillStyle = s.capStar;
+    drawStar(20, -50, 2.8, 5);
+    ctx.restore();
+  }
+
+  // ---------- HELPERS ----------
+  function rectChunky(x, y, w, h) {
+    ctx.fillRect(x, y, w, h);
+    ctx.strokeStyle = "rgba(0,0,0,0.65)";
+    ctx.lineWidth = 1.5;
+    ctx.strokeRect(x + 0.5, y + 0.5, w - 1, h - 1);
+  }
+
+  // Gradient helpers — created on demand inside draw functions because their
+  // coordinates are local to the active ctx.translate frame.
+  function gradLin(x1, y1, x2, y2, c1, c2) {
+    const g = ctx.createLinearGradient(x1, y1, x2, y2);
+    g.addColorStop(0, c1);
+    g.addColorStop(1, c2);
+    return g;
+  }
+  function gradLin3(x1, y1, x2, y2, c1, c2, c3) {
+    const g = ctx.createLinearGradient(x1, y1, x2, y2);
+    g.addColorStop(0, c1);
+    g.addColorStop(0.5, c2);
+    g.addColorStop(1, c3);
+    return g;
+  }
+  function gradRad(cx, cy, r, c1, c2) {
+    const g = ctx.createRadialGradient(cx, cy, 0, cx, cy, r);
+    g.addColorStop(0, c1);
+    g.addColorStop(1, c2);
+    return g;
+  }
+  function gradRad3(cx, cy, r, c1, c2, c3) {
+    const g = ctx.createRadialGradient(cx, cy, 0, cx, cy, r);
+    g.addColorStop(0, c1);
+    g.addColorStop(0.6, c2);
+    g.addColorStop(1, c3);
+    return g;
+  }
+  // Outline a path you've just filled (call after .fill() before resetting beginPath)
+  function outlinePath(width, color) {
+    ctx.lineWidth = width || 1.4;
+    ctx.strokeStyle = color || "rgba(0, 0, 0, 0.45)";
+    ctx.stroke();
+  }
+  // Tapered limb: a curved cylinder from (x1,y1) to (x2,y2), with widths w1 → w2.
+  // The curve bows outward by `bow` perpendicular to the limb axis.
+  function taperedLimb(x1, y1, w1, x2, y2, w2, bow, fillStyle, outline) {
+    const ang = Math.atan2(y2 - y1, x2 - x1);
+    const px = -Math.sin(ang), py = Math.cos(ang);
+    const mx = (x1 + x2) / 2, my = (y1 + y2) / 2;
+    ctx.beginPath();
+    ctx.moveTo(x1 + px * w1 / 2, y1 + py * w1 / 2);
+    ctx.quadraticCurveTo(
+      mx + px * (Math.max(w1, w2) / 2 + bow), my + py * (Math.max(w1, w2) / 2 + bow),
+      x2 + px * w2 / 2, y2 + py * w2 / 2
+    );
+    ctx.lineTo(x2 - px * w2 / 2, y2 - py * w2 / 2);
+    ctx.quadraticCurveTo(
+      mx - px * (Math.max(w1, w2) / 2 - bow * 0.5), my - py * (Math.max(w1, w2) / 2 - bow * 0.5),
+      x1 - px * w1 / 2, y1 - py * w1 / 2
+    );
+    ctx.closePath();
+    ctx.fillStyle = fillStyle;
+    ctx.fill();
+    if (outline) outlinePath(1.2, "rgba(0, 0, 0, 0.4)");
+  }
+  function drawLeg(x, y, w, h, pants, boots) {
+    ctx.fillStyle = pants;
+    rectChunky(x, y, w, h);
+    ctx.fillStyle = boots;
+    rectChunky(x - 2, y + h, w + 4, 6);
+  }
+  function drawMotionLines(x, y, n) {
+    ctx.strokeStyle = "rgba(255,255,255,0.85)";
+    ctx.lineWidth = 2;
+    for (let i = 0; i < n; i++) {
+      ctx.beginPath();
+      ctx.moveTo(x - 14 - i * 6, y + (i - 1) * 4);
+      ctx.lineTo(x - 4 - i * 6, y + (i - 1) * 4);
+      ctx.stroke();
+    }
+  }
+  function drawStar(x, y, r, points) {
+    ctx.beginPath();
+    for (let i = 0; i < points * 2; i++) {
+      const ang = (i * Math.PI) / points - Math.PI / 2;
+      const rad = i % 2 === 0 ? r : r / 2.2;
+      const px = x + Math.cos(ang) * rad;
+      const py = y + Math.sin(ang) * rad;
+      if (i === 0) ctx.moveTo(px, py); else ctx.lineTo(px, py);
+    }
+    ctx.closePath();
+    ctx.fill();
+  }
+  function drawHeart(x, y, r) {
+    ctx.fillStyle = "#ff3a4a";
+    ctx.beginPath();
+    ctx.moveTo(x, y + r);
+    ctx.bezierCurveTo(x + r, y, x + r * 1.6, y - r * 0.6, x, y - r);
+    ctx.bezierCurveTo(x - r * 1.6, y - r * 0.6, x - r, y, x, y + r);
+    ctx.fill();
+  }
+
+  // ---------- AURAS ----------
+  function drawAuras() {
+    for (const e of effects) {
+      if (e.kind !== "aura" || !e.f) continue;
+      const t = 1 - e.life / e.max;
+      ctx.save();
+      ctx.globalAlpha = (1 - t) * 0.5;
+      const r = 40 + t * 50;
+      const grd = ctx.createRadialGradient(e.f.x, e.f.y - FH / 2, 4, e.f.x, e.f.y - FH / 2, r);
+      grd.addColorStop(0, "#fff7c0");
+      grd.addColorStop(0.5, e.f.spec.auraColor);
+      grd.addColorStop(1, "rgba(0,0,0,0)");
+      ctx.fillStyle = grd;
+      ctx.beginPath(); ctx.arc(e.f.x, e.f.y - FH / 2, r, 0, Math.PI * 2); ctx.fill();
+      ctx.restore();
+    }
+  }
+
+  // ---------- EFFECTS RENDER ----------
+  function drawEffects() {
+    for (const e of effects) {
+      if (e.kind === "spark") drawSpark(e);
+      else if (e.kind === "dust") drawDust(e);
+      else if (e.kind === "comic") drawComic(e);
+      else if (e.kind === "text") drawTextEffect(e);
+    }
+  }
+  function drawSpark(e) {
+    const a = Math.min(1, e.life / 16);
+    ctx.globalAlpha = a;
+    ctx.fillStyle = e.color;
+    ctx.fillRect(e.x - 3, e.y - 3, 6, 6);
+    ctx.globalAlpha = 1;
+  }
+  function drawDust(e) {
+    const a = Math.min(1, e.life / 14);
+    ctx.globalAlpha = a;
+    ctx.fillStyle = e.color;
+    ctx.beginPath(); ctx.arc(e.x, e.y, 4, 0, Math.PI * 2); ctx.fill();
+    ctx.globalAlpha = 1;
+  }
+  function drawComic(e) {
+    const t = 1 - e.life / e.max;
+    let scale = t < 0.25 ? (t / 0.25) : 1;
+    if (t > 0.75) scale = 1 - (t - 0.75) / 0.25 * 0.3;
+    const alpha = t > 0.85 ? (1 - t) / 0.15 : 1;
+    ctx.save();
+    ctx.translate(e.x, e.y - 10);
+    ctx.rotate(e.rot);
+    ctx.scale(scale * (e.big ? 1.6 : 1.0), scale * (e.big ? 1.6 : 1.0));
+    ctx.globalAlpha = alpha;
+
+    // Burst star
+    ctx.fillStyle = "#ffdf00";
+    ctx.strokeStyle = "#1a0e00";
+    ctx.lineWidth = 3;
+    burstShape(0, 0, e.big ? 56 : 42, 12);
+    ctx.fill();
+    ctx.stroke();
+
+    // Inner ring
+    ctx.fillStyle = "#fff";
+    burstShape(0, 0, e.big ? 38 : 28, 12);
+    ctx.fill();
+
+    // Text
+    ctx.fillStyle = "#c8102e";
+    ctx.strokeStyle = "#111";
+    ctx.lineWidth = 3;
+    ctx.font = `900 ${e.big ? 30 : 22}px "Impact","Arial Black",system-ui,sans-serif`;
+    ctx.textAlign = "center"; ctx.textBaseline = "middle";
+    ctx.strokeText(e.text, 0, 0);
+    ctx.fillText(e.text, 0, 0);
+    ctx.restore();
+    ctx.globalAlpha = 1;
+  }
+  function burstShape(x, y, r, points) {
+    ctx.beginPath();
+    for (let i = 0; i < points * 2; i++) {
+      const ang = (i * Math.PI) / points;
+      const rad = (i % 2 === 0) ? r : r * 0.62;
+      const px = x + Math.cos(ang) * rad;
+      const py = y + Math.sin(ang) * rad;
+      if (i === 0) ctx.moveTo(px, py); else ctx.lineTo(px, py);
+    }
+    ctx.closePath();
+  }
+  function drawTextEffect(e) {
+    const a = Math.min(1, e.life / 18);
+    ctx.save();
+    ctx.globalAlpha = a;
+    ctx.fillStyle = e.color || "#fff";
+    ctx.strokeStyle = "#111";
+    ctx.lineWidth = 3;
+    ctx.font = "900 18px system-ui";
+    ctx.textAlign = "center";
+    ctx.strokeText(e.text, e.x, e.y - e.rise);
+    ctx.fillText(e.text, e.x, e.y - e.rise);
+    ctx.restore();
+  }
+
+  // ---------- HUD: Brazilian-flag styled ----------
+  function drawHud() {
+    // Dark backdrop strip so names + bars stay readable over bright sky / sun.
+    ctx.fillStyle = "rgba(0, 0, 0, 0.32)";
+    ctx.fillRect(0, 0, W, 100);
+    const fade = ctx.createLinearGradient(0, 100, 0, 130);
+    fade.addColorStop(0, "rgba(0, 0, 0, 0.32)");
+    fade.addColorStop(1, "rgba(0, 0, 0, 0)");
+    ctx.fillStyle = fade;
+    ctx.fillRect(0, 100, W, 30);
+
+    drawHpBar(p1, 30, 30, false);
+    drawHpBar(p2, W - 30 - 360, 30, true);
+
+    // Names with black stroke for readability against any background.
+    ctx.font = "900 18px system-ui";
+    ctx.lineJoin = "round";
+    ctx.miterLimit = 2;
+    ctx.lineWidth = 4;
+    ctx.strokeStyle = "#000";
+    ctx.fillStyle = "#fff";
+    ctx.textAlign = "left";
+    ctx.strokeText(p1.spec.name, 30, 80);
+    ctx.fillText(p1.spec.name, 30, 80);
+    ctx.textAlign = "right";
+    ctx.strokeText(p2.spec.name, W - 30, 80);
+    ctx.fillText(p2.spec.name, W - 30, 80);
+
+    // Round dots
+    drawRoundDots(wins.p1, 30, 92, false);
+    drawRoundDots(wins.p2, W - 30, 92, true);
+
+    // Timer (yellow rhombus)
+    const tNum = Math.ceil(timer);
+    ctx.save();
+    ctx.translate(W / 2, 50);
+    ctx.fillStyle = "#009c3b";
+    ctx.beginPath();
+    ctx.moveTo(0, -34); ctx.lineTo(56, 0); ctx.lineTo(0, 34); ctx.lineTo(-56, 0); ctx.closePath();
+    ctx.fill();
+    ctx.fillStyle = "#ffdf00";
+    ctx.beginPath();
+    ctx.moveTo(0, -28); ctx.lineTo(46, 0); ctx.lineTo(0, 28); ctx.lineTo(-46, 0); ctx.closePath();
+    ctx.fill();
+    ctx.fillStyle = "#002776";
+    ctx.beginPath(); ctx.arc(0, 0, 22, 0, Math.PI * 2); ctx.fill();
+    ctx.fillStyle = "#fff";
+    ctx.font = "900 22px system-ui";
+    ctx.textAlign = "center"; ctx.textBaseline = "middle";
+    ctx.fillText(String(tNum).padStart(2, "0"), 0, 1);
+    ctx.restore();
+  }
+
+  function drawHpBar(f, x, y, mirror) {
+    const w = 360, h = 22;
+    // Outer green border (flag green)
+    ctx.fillStyle = "#009c3b";
+    ctx.fillRect(x - 4, y - 4, w + 8, h + 8);
+    // Yellow inner field (flag yellow)
+    ctx.fillStyle = "#ffdf00";
+    ctx.fillRect(x, y, w, h);
+    // Damaged (depleted) area shown in dark red
+    const ratio = Math.max(0, f.hp / f.maxHp);
+    const fillW = Math.round(w * ratio);
+    const lostW = w - fillW;
+    if (mirror) {
+      ctx.fillStyle = "#3a0a14";
+      ctx.fillRect(x, y, lostW, h);
+    } else {
+      ctx.fillStyle = "#3a0a14";
+      ctx.fillRect(x + fillW, y, lostW, h);
+    }
+    // Health gradient on the live portion
+    const grad = ctx.createLinearGradient(x, y, x + w, y);
+    grad.addColorStop(0, "#ff3344");
+    grad.addColorStop(0.5, "#ff7a3a");
+    grad.addColorStop(1, "#ffe066");
+    ctx.fillStyle = grad;
+    if (mirror) ctx.fillRect(x + lostW, y, fillW, h);
+    else ctx.fillRect(x, y, fillW, h);
+    // Blue circle indicator at the leading edge
+    const cx = mirror ? x + lostW : x + fillW;
+    if (fillW > 0) {
+      ctx.fillStyle = "#002776";
+      ctx.beginPath(); ctx.arc(cx, y + h / 2, 8, 0, Math.PI * 2); ctx.fill();
+      ctx.fillStyle = "#fff";
+      ctx.font = "bold 10px system-ui";
+      ctx.textAlign = "center"; ctx.textBaseline = "middle";
+      ctx.fillText("★", cx, y + h / 2 + 1);
+    }
+    // Frame
+    ctx.strokeStyle = "rgba(0,0,0,0.7)";
+    ctx.lineWidth = 1;
+    ctx.strokeRect(x - 0.5, y - 0.5, w + 1, h + 1);
+  }
+
+  function drawRoundDots(n, x, y, rightAlign) {
+    for (let i = 0; i < WINS_TO_WIN; i++) {
+      const cx = rightAlign ? x - i * 18 : x + i * 18;
+      ctx.beginPath(); ctx.arc(cx, y, 6, 0, Math.PI * 2);
+      ctx.fillStyle = i < n ? "#ffd84a" : "rgba(255,255,255,0.18)";
+      ctx.fill();
+      ctx.strokeStyle = "rgba(0,0,0,0.6)";
+      ctx.lineWidth = 1;
+      ctx.stroke();
+    }
+  }
+
+  // ---------- PHASE OVERLAY ----------
+  function drawPhaseOverlay() {
+    ctx.textAlign = "center"; ctx.textBaseline = "middle";
+
+    if (phase === "ready") {
+      const t = phaseT;
+      let label;
+      if (t < 50) label = `ROUND ${round}!`;
+      else if (t < 95) label = "PRONTOS?";
+      else label = "LUTAR!";
+      drawBigBanner(label, t < 50 ? "#ffdf00" : (t < 95 ? "#ff7a3a" : "#c8102e"));
+    } else if (phase === "roundEnd") {
+      const ko = (lastWinner === "p1" && p2.hp <= 0) || (lastWinner === "p2" && p1.hp <= 0);
+      const t = phaseT;
+      if (t < 70) {
+        drawBigBanner(ko ? "K.O.!" : "TEMPO!", "#ff3344");
+      } else {
+        let label = "EMPATE";
+        if (lastWinner === "p1") label = `${p1.spec.short} VENCE!`;
+        else if (lastWinner === "p2") label = `${p2.spec.short} VENCE!`;
+        drawBigBanner(label, "#ffdf00");
+      }
+    } else if (phase === "matchEnd") {
+      // Dim
+      ctx.fillStyle = "rgba(0,0,0,0.55)";
+      ctx.fillRect(0, 0, W, H);
+      // Banner
+      drawBigBanner("VITÓRIA!", "#ffdf00", H / 2 - 60);
+      const winnerName = wins.p1 > wins.p2 ? p1.spec.name : (wins.p2 > wins.p1 ? p2.spec.name : "EMPATE");
+      ctx.fillStyle = "#fff";
+      ctx.font = "900 36px system-ui";
+      ctx.fillText(winnerName, W / 2, H / 2 + 10);
+      ctx.fillStyle = "#cfd6e0";
+      ctx.font = "16px system-ui";
+      ctx.fillText("Toque ou pressione ENTER para voltar", W / 2, H / 2 + 50);
+    }
+  }
+
+  function drawBigBanner(label, color, yOpt) {
+    const y = yOpt != null ? yOpt : H / 2;
+    ctx.save();
+    ctx.translate(W / 2, y);
+    // background ribbon
+    ctx.fillStyle = "rgba(0,0,0,0.55)";
+    ctx.fillRect(-W / 2, -50, W, 100);
+    // accent stripes (Brazil)
+    ctx.fillStyle = "#009c3b";
+    ctx.fillRect(-W / 2, -50, W, 6);
+    ctx.fillRect(-W / 2, 44, W, 6);
+    ctx.fillStyle = color || "#ffdf00";
+    ctx.strokeStyle = "#111";
+    ctx.lineWidth = 6;
+    ctx.font = '900 76px "Impact","Arial Black",system-ui,sans-serif';
+    ctx.textAlign = "center"; ctx.textBaseline = "middle";
+    ctx.strokeText(label, 0, 0);
+    ctx.fillText(label, 0, 0);
+    ctx.restore();
+  }
+
+  // ---------- TITLE SCREEN ----------
+  function drawTitle() {
+    // Big title
+    ctx.save();
+    ctx.translate(W / 2, 130);
+    ctx.fillStyle = "#ffdf00";
+    ctx.strokeStyle = "#000";
+    ctx.lineWidth = 8;
+    ctx.font = '900 90px "Impact","Arial Black",system-ui,sans-serif';
+    ctx.textAlign = "center"; ctx.textBaseline = "middle";
+    ctx.strokeText("BATALHA BRASIL", 0, 0);
+    ctx.fillText("BATALHA BRASIL", 0, 0);
+    ctx.fillStyle = "#fff";
+    ctx.font = "900 22px system-ui";
+    ctx.fillText("PARÓDIA POLÍTICA", 0, 50);
+    ctx.restore();
+
+    // Two fighter portraits as large versions of in-game art
+    drawTitlePortrait(W * 0.27, H * 0.62, "ze", -1);
+    drawTitlePortrait(W * 0.73, H * 0.62, "capitao", 1);
+
+    // VS
+    ctx.save();
+    ctx.translate(W / 2, H * 0.6);
+    ctx.fillStyle = "#c8102e";
+    ctx.strokeStyle = "#fff";
+    ctx.lineWidth = 6;
+    ctx.font = '900 84px "Impact",system-ui,sans-serif';
+    ctx.textAlign = "center"; ctx.textBaseline = "middle";
+    ctx.strokeText("VS", 0, 0);
+    ctx.fillText("VS", 0, 0);
+    ctx.restore();
+
+    // The HTML menu renders the difficulty selector on top of this canvas,
+    // so we leave the title screen visually clean here.
+  }
+
+  function drawTitlePortrait(cx, cy, key, facing) {
+    ctx.save();
+    ctx.translate(cx, cy);
+    ctx.scale(2.2 * facing, 2.2);
+    // Use existing fighter draw but with a fake fighter at origin
+    const fakeSpec = key === "ze" ? ZE : CAPITAO;
+    const fake = { spec: fakeSpec, side: key === "ze" ? "p1" : "p2",
+      x: 0, y: 0, vx: 0, vy: 0, hp: 100, maxHp: 100, facing: 1,
+      stance: "idle", stanceT: 0, stanceDur: 0, attackKind: null, hitConnected: false,
+      cd: { punch:0, kick:0, special:0 }, onGround: true, blocking: false, flash: 0 };
+    // shadow
+    ctx.fillStyle = "rgba(0,0,0,0.4)";
+    ctx.beginPath(); ctx.ellipse(0, 0, 34, 8, 0, 0, Math.PI * 2); ctx.fill();
+    if (key === "ze") drawZe(fake, timeNow);
+    else drawCapitao(fake, timeNow);
+    ctx.restore();
+
+    // Name plate
+    ctx.fillStyle = "rgba(0,0,0,0.7)";
+    ctx.fillRect(cx - 110, cy + 70, 220, 28);
+    ctx.fillStyle = facing === -1 ? "#ff5050" : "#50d088";
+    ctx.font = "900 16px system-ui";
+    ctx.textAlign = "center"; ctx.textBaseline = "middle";
+    ctx.fillText(key === "ze" ? "ZÉ DA ESQUERDA" : "CAPITÃO DIREITA", cx, cy + 84);
+  }
+
+  // ============================================================
+  // MAIN LOOP
+  // ============================================================
+  let last = 0, acc = 0;
+  function frame(now) {
+    if (!last) last = now;
+    const dt = Math.min(0.05, (now - last) / 1000);
+    last = now;
+    acc += dt;
+    timeNow += dt;
+    while (acc >= TICK_DT) {
+      step();
+      acc -= TICK_DT;
+    }
+    render();
+    requestAnimationFrame(frame);
+  }
+
+  // ============================================================
+  // SELECT-SCREEN PORTRAITS
+  // Renders Zé and Capitão into the small canvases inside the select cards,
+  // reusing the existing drawZe / drawCapitao functions with a fake fighter.
+  // ============================================================
+  function drawSelectPortraits() {
+    const main = ctx;
+    document.querySelectorAll("#select .select-portrait").forEach((cv) => {
+      const which = cv.dataset.portrait;
+      const c = cv.getContext("2d");
+      c.imageSmoothingEnabled = false;
+      c.clearRect(0, 0, cv.width, cv.height);
+      // Swap the file-scoped ctx so drawZe/drawCapitao render to this canvas.
+      ctx = c;
+      try {
+        c.save();
+        c.translate(cv.width / 2, cv.height - 6);
+        c.scale(1.0, 1.0);
+        // Shadow
+        c.fillStyle = "rgba(0,0,0,0.4)";
+        c.beginPath(); c.ellipse(0, 0, 30, 7, 0, 0, Math.PI * 2); c.fill();
+        const fakeSpec = which === "ze" ? ZE : CAPITAO;
+        const fake = {
+          spec: fakeSpec, side: which === "ze" ? "p1" : "p2",
+          x: 0, y: 0, vx: 0, vy: 0, hp: 100, maxHp: 100, facing: 1,
+          stance: "idle", stanceT: 0, stanceDur: 0, attackKind: null,
+          hitConnected: false, cd: { punch: 0, kick: 0, special: 0 },
+          onGround: true, blocking: false, flash: 0,
+        };
+        if (which === "ze") drawZe(fake, timeNow);
+        else drawCapitao(fake, timeNow);
+        c.restore();
+      } finally {
+        ctx = main;
+      }
+    });
+  }
+
+  // ============================================================
+  // FAKE QR
+  // ============================================================
+  function buildFakeQR() {
+    const svg = document.getElementById("fakeQR");
+    if (!svg) return;
+    const N = 25;
+    let s = "";
+    s += `<rect width="25" height="25" fill="#fff"/>`;
+    // pseudo-random module pattern (deterministic via seeded rand)
+    let seed = 3133;
+    function rnd() { seed = (seed * 1103515245 + 12345) & 0x7fffffff; return seed; }
+    for (let y = 0; y < N; y++) {
+      for (let x = 0; x < N; x++) {
+        if (isFinder(x, y)) continue;
+        if ((rnd() & 1) === 0) {
+          s += `<rect x="${x}" y="${y}" width="1" height="1" fill="#000"/>`;
+        }
+      }
+    }
+    // Three finder squares
+    s += finderAt(0, 0);
+    s += finderAt(N - 7, 0);
+    s += finderAt(0, N - 7);
+    svg.innerHTML = s;
+  }
+  function isFinder(x, y) {
+    return (x < 8 && y < 8) || (x > 16 && y < 8) || (x < 8 && y > 16);
+  }
+  function finderAt(x, y) {
+    return (
+      `<rect x="${x}" y="${y}" width="7" height="7" fill="#000"/>` +
+      `<rect x="${x + 1}" y="${y + 1}" width="5" height="5" fill="#fff"/>` +
+      `<rect x="${x + 2}" y="${y + 2}" width="3" height="3" fill="#000"/>`
+    );
+  }
+
+  // ============================================================
+  // BOOT
+  // ============================================================
+  function boot() {
+    buildFakeQR();
+    buildCrowd();
+
+    // Initial fighters (for title portraits to render)
+    p1 = makeFighter(ZE, "p1");
+    p2 = makeFighter(CAPITAO, "p2");
+    phase = "title";
+
+    const paid = (function () {
+      try { return localStorage.getItem(PAID_KEY) === "yes"; } catch { return false; }
+    })();
+    if (paid) hidePaywall();
+    // Show menu once paywall is dismissed; if paid already, show now.
+    if (paid) showMenu();
+
+    document.getElementById("btn-paid").addEventListener("click", () => {
+      try { localStorage.setItem(PAID_KEY, "yes"); } catch {}
+      hidePaywall();
+      showMenu();
+    });
+
+    // Wire menu buttons → go to character select
+    document.querySelectorAll("#menu .menu-btn").forEach((btn) => {
+      const diff = btn.dataset.difficulty;
+      if (!diff) return; // online button is disabled
+      btn.addEventListener("click", () => startSelect(diff));
+    });
+
+    // Character select: clicking a card picks that fighter for the human
+    document.querySelectorAll("#select .select-card").forEach((btn) => {
+      const side = btn.dataset.side;
+      btn.addEventListener("click", () => startMatch(side));
+    });
+    el("select-back").addEventListener("click", () => {
+      hideSelect(); phase = "title"; phaseT = 0; showMenu();
+    });
+    // Render the small fighter portraits in the select cards
+    drawSelectPortraits();
+
+    // Pause button
+    el("pause-btn").addEventListener("click", () => {
+      if (phase !== "fight" && phase !== "ready" && phase !== "roundEnd") return;
+      paused = true;
+      showPauseModal();
+    });
+    // Modal actions (delegated)
+    el("pause-modal").addEventListener("click", (e) => {
+      const t = e.target.closest("[data-action]");
+      if (!t) return;
+      const action = t.dataset.action;
+      if (action === "resume") { paused = false; hidePauseModal(); }
+      else if (action === "back-to-menu") { paused = false; hidePauseModal(); backToTitle(); }
+    });
+
+    // End-of-match actions
+    el("end-actions").addEventListener("click", (e) => {
+      const t = e.target.closest("[data-action]");
+      if (!t) return;
+      const action = t.dataset.action;
+      if (action === "play-again") { replayMatch(); }
+      else if (action === "back-to-menu") { backToTitle(); }
+    });
+
+    // Wire touch controls (works for mouse too — useful for desktop testing)
+    const touch = document.getElementById("touch");
+    const isTouch = ("ontouchstart" in window) || (navigator.maxTouchPoints || 0) > 0;
+    if (isTouch) {
+      touch.classList.add("always-on");
+      touch.setAttribute("aria-hidden", "false");
+    }
+    document.querySelectorAll("#touch .tbtn").forEach((btn) => {
+      const key = btn.dataset.key;
+      if (!key) return;
+      const set = (v) => (e) => {
+        e.preventDefault();
+        inputState.p1[key] = v;
+        btn.classList.toggle("is-down", v);
+      };
+      btn.addEventListener("touchstart", set(true),  { passive: false });
+      btn.addEventListener("touchend",   set(false), { passive: false });
+      btn.addEventListener("touchcancel",set(false), { passive: false });
+      btn.addEventListener("mousedown",  set(true));
+      btn.addEventListener("mouseup",    set(false));
+      btn.addEventListener("mouseleave", set(false));
+      // prevent contextmenu / double-tap zoom
+      btn.addEventListener("contextmenu", (e) => e.preventDefault());
+    });
+
+    // Tap canvas at match end → back to title (mobile-friendly)
+    canvas.addEventListener("pointerdown", () => {
+      if (phase === "matchEnd" && phaseT > 60) backToTitle();
+    });
+
+    // Resize-aware canvas (kept at virtual 960x540 — CSS handles fit)
+    const setCanvasSize = () => { canvas.width = W; canvas.height = H; };
+    setCanvasSize();
+    window.addEventListener("resize", setCanvasSize);
+    window.addEventListener("orientationchange", setCanvasSize);
+
+    requestAnimationFrame(frame);
+  }
+
+  function hidePaywall() {
+    const el = document.getElementById("paywall");
+    if (el) el.style.display = "none";
+  }
+
+  if (document.readyState === "loading") {
+    document.addEventListener("DOMContentLoaded", boot);
+  } else {
+    boot();
+  }
+})();
+</script>
+</body>
+</html>
