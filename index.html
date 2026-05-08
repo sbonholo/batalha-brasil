@@ -4,19 +4,43 @@
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover, user-scalable=no" />
 <meta name="theme-color" content="#0a0a0a" />
+<!-- PWA / standalone-mode hints for iOS Safari and Android Chrome.
+     With these, "Add to Home Screen" launches the game fullscreen
+     without browser chrome eating the dynamic viewport. -->
+<meta name="mobile-web-app-capable" content="yes" />
+<meta name="apple-mobile-web-app-capable" content="yes" />
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+<meta name="apple-mobile-web-app-title" content="Batalha Brasil" />
+<meta name="format-detection" content="telephone=no" />
 <title>Batalha Brasil — paródia</title>
 <style>
 * { box-sizing: border-box; }
-html, body { margin: 0; padding: 0; height: 100%; background: #000; color: #fff; overflow: hidden;
+html, body {
+  margin: 0; padding: 0;
+  /* Old browsers fall back to vh; modern browsers use dvh which tracks the
+     dynamic viewport (URL bar / virtual keyboard) on mobile. */
+  height: 100vh;
+  height: 100dvh;
+  min-height: 100vh;
+  min-height: 100dvh;
+  background: #000; color: #fff; overflow: hidden;
   font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, "Helvetica Neue", sans-serif;
   -webkit-tap-highlight-color: transparent; user-select: none;
+  /* Prevents pull-to-refresh / overscroll bounce on mobile, which would
+     re-scale the canvas mid-fight. */
+  overscroll-behavior: none;
+  touch-action: none;
 }
 #stage-wrap {
   position: fixed; inset: 0; display: flex; align-items: center; justify-content: center;
   background: #000;
 }
 canvas#stage {
-  width: 100%; height: 100%; max-width: 100vw; max-height: 100vh; object-fit: contain;
+  width: 100%; height: 100%;
+  max-width: 100vw;
+  max-height: 100vh;
+  max-height: 100dvh;
+  object-fit: contain;
   image-rendering: pixelated; image-rendering: crisp-edges;
   background: #0a0a0a;
 }
@@ -279,6 +303,22 @@ canvas#stage {
 #pause-btn:hover { background: rgba(20,20,20,0.7); }
 #pause-btn:active { transform: scale(0.96); }
 
+/* ---------- Mute button (always visible) ---------- */
+#mute-btn {
+  position: fixed; top: calc(env(safe-area-inset-top) + 8px); right: 12px; z-index: 100;
+  background: rgba(0,0,0,0.55); color: #fff;
+  border: 2px solid rgba(255, 215, 100, 0.55);
+  border-radius: 10px;
+  width: 44px; height: 36px; padding: 0;
+  font-size: 18px; line-height: 1;
+  cursor: pointer;
+  display: flex; align-items: center; justify-content: center;
+  -webkit-tap-highlight-color: transparent;
+}
+#mute-btn:hover { background: rgba(20,20,20,0.7); }
+#mute-btn:active { transform: scale(0.94); }
+#mute-btn.muted { border-color: rgba(255, 100, 100, 0.55); color: #ff8a8a; }
+
 #pause-modal {
   position: fixed; inset: 0; z-index: 7;
   display: none;
@@ -415,6 +455,8 @@ canvas#stage {
 </div>
 
 <button id="pause-btn" hidden aria-label="Pausar">⏸ PAUSAR</button>
+
+<button id="mute-btn" aria-label="Som ligado / desligado">🔊</button>
 
 <div id="pause-modal" role="dialog" aria-modal="true" aria-labelledby="pause-modal-title">
   <div class="modal-card">
@@ -594,6 +636,199 @@ canvas#stage {
   let paused = false;                  // pause modal open
 
   const inputState = { p1: blankInputs(), p2: blankInputs() };
+
+  // ============================================================
+  // AUDIO — synthesized SFX via WebAudio
+  // No external assets. Lazy-init AudioContext on first user gesture
+  // (browsers require interaction before audio is allowed).
+  // ============================================================
+  const MUTE_KEY = "batalhaBrasilMuted";
+  const audio = (() => {
+    let ctx = null, master = null;
+    let muted = false;
+    try { muted = localStorage.getItem(MUTE_KEY) === "yes"; } catch {}
+
+    function ensure() {
+      if (ctx) {
+        // Some browsers leave the context suspended after page-load; resume it
+        // on every interaction-driven sound to be safe.
+        if (ctx.state === "suspended") ctx.resume().catch(() => {});
+        return ctx;
+      }
+      const C = window.AudioContext || window.webkitAudioContext;
+      if (!C) return null;
+      try { ctx = new C(); } catch { return null; }
+      master = ctx.createGain();
+      master.gain.value = muted ? 0 : 0.55;
+      master.connect(ctx.destination);
+      return ctx;
+    }
+
+    function isMuted() { return muted; }
+    function setMuted(v) {
+      muted = !!v;
+      try { localStorage.setItem(MUTE_KEY, muted ? "yes" : "no"); } catch {}
+      if (master) master.gain.value = muted ? 0 : 0.55;
+    }
+    function toggleMuted() { setMuted(!muted); return muted; }
+
+    // ----- Voice helpers -----
+    function tone(o) {
+      if (!ensure() || muted) return;
+      const t = ctx.currentTime;
+      const dur = o.dur != null ? o.dur : 0.15;
+      const release = o.release != null ? o.release : 0.08;
+      const gain = o.gain != null ? o.gain : 0.25;
+      const attack = o.attack != null ? o.attack : 0.005;
+      const osc = ctx.createOscillator();
+      const g = ctx.createGain();
+      osc.type = o.type || "sine";
+      osc.frequency.setValueAtTime(o.freq, t);
+      if (o.freqEnd != null) {
+        if (o.freqType === "exp") {
+          osc.frequency.exponentialRampToValueAtTime(Math.max(o.freqEnd, 1), t + dur);
+        } else {
+          osc.frequency.linearRampToValueAtTime(o.freqEnd, t + dur);
+        }
+      }
+      g.gain.setValueAtTime(0, t);
+      g.gain.linearRampToValueAtTime(gain, t + attack);
+      g.gain.linearRampToValueAtTime(0, t + dur + release);
+      osc.connect(g); g.connect(master);
+      osc.start(t);
+      osc.stop(t + dur + release + 0.05);
+    }
+
+    function noise(o) {
+      if (!ensure() || muted) return;
+      const t = ctx.currentTime;
+      const dur = o.dur != null ? o.dur : 0.10;
+      const release = o.release != null ? o.release : 0.05;
+      const gain = o.gain != null ? o.gain : 0.20;
+      const attack = o.attack != null ? o.attack : 0.005;
+      const total = dur + release + 0.02;
+      const buf = ctx.createBuffer(1, Math.ceil(ctx.sampleRate * total), ctx.sampleRate);
+      const data = buf.getChannelData(0);
+      for (let i = 0; i < data.length; i++) data[i] = Math.random() * 2 - 1;
+      const src = ctx.createBufferSource();
+      src.buffer = buf;
+      let chain = src;
+      if (o.filter) {
+        const f = ctx.createBiquadFilter();
+        f.type = o.filter.type || "bandpass";
+        f.frequency.value = o.filter.freq || 1000;
+        if (o.filter.Q != null) f.Q.value = o.filter.Q;
+        chain.connect(f);
+        chain = f;
+      }
+      const g = ctx.createGain();
+      g.gain.setValueAtTime(0, t);
+      g.gain.linearRampToValueAtTime(gain, t + attack);
+      g.gain.linearRampToValueAtTime(0, t + dur + release);
+      chain.connect(g); g.connect(master);
+      src.start(t);
+      src.stop(t + total);
+    }
+
+    function seq(notes) {
+      for (const n of notes) {
+        if (n.delay) setTimeout(() => tone(n), n.delay);
+        else tone(n);
+      }
+    }
+
+    return {
+      ensure, isMuted, setMuted, toggleMuted,
+
+      jump() {
+        tone({ freq: 520, freqEnd: 180, freqType: "exp", dur: 0.18, type: "square", gain: 0.15, release: 0.04 });
+        noise({ filter: { type: "highpass", freq: 1500 }, dur: 0.10, gain: 0.07 });
+      },
+      land() {
+        tone({ freq: 110, freqEnd: 60, dur: 0.08, type: "sine", gain: 0.18, release: 0.04 });
+        noise({ filter: { type: "lowpass", freq: 600 }, dur: 0.06, gain: 0.10 });
+      },
+      whiff() {
+        noise({ filter: { type: "bandpass", freq: 2400, Q: 2 }, dur: 0.10, gain: 0.13, release: 0.06 });
+        tone({ freq: 1100, freqEnd: 380, freqType: "exp", dur: 0.08, type: "sawtooth", gain: 0.04 });
+      },
+      punchHit() {
+        tone({ freq: 200, freqEnd: 60, dur: 0.16, type: "sine", gain: 0.40 });
+        tone({ freq: 320, freqEnd: 100, dur: 0.10, type: "square", gain: 0.18 });
+        noise({ filter: { type: "lowpass", freq: 800 }, dur: 0.10, gain: 0.25 });
+      },
+      kickHit() {
+        tone({ freq: 130, freqEnd: 35, dur: 0.22, type: "sine", gain: 0.50 });
+        tone({ freq: 250, freqEnd: 80, dur: 0.14, type: "triangle", gain: 0.20 });
+        noise({ filter: { type: "lowpass", freq: 600 }, dur: 0.16, gain: 0.30 });
+      },
+      specialHit() {
+        tone({ freq: 80, freqEnd: 25, dur: 0.40, type: "sine", gain: 0.55 });
+        tone({ freq: 200, freqEnd: 60, dur: 0.30, type: "sawtooth", gain: 0.25 });
+        tone({ freq: 400, freqEnd: 120, dur: 0.20, type: "square", gain: 0.15 });
+        noise({ filter: { type: "bandpass", freq: 400, Q: 1 }, dur: 0.30, gain: 0.32 });
+      },
+      block() {
+        tone({ freq: 1900, freqEnd: 1300, dur: 0.08, type: "square", gain: 0.16, release: 0.04 });
+        noise({ filter: { type: "highpass", freq: 3200 }, dur: 0.05, gain: 0.08 });
+      },
+      ko() {
+        tone({ freq: 60, freqEnd: 22, dur: 0.80, type: "sine", gain: 0.55, release: 0.4 });
+        tone({ freq: 110, freqEnd: 35, dur: 0.65, type: "square", gain: 0.25, release: 0.3 });
+        noise({ filter: { type: "lowpass", freq: 350 }, dur: 0.6, gain: 0.32, release: 0.4 });
+        setTimeout(() => noise({ filter: { type: "bandpass", freq: 1200, Q: 0.7 }, dur: 0.5, gain: 0.10, release: 0.3 }), 80);
+      },
+      roundStart() {
+        tone({ freq: 220, dur: 0.4, type: "sine", gain: 0.30, release: 0.5 });
+        setTimeout(() => tone({ freq: 330, dur: 0.45, type: "sine", gain: 0.22, release: 0.5 }), 90);
+      },
+      fight() {
+        seq([
+          { freq: 392, dur: 0.14, type: "square", gain: 0.22, release: 0.08, delay: 0 },
+          { freq: 523, dur: 0.14, type: "square", gain: 0.22, release: 0.08, delay: 90 },
+          { freq: 659, dur: 0.22, type: "square", gain: 0.24, release: 0.15, delay: 180 },
+        ]);
+      },
+      roundWin() {
+        seq([
+          { freq: 392, dur: 0.14, type: "square", gain: 0.22, release: 0.08, delay: 0 },
+          { freq: 523, dur: 0.14, type: "square", gain: 0.22, release: 0.10, delay: 80 },
+          { freq: 659, dur: 0.20, type: "square", gain: 0.24, release: 0.15, delay: 160 },
+          { freq: 784, dur: 0.30, type: "square", gain: 0.26, release: 0.25, delay: 240 },
+        ]);
+      },
+      matchWin() {
+        seq([
+          { freq: 392, dur: 0.16, type: "square", gain: 0.24, release: 0.10, delay: 0 },
+          { freq: 523, dur: 0.16, type: "square", gain: 0.24, release: 0.10, delay: 100 },
+          { freq: 659, dur: 0.16, type: "square", gain: 0.26, release: 0.10, delay: 200 },
+          { freq: 784, dur: 0.18, type: "square", gain: 0.26, release: 0.12, delay: 300 },
+          { freq: 1047, dur: 0.40, type: "square", gain: 0.28, release: 0.30, delay: 420 },
+        ]);
+      },
+      menuClick() {
+        tone({ freq: 880, dur: 0.04, type: "square", gain: 0.10, release: 0.04 });
+      },
+      menuPick() {
+        tone({ freq: 660, dur: 0.06, type: "square", gain: 0.14, release: 0.05 });
+        setTimeout(() => tone({ freq: 990, dur: 0.08, type: "square", gain: 0.14, release: 0.06 }), 50);
+      },
+      menuBack() {
+        tone({ freq: 440, dur: 0.06, type: "square", gain: 0.12, release: 0.05 });
+        setTimeout(() => tone({ freq: 330, dur: 0.06, type: "square", gain: 0.12, release: 0.05 }), 40);
+      },
+      countdown() {
+        tone({ freq: 660, dur: 0.10, type: "square", gain: 0.18, release: 0.06 });
+      },
+      pay() {
+        seq([
+          { freq: 523, dur: 0.10, type: "sine", gain: 0.20, release: 0.06, delay: 0 },
+          { freq: 659, dur: 0.10, type: "sine", gain: 0.20, release: 0.06, delay: 70 },
+          { freq: 784, dur: 0.16, type: "sine", gain: 0.22, release: 0.10, delay: 140 },
+        ]);
+      },
+    };
+  })();
 
   // ============================================================
   // CPU AI — difficulty profiles
@@ -816,6 +1051,14 @@ canvas#stage {
   function hidePauseModal()   { const m = el("pause-modal"); if (m){ m.classList.remove("show"); } }
   function showEndActions()   { const m = el("end-actions"); if (m){ m.classList.add("show"); } }
   function hideEndActions()   { const m = el("end-actions"); if (m){ m.classList.remove("show"); } }
+  function updateMuteBtn(muted) {
+    const m = el("mute-btn");
+    if (!m) return;
+    m.textContent = muted ? "🔇" : "🔊";
+    m.classList.toggle("muted", !!muted);
+    m.setAttribute("aria-pressed", muted ? "true" : "false");
+    m.title = muted ? "Som desligado — clique para ligar" : "Som ligado — clique para desligar";
+  }
 
   function resetForNextRound() {
     p1 = makeFighter(ZE, "p1");
@@ -906,17 +1149,23 @@ canvas#stage {
       if (inp.specialEdge && f.cd.special === 0) {
         const m = MOVES.special;
         startStance(f, "special", m.total, "special");
-        f.cd.special = m.cd; f.vx = 0; return;
+        f.cd.special = m.cd; f.vx = 0;
+        audio.whiff();
+        return;
       }
       if (inp.kickEdge && f.cd.kick === 0) {
         const m = MOVES.kick;
         startStance(f, "kick", m.total, "kick");
-        f.cd.kick = m.cd; f.vx = 0; return;
+        f.cd.kick = m.cd; f.vx = 0;
+        audio.whiff();
+        return;
       }
       if (inp.punchEdge && f.cd.punch === 0) {
         const m = MOVES.punch;
         startStance(f, "punch", m.total, "punch");
-        f.cd.punch = m.cd; f.vx = 0; return;
+        f.cd.punch = m.cd; f.vx = 0;
+        audio.whiff();
+        return;
       }
     }
 
@@ -939,6 +1188,7 @@ canvas#stage {
     if (inp.up && f.onGround && !f.blocking) {
       f.vy = f.spec.jumpV;
       f.onGround = false;
+      audio.jump();
     }
 
     // Stance label
@@ -959,6 +1209,7 @@ canvas#stage {
       if (!f.onGround) {
         f.onGround = true;
         spawnDust(f.x, GROUND_Y, 6);
+        audio.land();
       }
     } else f.onGround = false;
 
@@ -1035,6 +1286,7 @@ canvas#stage {
         spawnText(cx, cy - 10, "BLOQUEIO!", "#9cc6ff");
         shake = Math.max(shake, 2);
         hitstop = Math.max(hitstop, 2);
+        audio.block();
       } else {
         def.vx = dir * m.knockX;
         def.vy = m.knockY;
@@ -1046,6 +1298,11 @@ canvas#stage {
         shake = Math.max(shake, m.shake);
         hitstop = Math.max(hitstop, m.hitstop);
 
+        // Hit SFX by attack kind
+        if (att.attackKind === "punch") audio.punchHit();
+        else if (att.attackKind === "kick") audio.kickHit();
+        else audio.specialHit();
+
         if (def.hp <= 0) {
           startStance(def, "ko", 9999);
           def.vy = -380;
@@ -1054,6 +1311,7 @@ canvas#stage {
           spawnComic(cx, cy - 30, "K.O.!", true);
           shake = Math.max(shake, 18);
           hitstop = Math.max(hitstop, 22);
+          audio.ko();
         }
       }
     }
@@ -1082,6 +1340,8 @@ canvas#stage {
       if (winner === "p1") wins.p1++;
       else if (winner === "p2") wins.p2++;
       phase = "roundEnd"; phaseT = 0;
+      // Fanfare on a clean win; skip on draw
+      if (winner !== "draw") audio.roundWin();
     }
   }
 
@@ -1102,7 +1362,12 @@ canvas#stage {
       integrate(p1); integrate(p2);
       updateFacing();
       updateEffects();
-      if (phaseT >= READY_FRAMES) { phase = "fight"; phaseT = 0; }
+      // Audio: gong on first frame of ready, then "LUTAR!" fanfare on transition
+      if (phaseT === 1) audio.roundStart();
+      if (phaseT >= READY_FRAMES) {
+        phase = "fight"; phaseT = 0;
+        audio.fight();
+      }
       return;
     }
 
@@ -1116,6 +1381,7 @@ canvas#stage {
         if (wins.p1 >= WINS_TO_WIN || wins.p2 >= WINS_TO_WIN) {
           phase = "matchEnd"; phaseT = 0;
           hidePauseBtn();
+          audio.matchWin();
         } else {
           round++;
           resetForNextRound();
@@ -3531,21 +3797,24 @@ canvas#stage {
       try { localStorage.setItem(PAID_KEY, "yes"); } catch {}
       hidePaywall();
       showMenu();
+      audio.ensure();      // wake up AudioContext on this user gesture
+      audio.pay();
     });
 
     // Wire menu buttons → go to character select
     document.querySelectorAll("#menu .menu-btn").forEach((btn) => {
       const diff = btn.dataset.difficulty;
       if (!diff) return; // online button is disabled
-      btn.addEventListener("click", () => startSelect(diff));
+      btn.addEventListener("click", () => { audio.menuPick(); startSelect(diff); });
     });
 
     // Character select: clicking a card picks that fighter for the human
     document.querySelectorAll("#select .select-card").forEach((btn) => {
       const side = btn.dataset.side;
-      btn.addEventListener("click", () => startMatch(side));
+      btn.addEventListener("click", () => { audio.menuPick(); startMatch(side); });
     });
     el("select-back").addEventListener("click", () => {
+      audio.menuBack();
       hideSelect(); phase = "title"; phaseT = 0; showMenu();
     });
     // Render the small fighter portraits in the select cards
@@ -3554,6 +3823,7 @@ canvas#stage {
     // Pause button
     el("pause-btn").addEventListener("click", () => {
       if (phase !== "fight" && phase !== "ready" && phase !== "roundEnd") return;
+      audio.menuClick();
       paused = true;
       showPauseModal();
     });
@@ -3562,8 +3832,8 @@ canvas#stage {
       const t = e.target.closest("[data-action]");
       if (!t) return;
       const action = t.dataset.action;
-      if (action === "resume") { paused = false; hidePauseModal(); }
-      else if (action === "back-to-menu") { paused = false; hidePauseModal(); backToTitle(); }
+      if (action === "resume") { audio.menuClick(); paused = false; hidePauseModal(); }
+      else if (action === "back-to-menu") { audio.menuBack(); paused = false; hidePauseModal(); backToTitle(); }
     });
 
     // End-of-match actions
@@ -3571,9 +3841,18 @@ canvas#stage {
       const t = e.target.closest("[data-action]");
       if (!t) return;
       const action = t.dataset.action;
-      if (action === "play-again") { replayMatch(); }
-      else if (action === "back-to-menu") { backToTitle(); }
+      if (action === "play-again") { audio.menuPick(); replayMatch(); }
+      else if (action === "back-to-menu") { audio.menuBack(); backToTitle(); }
     });
+
+    // Mute button
+    el("mute-btn").addEventListener("click", () => {
+      const nowMuted = audio.toggleMuted();
+      updateMuteBtn(nowMuted);
+      // Tiny click confirmation when unmuting
+      if (!nowMuted) audio.menuClick();
+    });
+    updateMuteBtn(audio.isMuted());
 
     // Wire touch controls (works for mouse too — useful for desktop testing)
     const touch = document.getElementById("touch");
@@ -3610,6 +3889,35 @@ canvas#stage {
     setCanvasSize();
     window.addEventListener("resize", setCanvasSize);
     window.addEventListener("orientationchange", setCanvasSize);
+
+    // visualViewport tracks the *visual* viewport on mobile — shrinks when
+    // the iOS Safari URL bar expands or when an Android virtual keyboard
+    // opens. We expose its current height as a CSS variable so overlays
+    // (touch controls, modal dialogs, the paywall card) can pin to the
+    // bottom of what's actually visible instead of being pushed off-screen.
+    function applyVV() {
+      const vv = window.visualViewport;
+      const h = (vv && vv.height) ? vv.height : window.innerHeight;
+      const w = (vv && vv.width)  ? vv.width  : window.innerWidth;
+      const offset = (vv && vv.offsetTop) ? vv.offsetTop : 0;
+      document.documentElement.style.setProperty("--vv-height", h + "px");
+      document.documentElement.style.setProperty("--vv-width",  w + "px");
+      document.documentElement.style.setProperty("--vv-offset", offset + "px");
+      // Also redraw the canvas size so any HiDPI changes settle correctly.
+      setCanvasSize();
+    }
+    applyVV();
+    if (window.visualViewport) {
+      window.visualViewport.addEventListener("resize", applyVV);
+      window.visualViewport.addEventListener("scroll", applyVV);
+    }
+    window.addEventListener("resize", applyVV);
+    window.addEventListener("orientationchange", applyVV);
+
+    // On iOS, AudioContext can be restored after the page returns to focus.
+    document.addEventListener("visibilitychange", () => {
+      if (document.visibilityState === "visible") audio.ensure();
+    });
 
     requestAnimationFrame(frame);
   }
