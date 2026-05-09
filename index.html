@@ -120,7 +120,7 @@ canvas#stage {
 .menu-btn.dificil { background: linear-gradient(180deg, #ff6b6b 0%, #c8102e 100%); box-shadow: 0 4px 0 rgba(0,0,0,0.4), 0 0 0 2px #7a0a18; color: #2a0509; }
 .menu-btn.online {
   background: linear-gradient(180deg, #3a4763 0%, #1c2540 100%);
-  color: #93a1b3; cursor: not-allowed; opacity: 0.9;
+  color: #93a1b3; cursor: pointer; opacity: 0.9;
   box-shadow: 0 4px 0 rgba(0,0,0,0.5), 0 0 0 2px #2a3658;
 }
 .menu-btn.online .em-breve {
@@ -4515,10 +4515,10 @@ canvas#stage {
   // Roam zones depend on the current main-fighter positions (so Haddad
   // can't walk through Lula and Edu can't walk through Capitão).
   function haddadZone() {
-    return { lo: 60, hi: Math.max(70, p1.x - 50) };
+    return { lo: 30, hi: W - 30, targetX: eduState ? eduState.x : W / 2 };
   }
   function eduZone() {
-    return { lo: Math.min(W - 70, p2.x + 50), hi: W - 60 };
+    return { lo: 30, hi: W - 30, targetX: haddadState ? haddadState.x : W / 2 };
   }
 
   function updateSidekicks() {
@@ -4538,7 +4538,7 @@ canvas#stage {
   //   "waiting"  → stand still, decrement waitTimer. When ≤ 0 → pick a new
   //                random target inside the zone and switch to "walking".
   function stepSidekick(s, mainFighter, zone) {
-    const SPEED = 60;                       // px/s
+    const SPEED = 360;                       // px/s
     const koMode = mainFighter.stance === "ko";
 
     // KO override: ALWAYS chase to the body (skips any wait).
@@ -4572,7 +4572,7 @@ canvas#stage {
         // start walking again.
         const lo = Math.max(zone.lo, 30);
         const hi = Math.max(lo + 1, zone.hi);
-        s.targetX = lo + Math.random() * (hi - lo);
+        s.targetX = (zone.targetX !== undefined) ? zone.targetX : lo + Math.random() * (hi - lo);
         s.mode = "walking";
       }
     }
