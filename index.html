@@ -623,6 +623,7 @@ canvas#stage {
   let currentDifficulty = "medio";     // facil | medio | dificil
   let playerSide = "p1";               // "p1" = playing Zé (left); "p2" = playing Capitão (right)
   let paused = false;                  // pause modal open
+  let celebrationVariant = "default";  // which celebration skit to play
 
   const inputState = { p1: blankInputs(), p2: blankInputs() };
 
@@ -888,11 +889,255 @@ canvas#stage {
       musicNextTime = 0;
     }
 
+    // ============================================================
+    // TITLE / MENU MUSIC — AC/DC + heroic-brass mashup
+    // Power-chord stabs (detuned saws through lowpass = "amp distortion"),
+    // four-on-the-floor kick, snare on 2 & 4, hi-hat sixteenths, sub-bass
+    // following the chord roots, plus a triangle-wave heroic brass melody
+    // inspired by national-anthem fanfare cadences (NOT the actual anthem).
+    // ============================================================
+    let titleNodes = [];
+    let titleTimer = null;
+    let titleNextTime = 0;
+    let titleBar = 0;
+
+    function killTitleMusic() {
+      for (const n of titleNodes) {
+        try { n.stop(); } catch {}
+        try { n.disconnect(); } catch {}
+      }
+      titleNodes = [];
+    }
+
+    function scheduleTitleBar(startT) {
+      if (!ctx || muted) return;
+      // Submix gain (slightly punchier than the fight loop since this is
+      // the "menu hype" track — it's allowed to dominate a quiet UI).
+      const sub = ctx.createGain();
+      sub.gain.value = 0.50;
+      sub.connect(master);
+      titleNodes.push(sub);
+
+      // ----- Power-chord stab pattern (4-second bar, 8 beats at 116 BPM
+      // doesn't fit cleanly here — for the title track we use a simpler
+      // 4/4 measure of 4 beats @ 1s/beat = 4s/bar). Pattern of ROOT
+      // frequencies (Hz) per beat, plus a fifth interval played alongside.
+      // A power chord = root + perfect fifth (3:2 ratio, ~700 cents).
+      const beat = 1.0;        // 1 second per beat
+      const stabPattern = [
+        { root: 110, fifth: 165, beats: 2 },   // A5
+        { root: 147, fifth: 220, beats: 2 },   // D5
+        { root: 165, fifth: 247, beats: 4 },   // E5 (held)
+      ];
+      let cur = 0;
+      // Measure is 8 beats; we'll just schedule first 4 beats per call
+      // because each call schedules a 4-second bar. We squeeze A5-D5
+      // into the first bar and let the next bar carry the held E5.
+      const barBeats = 4;
+      const flatPattern = [];
+      for (const p of stabPattern) {
+        for (let i = 0; i < p.beats; i++) {
+          flatPattern.push({ root: p.root, fifth: p.fifth, isStart: i === 0 });
+        }
+      }
+      // 8-beat pattern modulo by the bar number so chunks alternate.
+      const startBeat = (titleBar * barBeats) % flatPattern.length;
+      for (let b = 0; b < barBeats; b++) {
+        const note = flatPattern[(startBeat + b) % flatPattern.length];
+        const t0 = startT + b * beat;
+        // Two detuned sawtooth oscillators per chord-tone (root + fifth)
+        // through a lowpass to fake amp distortion. Hot envelope on the
+        // beat starts, gentler tail.
+        for (const f of [note.root, note.fifth]) {
+          for (const detune of [-8, +8]) {           // ±8 cents
+            const osc = ctx.createOscillator();
+            osc.type = "sawtooth";
+            osc.frequency.value = f * Math.pow(2, detune / 1200);
+            const filt = ctx.createBiquadFilter();
+            filt.type = "lowpass";
+            filt.frequency.value = 2500;
+            filt.Q.value = 0.6;
+            const og = ctx.createGain();
+            const peak = note.isStart ? 0.18 : 0.13;
+            og.gain.setValueAtTime(0.0, t0);
+            og.gain.linearRampToValueAtTime(peak, t0 + 0.005);
+            og.gain.linearRampToValueAtTime(peak * 0.7, t0 + 0.10);
+            og.gain.linearRampToValueAtTime(0.0, t0 + beat * 0.95);
+            osc.connect(filt); filt.connect(og); og.connect(sub);
+            osc.start(t0); osc.stop(t0 + beat + 0.05);
+            titleNodes.push(osc, filt, og);
+          }
+        }
+
+        // Sub-bass (sawtooth at root/2 for a thick low octave) following
+        // the chord root. Slight portamento over the first 50 ms makes
+        // chord changes feel like a guitarist sliding.
+        const bass = ctx.createOscillator();
+        bass.type = "sawtooth";
+        // 55 Hz reference baseline (A1) but actually following the
+        // current root at one octave below.
+        const bassFreq = note.root * 0.5;
+        bass.frequency.setValueAtTime(bassFreq * 0.97, t0);
+        bass.frequency.linearRampToValueAtTime(bassFreq, t0 + 0.05);
+        const bFilt = ctx.createBiquadFilter();
+        bFilt.type = "lowpass"; bFilt.frequency.value = 600; bFilt.Q.value = 1;
+        const bg = ctx.createGain();
+        bg.gain.setValueAtTime(0.0, t0);
+        bg.gain.linearRampToValueAtTime(0.30, t0 + 0.005);
+        bg.gain.linearRampToValueAtTime(0.18, t0 + beat * 0.6);
+        bg.gain.linearRampToValueAtTime(0.0, t0 + beat * 0.98);
+        bass.connect(bFilt); bFilt.connect(bg); bg.connect(sub);
+        bass.start(t0); bass.stop(t0 + beat + 0.05);
+        titleNodes.push(bass, bFilt, bg);
+      }
+
+      // ----- Drum kit -----
+      // Kick on beats 1 & 3 (i.e. every 0.5 of a beat? No — every beat 1 and 3
+      // of the bar means at t0=startT, t0=startT+2*beat).
+      for (const bIdx of [0, 2]) {
+        const t0 = startT + bIdx * beat;
+        const k = ctx.createOscillator();
+        const kg = ctx.createGain();
+        k.type = "sine";
+        k.frequency.setValueAtTime(110, t0);
+        k.frequency.exponentialRampToValueAtTime(40, t0 + 0.10);
+        kg.gain.setValueAtTime(0.0, t0);
+        kg.gain.linearRampToValueAtTime(0.55, t0 + 0.005);
+        kg.gain.exponentialRampToValueAtTime(0.001, t0 + 0.18);
+        k.connect(kg); kg.connect(sub);
+        k.start(t0); k.stop(t0 + 0.20);
+        titleNodes.push(k, kg);
+      }
+      // Snare on beats 2 & 4
+      for (const bIdx of [1, 3]) {
+        const t0 = startT + bIdx * beat;
+        const buf = ctx.createBuffer(1, Math.ceil(ctx.sampleRate * 0.10), ctx.sampleRate);
+        const data = buf.getChannelData(0);
+        for (let i = 0; i < data.length; i++) {
+          data[i] = (Math.random() * 2 - 1) * Math.exp(-i / (ctx.sampleRate * 0.025));
+        }
+        const src = ctx.createBufferSource(); src.buffer = buf;
+        const f = ctx.createBiquadFilter();
+        f.type = "bandpass"; f.frequency.value = 2500; f.Q.value = 1;
+        const sg = ctx.createGain();
+        sg.gain.setValueAtTime(0.0, t0);
+        sg.gain.linearRampToValueAtTime(0.35, t0 + 0.003);
+        sg.gain.exponentialRampToValueAtTime(0.001, t0 + 0.10);
+        src.connect(f); f.connect(sg); sg.connect(sub);
+        src.start(t0); src.stop(t0 + 0.12);
+        titleNodes.push(src, f, sg);
+      }
+      // Hi-hat sixteenths
+      for (let s = 0; s < 16; s++) {
+        const t0 = startT + s * (beat / 4);
+        const buf = ctx.createBuffer(1, Math.ceil(ctx.sampleRate * 0.04), ctx.sampleRate);
+        const data = buf.getChannelData(0);
+        for (let i = 0; i < data.length; i++) {
+          data[i] = (Math.random() * 2 - 1) * Math.exp(-i / (ctx.sampleRate * 0.010));
+        }
+        const src = ctx.createBufferSource(); src.buffer = buf;
+        const f = ctx.createBiquadFilter();
+        f.type = "highpass"; f.frequency.value = 8000;
+        const hg = ctx.createGain();
+        hg.gain.value = 0.04 + (s % 2 === 0 ? 0.02 : 0);
+        src.connect(f); f.connect(hg); hg.connect(sub);
+        src.start(t0); src.stop(t0 + 0.05);
+        titleNodes.push(src, f, hg);
+      }
+
+      // ----- Heroic brass melody (triangle wave with a soft-knee envelope)
+      // 8-note theme inspired by anthem-style cadences. Played on top of
+      // the bar; melody index advances with titleBar.
+      const melody = [
+        { hz: 392, beats: 1 },     // G4 quarter
+        { hz: 392, beats: 1 },     // G4 quarter
+        { hz: 587, beats: 2 },     // D5 half
+        { hz: 659, beats: 1 },     // E5 quarter
+        { hz: 587, beats: 1 },     // D5 quarter
+        { hz: 494, beats: 2 },     // B4 half
+        { hz: 440, beats: 4 },     // A4 whole
+      ];
+      // Squeeze the 12-beat melody onto consecutive 4-beat bars by
+      // tracking position state.
+      const melodyTotalBeats = melody.reduce((s, n) => s + n.beats, 0);
+      let beatCursor = (titleBar * barBeats) % melodyTotalBeats;
+      let beatInBar = 0;
+      while (beatInBar < barBeats) {
+        // Find the note index at beatCursor
+        let acc = 0, idx = 0, offset = 0;
+        for (let i = 0; i < melody.length; i++) {
+          if (acc + melody[i].beats > beatCursor) {
+            idx = i;
+            offset = beatCursor - acc;
+            break;
+          }
+          acc += melody[i].beats;
+        }
+        const note = melody[idx];
+        const restInNote = note.beats - offset;
+        const playBeats = Math.min(restInNote, barBeats - beatInBar);
+        const t0 = startT + beatInBar * beat;
+        const dur = playBeats * beat;
+        // Brass tone: triangle + a quieter sawtooth octave above for harmonic
+        // brightness, low-pass to round it off.
+        const tri = ctx.createOscillator();
+        tri.type = "triangle";
+        tri.frequency.value = note.hz;
+        const oct = ctx.createOscillator();
+        oct.type = "sawtooth";
+        oct.frequency.value = note.hz * 2;
+        const tFilt = ctx.createBiquadFilter();
+        tFilt.type = "lowpass"; tFilt.frequency.value = 1800; tFilt.Q.value = 0.7;
+        const tg = ctx.createGain();
+        const accent = (offset === 0) ? 1.0 : 0.7;
+        const peak = 0.18 * accent;
+        tg.gain.setValueAtTime(0.0, t0);
+        tg.gain.linearRampToValueAtTime(peak, t0 + 0.04);   // soft attack
+        tg.gain.linearRampToValueAtTime(peak * 0.6, t0 + dur * 0.6);
+        tg.gain.linearRampToValueAtTime(0.0, t0 + dur - 0.03);
+        const og = ctx.createGain(); og.gain.value = 0.45;
+        tri.connect(tFilt); tFilt.connect(tg); tg.connect(sub);
+        oct.connect(og); og.connect(tg);
+        tri.start(t0); tri.stop(t0 + dur + 0.02);
+        oct.start(t0); oct.stop(t0 + dur + 0.02);
+        titleNodes.push(tri, oct, tFilt, tg, og);
+        beatCursor = (beatCursor + playBeats) % melodyTotalBeats;
+        beatInBar += playBeats;
+      }
+
+      titleBar++;
+    }
+
+    function startTitleMusic() {
+      if (!ensure() || muted) return;
+      // If fight music is somehow running, kill it first
+      stopMusic();
+      stopTitleMusic();
+      titleBar = 0;
+      titleNextTime = ctx.currentTime + 0.05;
+      titleTimer = setInterval(() => {
+        if (!ctx || muted) return;
+        const aheadOf = ctx.currentTime + 4;
+        while (titleNextTime < aheadOf) {
+          scheduleTitleBar(titleNextTime);
+          titleNextTime += 4 * 1.0;     // 4 seconds per bar
+        }
+      }, 1500);
+      scheduleTitleBar(titleNextTime);
+      titleNextTime += 4 * 1.0;
+    }
+    function stopTitleMusic() {
+      if (titleTimer) { clearInterval(titleTimer); titleTimer = null; }
+      killTitleMusic();
+      titleNextTime = 0;
+    }
+
     return {
       ensure, isMuted,
-      setMuted(v)    { setMuted(v);    if (v) stopMusic(); },
-      toggleMuted()  { const m = toggleMuted(); if (m) stopMusic(); return m; },
+      setMuted(v)    { setMuted(v);    if (v) { stopMusic(); stopTitleMusic(); } },
+      toggleMuted()  { const m = toggleMuted(); if (m) { stopMusic(); stopTitleMusic(); } return m; },
       startMusic, stopMusic,
+      startTitleMusic, stopTitleMusic,
 
       jump() {
         tone({ freq: 520, freqEnd: 180, freqType: "exp", dur: 0.18, type: "square", gain: 0.15, release: 0.04 });
@@ -1161,6 +1406,7 @@ canvas#stage {
     hidePauseModal();
     hideEndActions();
     showPauseBtn();
+    resetSidekickState();
   }
 
   // Title menu → difficulty button click goes here
@@ -1206,6 +1452,7 @@ canvas#stage {
     hideSelect();
     showMenu();
     audio.stopMusic();
+    audio.startTitleMusic();
   }
 
   // Replay same matchup, same difficulty, same character pick
@@ -1536,6 +1783,14 @@ canvas#stage {
       // Pop into the celebration phase before the standard round-end overlay.
       phase = "celebrate"; phaseT = 0;
       audio.stopMusic();    // hush the loop so the fanfare reads
+      // Pick a random celebration variant for the winner
+      if (winner === "p1") {
+        celebrationVariant = Math.random() < 0.5 ? "ze-ap" : "ze-cachaca";
+      } else if (winner === "p2") {
+        celebrationVariant = Math.random() < 0.5 ? "cap-pesca" : "cap-golpe";
+      } else {
+        celebrationVariant = "draw";
+      }
       // Fanfare on a clean win; skip on draw
       if (winner !== "draw") audio.roundWin();
     }
@@ -1562,8 +1817,9 @@ canvas#stage {
       if (phaseT === 1) audio.roundStart();
       if (phaseT >= READY_FRAMES) {
         phase = "fight"; phaseT = 0;
+        audio.stopTitleMusic();   // hush menu loop
         audio.fight();
-        audio.startMusic();   // industrial loop kicks in
+        audio.startMusic();        // industrial fight loop kicks in
       }
       return;
     }
@@ -1624,6 +1880,7 @@ canvas#stage {
     resolveBodyCollision();
     updateFacing();
     resolveHits();
+    updateSidekicks();
     updateEffects();
 
     timer -= TICK_DT;
@@ -1729,12 +1986,12 @@ canvas#stage {
     ctx.save();
     ctx.translate(sx, sy);
 
-    drawSky();
-    drawDistantSkyline();
-    drawCongressBuilding();
-    drawEsplanada();
-    drawCrowd();
-    drawGround();
+    drawSky(round);
+    drawDistantSkyline(round);
+    drawCongressBuilding(round);
+    drawEsplanada(round);
+    drawCrowd(round);
+    drawGround(round);
 
     if (phase === "title" || phase === "select") {
       // Both phases show the marquee title art behind their HTML overlay
@@ -1767,33 +2024,105 @@ canvas#stage {
     }
   }
 
-  // ---------- BACKGROUND ----------
-  function drawSky() {
-    // Vivid Brasília sunset gradient: orange at horizon, deep magenta in
-    // mid, near-black at the top.
+  // ---------- BACKGROUND (round-aware lighting: 1=DAY, 2=EVENING, 3=NIGHT) ----------
+
+  // Per-round palette helper. Used by every background function.
+  function getBuildingColor(r) {
+    if (r === 1) return "#f5f5f0";   // bright white (day)
+    if (r === 3) return "#1e2040";   // dark night base
+    return "#e8c87a";                // golden evening (round 2 default)
+  }
+  function getPavementColor(r) {
+    if (r === 1) return "#c8c0b0";
+    if (r === 3) return "#1a1a2a";
+    return "#a08050";
+  }
+  function getPoolGradient(r) {
+    if (r === 1) return ["#9bd3e8", "#6ab4d4", "#3a7ca0"];
+    if (r === 3) return ["#0a1a3a", "#0a2040", "#020a1a"];
+    return ["#ffaa6a", "#c8703a", "#7a3a18"];
+  }
+  function getMinistryColor(r) {
+    if (r === 1) return "rgba(220, 220, 215, 0.75)";
+    if (r === 3) return "rgba(20, 22, 40, 0.85)";
+    return "rgba(40, 36, 60, 0.65)";
+  }
+
+  // ----- SKY (gradient + sun/moon + stars/clouds) -----
+  function drawSky(r) {
     const g = ctx.createLinearGradient(0, 0, 0, GROUND_Y);
-    g.addColorStop(0,    "#0c0a14");   // near-black at top
-    g.addColorStop(0.20, "#3a1a4a");   // deep purple
-    g.addColorStop(0.45, "#9a2a6a");   // magenta
-    g.addColorStop(0.70, "#ff5a3a");   // orange
-    g.addColorStop(1,    "#ffb24a");   // bright orange at horizon
-    ctx.fillStyle = g;
-    ctx.fillRect(0, 0, W, GROUND_Y);
-
-    // Sun — sits low on the horizon (Brasília is a planned-city sunset)
-    const sunX = W * 0.72, sunY = GROUND_Y - 80;
-    ctx.fillStyle = "rgba(255, 220, 130, 0.30)";
-    ctx.beginPath(); ctx.arc(sunX, sunY, 110, 0, Math.PI * 2); ctx.fill();
-    ctx.fillStyle = "rgba(255, 230, 150, 0.55)";
-    ctx.beginPath(); ctx.arc(sunX, sunY, 75, 0, Math.PI * 2); ctx.fill();
-    ctx.fillStyle = "rgba(255, 240, 180, 0.95)";
-    ctx.beginPath(); ctx.arc(sunX, sunY, 50, 0, Math.PI * 2); ctx.fill();
-
-    // Soft clouds (high up so they don't fight with the sun glow)
-    ctx.fillStyle = "rgba(255, 200, 160, 0.45)";
-    drawCloud(160, 70, 55);
-    drawCloud(440, 50, 38);
-    drawCloud(820, 95, 48);
+    if (r === 1) {
+      // DAY — bright blue gradient, fluffy clouds
+      g.addColorStop(0,    "#1a6bc4");
+      g.addColorStop(0.55, "#5aa8e4");
+      g.addColorStop(1,    "#87ceeb");
+      ctx.fillStyle = g;
+      ctx.fillRect(0, 0, W, GROUND_Y);
+      // High sun
+      const sunX = W * 0.78, sunY = 80;
+      ctx.fillStyle = "rgba(255, 240, 180, 0.40)";
+      ctx.beginPath(); ctx.arc(sunX, sunY, 80, 0, Math.PI * 2); ctx.fill();
+      ctx.fillStyle = "#ffefa8";
+      ctx.beginPath(); ctx.arc(sunX, sunY, 50, 0, Math.PI * 2); ctx.fill();
+      // Fluffy white clouds
+      ctx.fillStyle = "rgba(255, 255, 255, 0.85)";
+      drawCloud(160, 60, 50);
+      drawCloud(450, 90, 38);
+      drawCloud(820, 70, 46);
+    } else if (r === 3) {
+      // NIGHT — dark navy with stars + moon
+      g.addColorStop(0, "#000814");
+      g.addColorStop(1, "#0a1a3a");
+      ctx.fillStyle = g;
+      ctx.fillRect(0, 0, W, GROUND_Y);
+      // Stars (deterministic positions, twinkle via timeNow)
+      ctx.fillStyle = "#ffffff";
+      const stars = [
+        [60, 50], [140, 30], [220, 80], [310, 45], [380, 110],
+        [470, 60], [540, 20], [610, 90], [700, 40], [820, 70],
+        [880, 30], [950, 100], [40, 130], [180, 160], [340, 180],
+        [500, 150], [660, 170], [780, 130], [880, 180], [200, 220],
+      ];
+      stars.forEach((s, i) => {
+        const a = 0.55 + Math.sin(timeNow * 2 + i) * 0.35;
+        ctx.globalAlpha = a;
+        ctx.fillRect(s[0], s[1], 2, 2);
+      });
+      ctx.globalAlpha = 1;
+      // Moon (with crescent shadow)
+      const mx = 750, my = 60, mr = 30;
+      ctx.fillStyle = "#f0e8c0";
+      ctx.beginPath(); ctx.arc(mx, my, mr, 0, Math.PI * 2); ctx.fill();
+      // Inner shadow on the right side for crescent feel
+      ctx.fillStyle = "rgba(0, 8, 20, 0.55)";
+      ctx.beginPath(); ctx.arc(mx + 10, my, mr - 4, 0, Math.PI * 2); ctx.fill();
+      // Moon glow halo
+      const halo = ctx.createRadialGradient(mx, my, mr, mx, my, mr * 2.5);
+      halo.addColorStop(0, "rgba(240, 232, 192, 0.30)");
+      halo.addColorStop(1, "rgba(240, 232, 192, 0)");
+      ctx.fillStyle = halo;
+      ctx.beginPath(); ctx.arc(mx, my, mr * 2.5, 0, Math.PI * 2); ctx.fill();
+    } else {
+      // EVENING — vivid Brasília sunset (current behavior)
+      g.addColorStop(0,    "#0c0a14");
+      g.addColorStop(0.20, "#3a1a4a");
+      g.addColorStop(0.45, "#9a2a6a");
+      g.addColorStop(0.70, "#ff5a3a");
+      g.addColorStop(1,    "#ffb24a");
+      ctx.fillStyle = g;
+      ctx.fillRect(0, 0, W, GROUND_Y);
+      const sunX = W * 0.72, sunY = GROUND_Y - 80;
+      ctx.fillStyle = "rgba(255, 220, 130, 0.30)";
+      ctx.beginPath(); ctx.arc(sunX, sunY, 110, 0, Math.PI * 2); ctx.fill();
+      ctx.fillStyle = "rgba(255, 230, 150, 0.55)";
+      ctx.beginPath(); ctx.arc(sunX, sunY, 75, 0, Math.PI * 2); ctx.fill();
+      ctx.fillStyle = "rgba(255, 240, 180, 0.95)";
+      ctx.beginPath(); ctx.arc(sunX, sunY, 50, 0, Math.PI * 2); ctx.fill();
+      ctx.fillStyle = "rgba(255, 200, 160, 0.45)";
+      drawCloud(160, 70, 55);
+      drawCloud(440, 50, 38);
+      drawCloud(820, 95, 48);
+    }
   }
   function drawCloud(cx, cy, r) {
     ctx.beginPath();
@@ -1803,12 +2132,10 @@ canvas#stage {
     ctx.fill();
   }
 
-  // Far-background skyline + Niemeyer's TV Tower
-  function drawDistantSkyline() {
-    // Receding ministry buildings (deterministic, so they don't flicker).
-    // Each ministry is a uniform white slab — a stylized nod to the
-    // Esplanada dos Ministérios.
-    ctx.fillStyle = "rgba(40, 36, 60, 0.65)";
+  // ----- DISTANT SKYLINE (city lights at night, ministries always) + TV TOWER -----
+  function drawDistantSkyline(r) {
+    // Distant skyline silhouette
+    ctx.fillStyle = getMinistryColor(r);
     const heights = [42, 60, 36, 78, 54, 30, 88, 50, 64, 40, 70, 46, 58, 36, 72, 48, 90, 44];
     let cur = 0;
     for (let i = 0; i < heights.length; i++) {
@@ -1816,209 +2143,346 @@ canvas#stage {
       ctx.fillRect(cur, GROUND_Y - 110 - heights[i] * 0.3, w, heights[i] + 110);
       cur += w;
     }
-    // ----- TV Tower (Torre de Televisão) — far background, tall + thin -----
-    const tvX = W * 0.18;
+    // Night-only: distant city lights — colored window dots
+    if (r === 3) {
+      const lightColors = ["#ffd84a", "#ffbf6a", "#ffc8a0", "#fff8c0", "#a0c8ff"];
+      for (let i = 0; i < 14; i++) {
+        const x = (i * 73) % W;
+        const y = GROUND_Y - 80 - (i * 17 % 80);
+        ctx.fillStyle = lightColors[i % lightColors.length];
+        ctx.fillRect(x, y, 3, 4);
+      }
+    }
+    // ----- TV Tower (Torre de Televisão) far left at x≈100 -----
+    const tvX = 100;
     const tvBase = GROUND_Y - 60;
-    const tvTop = 60;
-    // Tapered tower body (slightly narrower at the top)
-    ctx.fillStyle = "rgba(140, 110, 90, 0.65)";
+    const tvTop = GROUND_Y - 60 - 120;   // 120px tall
+    // Thin vertical line (2px)
+    ctx.fillStyle = r === 3 ? "rgba(180, 160, 130, 0.55)" : "rgba(140, 110, 90, 0.65)";
+    ctx.fillRect(tvX - 1, tvTop, 2, 120);
+    // Observation deck at 2/3 height
+    const deckY = tvTop + (120 * 2 / 3);
+    ctx.fillStyle = r === 3 ? "rgba(200, 180, 140, 0.85)" : "rgba(220, 210, 180, 0.7)";
+    ctx.fillRect(tvX - 10, deckY - 4, 20, 8);
+    // Tiny circle at the very top
     ctx.beginPath();
-    ctx.moveTo(tvX - 6, tvBase);
-    ctx.lineTo(tvX - 3, tvTop);
-    ctx.lineTo(tvX + 3, tvTop);
-    ctx.lineTo(tvX + 6, tvBase);
-    ctx.closePath();
+    ctx.arc(tvX, tvTop + 2, 3, 0, Math.PI * 2);
     ctx.fill();
-    // Observation deck box
-    ctx.fillStyle = "rgba(220, 210, 180, 0.7)";
-    ctx.fillRect(tvX - 12, tvTop + 30, 24, 14);
-    // Disk on top
-    ctx.beginPath();
-    ctx.ellipse(tvX, tvTop + 10, 18, 4, 0, 0, Math.PI * 2);
-    ctx.fill();
-    // Antenna spike
-    ctx.fillStyle = "rgba(160, 140, 100, 0.9)";
-    ctx.fillRect(tvX - 1, tvTop - 22, 2, 22);
-    // Red blinking warning light (frame-time pulse)
-    if ((Math.floor(timeNow * 1.5)) % 2 === 0) {
+    // Red blinking warning at top (always-on at night, blinking otherwise)
+    if (r === 3 || (Math.floor(timeNow * 1.5) % 2 === 0)) {
       ctx.fillStyle = "rgba(255, 60, 60, 0.95)";
-      ctx.beginPath(); ctx.arc(tvX, tvTop - 23, 2, 0, Math.PI * 2); ctx.fill();
+      ctx.beginPath(); ctx.arc(tvX, tvTop - 4, 2.4, 0, Math.PI * 2); ctx.fill();
     }
   }
 
-  function drawCongressBuilding() {
+  // ----- CONGRESS BUILDING (slab + towers + dome + bowl + ramps) -----
+  function drawCongressBuilding(r) {
     const cx = W / 2;
-    const baseY = GROUND_Y - 18;
+    const slabBottom = GROUND_Y - 20;     // bottom of slab
+    const slabH = 50;                      // slab height
+    const slabTop = slabBottom - slabH;    // top of slab
+    const slabHalfW = 290;                 // slab is 580px wide
 
-    // ----- Reflection pool (Espelho d'Água) - prominent, blue-green -----
-    const pool = ctx.createLinearGradient(0, baseY, 0, baseY + 22);
-    pool.addColorStop(0,   "rgba(80, 200, 180, 0.55)");
-    pool.addColorStop(0.5, "rgba(60, 120, 170, 0.45)");
-    pool.addColorStop(1,   "rgba(20, 60, 90, 0.30)");
+    const buildingColor = getBuildingColor(r);
+
+    // ----- ESPLANADA pavement (light grey, faint grid) — drawn BEFORE buildings -----
+    ctx.fillStyle = getPavementColor(r);
+    ctx.fillRect(0, GROUND_Y - 20, W, 20);
+    // Faint grid lines on the pavement
+    ctx.fillStyle = r === 3 ? "rgba(80, 80, 100, 0.4)" : "rgba(0, 0, 0, 0.18)";
+    for (let i = 1; i < 30; i++) {
+      ctx.fillRect((i * W / 30) | 0, GROUND_Y - 20, 1, 20);
+    }
+    // Horizontal seam line
+    ctx.fillRect(0, GROUND_Y - 10, W, 1);
+
+    // ----- Reflection pool (Espelho d'Água) — 600 wide × 16 tall, in front -----
+    const poolColors = getPoolGradient(r);
+    const pool = ctx.createLinearGradient(0, GROUND_Y - 18, 0, GROUND_Y - 2);
+    pool.addColorStop(0,   poolColors[0]);
+    pool.addColorStop(0.5, poolColors[1]);
+    pool.addColorStop(1,   poolColors[2]);
     ctx.fillStyle = pool;
-    ctx.fillRect(cx - 400, baseY - 2, 800, 22);
-    // Subtle ripple shimmer (sine pattern across the pool)
-    ctx.fillStyle = "rgba(255, 255, 255, 0.25)";
-    for (let i = 0; i < 26; i++) {
-      const px = cx - 380 + i * 30;
-      const offset = Math.sin(timeNow * 1.4 + i * 0.5) * 1.5;
-      ctx.fillRect(px, baseY + 6 + offset, 14, 1);
+    ctx.fillRect(cx - 300, GROUND_Y - 18, 600, 16);
+    // Horizontal shimmer highlights
+    ctx.fillStyle = r === 3 ? "rgba(120, 160, 220, 0.30)" : "rgba(255, 255, 255, 0.30)";
+    for (let i = 0; i < 4; i++) {
+      const ripY = GROUND_Y - 16 + i * 4 + Math.sin(timeNow * 1.4 + i) * 0.6;
+      ctx.fillRect(cx - 290, ripY, 580, 1);
     }
 
-    // ----- Glow halo behind the building (subtle backlight) -----
-    const halo = ctx.createRadialGradient(cx, baseY - 80, 30, cx, baseY - 80, 360);
-    halo.addColorStop(0,   "rgba(255, 240, 200, 0.18)");
-    halo.addColorStop(0.5, "rgba(255, 200, 150, 0.10)");
-    halo.addColorStop(1,   "rgba(0, 0, 0, 0)");
-    ctx.fillStyle = halo;
-    ctx.beginPath(); ctx.arc(cx, baseY - 80, 360, 0, Math.PI * 2); ctx.fill();
+    // ----- Esplanada ministries: 6 small buildings each side, receding -----
+    drawMinistryRow(r, cx - 580, cx - 300, /*leftToRight*/ true);
+    drawMinistryRow(r, cx + 300, cx + 580, /*leftToRight*/ false);
 
-    // ----- Slab base (long horizontal) -----
-    ctx.fillStyle = "#f3efe1";
-    ctx.fillRect(cx - 320, baseY - 38, 640, 38);
-    ctx.strokeStyle = "rgba(0,0,0,0.25)";
-    ctx.lineWidth = 1;
-    ctx.strokeRect(cx - 320, baseY - 38, 640, 38);
-    // Slab horizontal floor lines
-    ctx.fillStyle = "rgba(0,0,0,0.18)";
-    ctx.fillRect(cx - 320, baseY - 26, 640, 1);
-    ctx.fillRect(cx - 320, baseY - 14, 640, 1);
-    // Slab vertical window stripes
-    ctx.fillStyle = "rgba(0,0,0,0.30)";
-    for (let i = 0; i < 26; i++) {
-      ctx.fillRect(cx - 308 + i * 25, baseY - 32, 1.5, 26);
+    // ----- Glow halo behind the building at night/evening -----
+    if (r !== 1) {
+      const haloColor = r === 3 ? "rgba(255, 220, 100, 0.20)" : "rgba(255, 240, 200, 0.18)";
+      const halo = ctx.createRadialGradient(cx, slabTop - 80, 30, cx, slabTop - 80, 360);
+      halo.addColorStop(0,   haloColor);
+      halo.addColorStop(0.5, "rgba(255, 200, 150, 0.10)");
+      halo.addColorStop(1,   "rgba(0, 0, 0, 0)");
+      ctx.fillStyle = halo;
+      ctx.beginPath(); ctx.arc(cx, slabTop - 80, 360, 0, Math.PI * 2); ctx.fill();
     }
 
-    // ----- Niemeyer ramps/catwalks running up to the slab -----
-    // Left ramp
-    ctx.fillStyle = "rgba(220, 215, 200, 0.7)";
+    // ----- Niemeyer ramps connecting slab to ground (curved bezier) -----
+    ctx.fillStyle = r === 3 ? "rgba(60, 60, 90, 0.85)" : "rgba(220, 215, 200, 0.85)";
+    // Left ramp: from (cx - 290, slabBottom) curving to (cx - 390, GROUND_Y)
     ctx.beginPath();
-    ctx.moveTo(cx - 320, baseY);
-    ctx.lineTo(cx - 380, baseY);
-    ctx.lineTo(cx - 350, baseY - 14);
-    ctx.lineTo(cx - 320, baseY - 14);
+    ctx.moveTo(cx - 290, slabBottom);
+    ctx.bezierCurveTo(cx - 320, slabBottom, cx - 360, GROUND_Y, cx - 390, GROUND_Y);
+    ctx.lineTo(cx - 290, GROUND_Y);
     ctx.closePath();
     ctx.fill();
     // Right ramp
     ctx.beginPath();
-    ctx.moveTo(cx + 320, baseY);
-    ctx.lineTo(cx + 380, baseY);
-    ctx.lineTo(cx + 350, baseY - 14);
-    ctx.lineTo(cx + 320, baseY - 14);
+    ctx.moveTo(cx + 290, slabBottom);
+    ctx.bezierCurveTo(cx + 320, slabBottom, cx + 360, GROUND_Y, cx + 390, GROUND_Y);
+    ctx.lineTo(cx + 290, GROUND_Y);
     ctx.closePath();
     ctx.fill();
 
-    // ----- Twin towers (Congresso Nacional) — TALLER than before -----
-    const towerH = 280;
-    const towerTop = baseY - 38 - towerH;
-    ctx.fillStyle = "#f8f4e6";
-    ctx.fillRect(cx - 16, towerTop, 13, towerH);
-    ctx.fillRect(cx + 3,  towerTop, 13, towerH);
-    // Tower side-shading (right edge slightly darker for depth)
-    ctx.fillStyle = "rgba(0, 0, 0, 0.18)";
-    ctx.fillRect(cx - 5,  towerTop, 2, towerH);
-    ctx.fillRect(cx + 14, towerTop, 2, towerH);
-    // Tower windows — denser grid for the new height
-    ctx.fillStyle = "rgba(60, 80, 110, 0.65)";
-    const winCount = 32;
-    for (let i = 0; i < winCount; i++) {
-      ctx.fillRect(cx - 14, towerTop + 6 + i * 8, 9, 4);
-      ctx.fillRect(cx + 5,  towerTop + 6 + i * 8, 9, 4);
+    // ----- SLAB BODY: 580×50 centered, bottom at GROUND_Y - 20 -----
+    ctx.fillStyle = buildingColor;
+    ctx.fillRect(cx - slabHalfW, slabTop, slabHalfW * 2, slabH);
+    ctx.strokeStyle = "rgba(0,0,0,0.30)";
+    ctx.lineWidth = 1;
+    ctx.strokeRect(cx - slabHalfW, slabTop, slabHalfW * 2, slabH);
+    // Slab horizontal floor lines
+    ctx.fillStyle = "rgba(0,0,0,0.25)";
+    ctx.fillRect(cx - slabHalfW, slabTop + 16, slabHalfW * 2, 1);
+    ctx.fillRect(cx - slabHalfW, slabTop + 32, slabHalfW * 2, 1);
+    // Slab windows: rows of small lit/unlit rectangles
+    if (r === 3) {
+      // Night: yellow lit windows on dark base
+      ctx.fillStyle = "#3a3a3a";
+      ctx.fillRect(cx - slabHalfW + 2, slabTop + 2, slabHalfW * 2 - 4, slabH - 4);
+      // Lit windows
+      for (let row = 0; row < 3; row++) {
+        for (let col = 0; col < 30; col++) {
+          const lit = ((col * 7 + row * 13) % 4 !== 0); // most lit, some dark
+          if (!lit) continue;
+          const wx = cx - slabHalfW + 6 + col * 18;
+          const wy = slabTop + 6 + row * 14;
+          ctx.fillStyle = "#ffd84a";
+          ctx.fillRect(wx, wy, 12, 8);
+          // Halo glow
+          ctx.fillStyle = "rgba(255, 216, 74, 0.18)";
+          ctx.fillRect(wx - 2, wy - 2, 16, 12);
+        }
+      }
+    } else {
+      // Day / evening: darker vertical window stripes
+      ctx.fillStyle = "rgba(0,0,0,0.30)";
+      for (let i = 0; i < 24; i++) {
+        ctx.fillRect(cx - slabHalfW + 6 + i * 24, slabTop + 4, 2, slabH - 8);
+      }
     }
-    // Lit window sparkle (a few warm-yellow ones, sunset reflections)
-    ctx.fillStyle = "rgba(255, 220, 120, 0.6)";
-    [3, 11, 19, 27].forEach((i) => {
-      ctx.fillRect(cx - 14, towerTop + 6 + i * 8, 9, 4);
-      ctx.fillRect(cx + 5,  towerTop + 6 + i * 8 + 4, 9, 4);
-    });
 
-    // ----- Senate dome (true HEMISPHERE) on the LEFT -----
-    const senateCx = cx - 130, senateBaseY = baseY - 38;
+    // ----- TWIN TOWERS (16×260 each, centered at cx-12 and cx+12) -----
+    const towerH = 260;
+    const towerTop = slabTop - towerH;
+    const towerColor = (r === 1) ? "#f0f0ea" : (r === 3) ? "#1a1a2e" : "#e0c878";
+    ctx.fillStyle = towerColor;
+    ctx.fillRect(cx - 20, towerTop, 16, towerH);
+    ctx.fillRect(cx + 4,  towerTop, 16, towerH);
+    // Subtle right-edge shading
+    ctx.fillStyle = "rgba(0, 0, 0, 0.18)";
+    ctx.fillRect(cx - 6,  towerTop, 2, towerH);
+    ctx.fillRect(cx + 18, towerTop, 2, towerH);
+    // Window grid (6 cols × 5 rows = 30 per tower, 4×3px)
+    drawTowerWindows(cx - 20, towerTop, 16, towerH, r);
+    drawTowerWindows(cx + 4,  towerTop, 16, towerH, r);
+
+    // ----- SENATE DOME (LEFT) — full hemisphere opening upward -----
+    const senateCx = cx - 160, senateBaseY = slabTop;
     const senateR = 70;
-    ctx.fillStyle = "#f3efe1";
+    ctx.fillStyle = buildingColor;
     ctx.beginPath();
     ctx.arc(senateCx, senateBaseY, senateR, Math.PI, 0, false);
     ctx.closePath();
     ctx.fill();
-    ctx.strokeStyle = "rgba(0,0,0,0.25)";
+    ctx.strokeStyle = "rgba(0,0,0,0.30)";
     ctx.stroke();
-    // Dome highlight (sunlit upper-left)
-    ctx.fillStyle = "rgba(255, 255, 255, 0.20)";
-    ctx.beginPath();
-    ctx.ellipse(senateCx - 18, senateBaseY - 35, 24, 14, -0.4, 0, Math.PI * 2);
-    ctx.fill();
-    // Dome floor disc (ground-line cap)
-    ctx.fillStyle = "rgba(0,0,0,0.15)";
-    ctx.fillRect(senateCx - senateR, senateBaseY - 1, senateR * 2, 2);
+    // Highlight on the upper-left for sunlit feel
+    if (r === 1) {
+      ctx.fillStyle = "rgba(255, 255, 255, 0.35)";
+      ctx.beginPath();
+      ctx.ellipse(senateCx - 22, senateBaseY - 38, 26, 14, -0.4, 0, Math.PI * 2);
+      ctx.fill();
+    } else if (r === 2) {
+      ctx.fillStyle = "rgba(255, 240, 180, 0.30)";
+      ctx.beginPath();
+      ctx.ellipse(senateCx - 22, senateBaseY - 38, 26, 14, -0.4, 0, Math.PI * 2);
+      ctx.fill();
+    } else {
+      // Night: dim, tiny window-style lights along the rim
+      ctx.fillStyle = "#ffe066";
+      for (let i = -3; i <= 3; i++) {
+        ctx.fillRect(senateCx - 4 + i * 12, senateBaseY - 10, 2, 2);
+      }
+    }
 
-    // ----- Chamber bowl (INVERTED hemisphere) on the RIGHT -----
-    const chamberCx = cx + 130;
+    // ----- CHAMBER BOWL (RIGHT) — INVERTED dome, opens UPWARD like a bowl -----
+    const chamberCx = cx + 160, chamberBaseY = slabTop;
     const chamberR = 70;
-    const chamberRimY = senateBaseY - 8; // rim above the slab
-    ctx.fillStyle = "#f3efe1";
+    ctx.fillStyle = buildingColor;
     ctx.beginPath();
-    ctx.moveTo(chamberCx - chamberR, chamberRimY);
-    // Top of bowl (the rim) is at chamberRimY, the bowl OPENS upward —
-    // so we drop the curve DOWNWARD then back up to draw an inverted
-    // hemisphere (a half-pipe).
-    ctx.bezierCurveTo(
-      chamberCx - chamberR, chamberRimY - 2,
-      chamberCx - chamberR, chamberRimY - 4,
-      chamberCx - chamberR, chamberRimY
-    );
-    ctx.arc(chamberCx, chamberRimY, chamberR, Math.PI, 0, true);
+    // The bowl opens upward — i.e., its rim is at the top, and the bottom
+    // curves DOWN to a point. We draw the lower hemisphere (filled bowl).
+    ctx.arc(chamberCx, chamberBaseY - 8, chamberR, 0, Math.PI, false);
     ctx.closePath();
     ctx.fill();
     ctx.stroke();
     // Bowl rim highlight
-    ctx.fillStyle = "rgba(255, 255, 255, 0.18)";
-    ctx.fillRect(chamberCx - chamberR + 3, chamberRimY, chamberR * 2 - 6, 2);
-    // Inside-bowl shading
-    ctx.fillStyle = "rgba(0, 0, 0, 0.20)";
+    ctx.fillStyle = r === 3 ? "rgba(120, 120, 160, 0.35)" : "rgba(255, 255, 255, 0.30)";
+    ctx.fillRect(chamberCx - chamberR + 3, chamberBaseY - 9, chamberR * 2 - 6, 2);
+    // Inside-bowl shading (darker bowl interior)
+    ctx.fillStyle = r === 3 ? "rgba(0, 0, 20, 0.5)" : "rgba(0, 0, 0, 0.20)";
     ctx.beginPath();
-    ctx.ellipse(chamberCx, chamberRimY + 24, chamberR - 8, 14, 0, 0, Math.PI * 2);
+    ctx.ellipse(chamberCx, chamberBaseY + 14, chamberR - 8, 14, 0, 0, Math.PI * 2);
     ctx.fill();
 
-    // ----- Palm trees (Esplanada landscaping) - silhouette only -----
-    drawPalmTree(cx - 360, baseY);
-    drawPalmTree(cx - 410, baseY + 4);
-    drawPalmTree(cx + 360, baseY);
-    drawPalmTree(cx + 410, baseY + 4);
-
-    // Brazilian flag pole + flag, on top of the slab
+    // ----- Brazilian flag pole + flag, on top of the slab -----
     ctx.fillStyle = "#444";
-    ctx.fillRect(cx - 290, baseY - 92, 1.8, 56);
-    drawTinyFlag(cx - 290, baseY - 90);
-  }
+    ctx.fillRect(cx - 250, slabTop - 56, 1.8, 56);
+    drawTinyFlag(cx - 250, slabTop - 54);
 
-  // Simple silhouette palm tree
-  function drawPalmTree(x, y) {
-    ctx.fillStyle = "rgba(15, 18, 28, 0.85)";
-    // Trunk
-    ctx.beginPath();
-    ctx.moveTo(x - 2, y);
-    ctx.lineTo(x - 1, y - 40);
-    ctx.lineTo(x + 1, y - 40);
-    ctx.lineTo(x + 2, y);
-    ctx.closePath();
-    ctx.fill();
-    // Fronds — five triangular leaves
-    const fronds = [
-      [-18, -50], [18, -50], [-22, -42], [22, -42], [0, -54],
-    ];
-    for (const [fx, fy] of fronds) {
+    // ----- NIGHT extras: green laser beam shooting up from near Congress -----
+    if (r === 3) {
+      // Green laser
+      const laserX = cx + 200;
+      const laserGrad = ctx.createLinearGradient(0, 0, 0, GROUND_Y);
+      laserGrad.addColorStop(0,   "rgba(80, 255, 100, 0)");
+      laserGrad.addColorStop(0.4, "rgba(80, 255, 100, 0.55)");
+      laserGrad.addColorStop(1,   "rgba(80, 255, 100, 0.85)");
+      ctx.fillStyle = laserGrad;
+      ctx.fillRect(laserX, 0, 2, GROUND_Y - 20);
+      // A subtle bloom at the base
+      ctx.fillStyle = "rgba(80, 255, 100, 0.25)";
       ctx.beginPath();
-      ctx.moveTo(x, y - 38);
-      ctx.lineTo(x + fx,     y + fy);
-      ctx.lineTo(x + fx * 0.6, y + fy + 6);
-      ctx.closePath();
+      ctx.arc(laserX + 1, GROUND_Y - 22, 14, 0, Math.PI * 2);
       ctx.fill();
     }
-    // Trunk highlight
-    ctx.fillStyle = "rgba(80, 70, 50, 0.5)";
-    ctx.fillRect(x - 1, y - 38, 1, 38);
+
+    // ----- Palm trees, drawn AFTER buildings so trunks read against them -----
+    drawPalmTree(150, GROUND_Y, r);
+    drawPalmTree(220, GROUND_Y, r);
+    drawPalmTree(W - 150, GROUND_Y, r);
+    drawPalmTree(W - 220, GROUND_Y, r);
   }
 
+  // Ministry building row — receding-perspective slabs
+  function drawMinistryRow(r, x0, x1, leftToRight) {
+    const span = Math.abs(x1 - x0);
+    const spacing = span / 6;
+    const buildingColor = getBuildingColor(r);
+    for (let i = 0; i < 6; i++) {
+      const t = i / 6;                              // 0..1
+      // Buildings further from center are "further away" — smaller height
+      const persp = leftToRight ? (1 - t) : t;       // 1 = closer, 0 = further
+      const h = 40 + persp * 40;
+      const w = 18 + persp * 4;
+      const bx = leftToRight ? (x0 + i * spacing) : (x0 + i * spacing);
+      const by = GROUND_Y - 20 - h;
+      // Building body
+      ctx.fillStyle = buildingColor;
+      ctx.fillRect(bx, by, w, h);
+      // Subtle outline
+      ctx.strokeStyle = "rgba(0, 0, 0, 0.25)";
+      ctx.lineWidth = 1;
+      ctx.strokeRect(bx, by, w, h);
+      // Windows
+      if (r === 3) {
+        // Night: lit yellow windows on dark base
+        ctx.fillStyle = "#1a1a2a";
+        ctx.fillRect(bx + 1, by + 1, w - 2, h - 2);
+        for (let row = 0; row < Math.floor(h / 6); row++) {
+          for (let col = 0; col < Math.floor(w / 4); col++) {
+            if ((row * 5 + col * 3 + i) % 3 === 0) continue;
+            ctx.fillStyle = "#ffd84a";
+            ctx.fillRect(bx + 2 + col * 4, by + 2 + row * 6, 2, 3);
+          }
+        }
+      } else {
+        // Day / evening: dark window dots
+        ctx.fillStyle = "rgba(0, 0, 0, 0.40)";
+        for (let row = 0; row < Math.floor(h / 8); row++) {
+          for (let col = 0; col < Math.floor(w / 5); col++) {
+            ctx.fillRect(bx + 3 + col * 5, by + 3 + row * 8, 2, 3);
+          }
+        }
+      }
+    }
+  }
+
+  // Tower window grid (6 cols × ~32 rows of 3px windows)
+  function drawTowerWindows(towerX, towerTop, towerW, towerH, r) {
+    if (r === 3) {
+      // Night: dark base + bright yellow windows
+      ctx.fillStyle = "#1a1a2e";
+      ctx.fillRect(towerX + 1, towerTop + 1, towerW - 2, towerH - 2);
+    }
+    const cols = 3;       // 3 columns of windows visible per face
+    const rowH = 8;
+    const rows = Math.floor((towerH - 6) / rowH);
+    const winW = 3;
+    const colSpacing = (towerW - cols * winW) / (cols + 1);
+    for (let row = 0; row < rows; row++) {
+      for (let col = 0; col < cols; col++) {
+        const wx = towerX + colSpacing + col * (winW + colSpacing);
+        const wy = towerTop + 4 + row * rowH;
+        if (r === 3) {
+          // Lit ~70% of the time, with halo
+          const lit = ((row * 3 + col * 7) % 3) !== 0;
+          if (lit) {
+            ctx.fillStyle = "rgba(255, 216, 74, 0.20)";
+            ctx.fillRect(wx - 1, wy - 1, winW + 2, 5);
+            ctx.fillStyle = "#ffd84a";
+            ctx.fillRect(wx, wy, winW, 3);
+          }
+        } else {
+          ctx.fillStyle = (r === 2) ? "rgba(255, 200, 90, 0.55)" : "rgba(60, 80, 110, 0.70)";
+          ctx.fillRect(wx, wy, winW, 3);
+        }
+      }
+    }
+  }
+
+  // Palm tree — round-aware silhouette
+  function drawPalmTree(x, y, r) {
+    const trunkColor = r === 3 ? "rgba(15, 18, 28, 0.95)" : "#4a3018";
+    const frondColor = r === 3 ? "rgba(15, 18, 28, 0.95)" : "#1a4020";
+    const trunkH = 60;
+    // Trunk (3px wide, 60px tall)
+    ctx.fillStyle = trunkColor;
+    ctx.fillRect(x - 1.5, y - trunkH, 3, trunkH);
+    // Trunk segments (stylized)
+    if (r !== 3) {
+      ctx.fillStyle = "rgba(0,0,0,0.3)";
+      for (let i = 0; i < 6; i++) ctx.fillRect(x - 1.5, y - trunkH + 8 + i * 9, 3, 1);
+    }
+    // 6 fronds radiating outward (each 20px), slightly drooping
+    ctx.strokeStyle = frondColor;
+    ctx.lineWidth = 3;
+    ctx.lineCap = "round";
+    const fronds = [
+      { dx: -22, dy: -8 }, { dx: -16, dy: -18 }, { dx: -4, dy: -22 },
+      { dx: 4, dy: -22 },  { dx: 16, dy: -18 },  { dx: 22, dy: -8 },
+    ];
+    for (const f of fronds) {
+      ctx.beginPath();
+      ctx.moveTo(x, y - trunkH);
+      // Slight droop: end below the straight-line endpoint
+      ctx.quadraticCurveTo(x + f.dx * 0.6, y - trunkH + f.dy * 0.7,
+                           x + f.dx,        y - trunkH + f.dy + 4);
+      ctx.stroke();
+    }
+    ctx.lineCap = "butt";
+  }
+
+  // Tiny Brazilian flag for the slab pole
   function drawTinyFlag(px, py) {
     ctx.fillStyle = "#009c3b";
     ctx.fillRect(px + 1, py, 22, 14);
@@ -2027,47 +2491,48 @@ canvas#stage {
     ctx.moveTo(px + 12, py + 2);
     ctx.lineTo(px + 22, py + 7);
     ctx.lineTo(px + 12, py + 12);
-    ctx.lineTo(px + 2, py + 7);
+    ctx.lineTo(px + 2,  py + 7);
     ctx.closePath();
     ctx.fill();
     ctx.fillStyle = "#002776";
     ctx.beginPath(); ctx.arc(px + 12, py + 7, 3, 0, Math.PI * 2); ctx.fill();
   }
 
-  function drawEsplanada() {
-    // Receding flagstones suggesting depth
-    ctx.fillStyle = "rgba(100, 90, 80, 0.5)";
-    ctx.fillRect(0, GROUND_Y - 12, W, 12);
-    ctx.fillStyle = "rgba(0, 0, 0, 0.18)";
-    for (let i = 0; i < 30; i++) {
-      ctx.fillRect((i * W / 30) | 0, GROUND_Y - 12, 1, 12);
-    }
-  }
+  // Esplanada is now folded into drawCongressBuilding (pavement layer).
+  // This stub stays for backwards compatibility with the render loop.
+  function drawEsplanada(_r) { /* drawn by drawCongressBuilding */ }
 
-  function drawCrowd() {
+  // Crowd: bobbing silhouettes — at night, eyes/neon highlights
+  function drawCrowd(r) {
     for (const c of crowd) {
       const bob = Math.sin(timeNow * c.speed + c.phase) * 3;
-      ctx.fillStyle = c.color;
+      ctx.fillStyle = r === 3 ? "rgba(15, 16, 30, 0.95)" : c.color;
       ctx.beginPath();
       ctx.arc(c.x, c.baseY + bob, c.r, 0, Math.PI * 2);
       ctx.fill();
       ctx.fillRect(c.x - c.r, c.baseY + bob, c.r * 2, c.r + 4);
-      // occasional waving stick
+      // Waving stick / phone light
       if ((c.phase * 7 | 0) % 4 === 0) {
-        ctx.fillStyle = "#ffdf00";
+        ctx.fillStyle = r === 3 ? "#9cc6ff" : "#ffdf00";
         ctx.fillRect(c.x - 1, c.baseY + bob - c.r - 14, 2, 14);
+      }
+      // Night: occasional phone-screen glow
+      if (r === 3 && (c.phase * 5 | 0) % 3 === 0) {
+        ctx.fillStyle = "rgba(160, 200, 255, 0.45)";
+        ctx.fillRect(c.x - 2, c.baseY + bob - c.r - 16, 4, 4);
       }
     }
   }
 
-  function drawGround() {
-    // arena floor
-    ctx.fillStyle = "#221a14";
+  // GROUND — the arena floor below GROUND_Y
+  function drawGround(r) {
+    const floorMain = r === 3 ? "#0a0a18" : (r === 1 ? "#3a2a18" : "#221a14");
+    const floorStripe = r === 3 ? "#15152a" : (r === 1 ? "#4a3820" : "#332720");
+    ctx.fillStyle = floorMain;
     ctx.fillRect(0, GROUND_Y, W, H - GROUND_Y);
-    // floor stripes
-    ctx.fillStyle = "#332720";
+    ctx.fillStyle = floorStripe;
     for (let i = 0; i < 12; i++) ctx.fillRect(0, GROUND_Y + 6 + i * 8, W, 1);
-    // green/yellow ring border on arena
+    // Brazilian-flag green/yellow ring border
     ctx.fillStyle = "#009c3b";
     ctx.fillRect(0, GROUND_Y, W, 4);
     ctx.fillStyle = "#ffdf00";
@@ -3716,21 +4181,103 @@ canvas#stage {
   }
 
   // ---------- ROUND-3 SIDEKICKS ----------
-  // Haddad behind Zé, Edu (Bolsonaro Jr) behind Capitão. Pure visual flair —
-  // they don't fight, just bob in place and react when their fighter lands a
-  // hit (using the small flash counter on the main fighter). They vanish if
-  // their fighter is KO'd so the celebration phase reads cleanly.
-  function drawSidekicks() {
-    if (p1.stance !== "ko") drawHaddad(p1.x - 90, GROUND_Y, p1.flash > 0);
-    if (p2.stance !== "ko") drawEdu(p2.x + 90, GROUND_Y, p2.flash > 0);
+  // Haddad (PT companion to Lula) and Edu (Bolsonaro Jr) only appear in
+  // round 3. They roam freely inside per-fighter zones, picking new
+  // walking targets every 1-3 seconds. They face their target. When the
+  // main fighter is KO'd they jog over to within ~40 px of the body.
+  let haddadState = null;
+  let eduState = null;
+  function resetSidekickState() {
+    haddadState = {
+      x: 130, y: GROUND_Y, vx: 0,
+      targetX: 130, roamTimer: 60, waiting: 0, facing: 1,
+    };
+    eduState = {
+      x: W - 130, y: GROUND_Y, vx: 0,
+      targetX: W - 130, roamTimer: 60, waiting: 0, facing: -1,
+    };
   }
 
-  function drawHaddad(cx, cy, fistPump) {
+  // Roam zones depend on the current main-fighter positions (so Haddad
+  // can't walk through Lula and Edu can't walk through Capitão).
+  function haddadZone() {
+    return { lo: 60, hi: Math.max(70, p1.x - 50) };
+  }
+  function eduZone() {
+    return { lo: Math.min(W - 70, p2.x + 50), hi: W - 60 };
+  }
+
+  function updateSidekicks() {
+    if (round !== 3 || phase !== "fight") return;
+    stepSidekick(haddadState, p1, haddadZone());
+    stepSidekick(eduState,    p2, eduZone());
+  }
+
+  // Move one sidekick toward its target; pick a new target periodically.
+  // If the main fighter is KO'd, override the target to be ~40 px from
+  // the fallen fighter so the kid runs over to check on them.
+  function stepSidekick(s, mainFighter, zone) {
+    const SPEED = 60;                       // px/s
+    if (mainFighter.stance === "ko") {
+      // Run to the body — pick the closer side
+      const koSide = mainFighter.x > s.x ? -40 : 40;
+      s.targetX = mainFighter.x + koSide;
+      s.waiting = 0;
+    } else if (s.waiting > 0) {
+      s.waiting--;
+    } else {
+      s.roamTimer--;
+      if (s.roamTimer <= 0) {
+        // Pick a new target within the (possibly shifting) zone
+        const lo = Math.max(zone.lo, 30);
+        const hi = Math.max(lo + 1, zone.hi);
+        s.targetX = lo + Math.random() * (hi - lo);
+        s.roamTimer = 60 + Math.random() * 120 | 0;     // 1-3 s of walking
+        s.waiting = 30 + Math.random() * 60 | 0;        // 0.5-1.5 s pause when arriving
+      }
+    }
+
+    // Move toward target
+    const dx = s.targetX - s.x;
+    const dist = Math.abs(dx);
+    if (dist > 2) {
+      const step = SPEED * TICK_DT;
+      s.x += Math.sign(dx) * Math.min(step, dist);
+      s.facing = Math.sign(dx) || s.facing;
+      s.vx = Math.sign(dx) * SPEED;
+    } else {
+      s.vx = 0;
+      // arrived — start the wait timer if not already
+      if (s.waiting === 0 && mainFighter.stance !== "ko") {
+        s.waiting = 30 + Math.random() * 60 | 0;
+        s.roamTimer = 0;
+      }
+    }
+    // Always clamp to zone (zone changes each frame as fighters move)
+    s.x = Math.max(zone.lo, Math.min(zone.hi, s.x));
+  }
+
+  function drawSidekicks() {
+    if (round !== 3) return;
+    if (haddadState) {
+      drawHaddad(haddadState.x, GROUND_Y, p1.flash > 0, haddadState);
+    }
+    if (eduState) {
+      drawEdu(eduState.x, GROUND_Y, p2.flash > 0, eduState);
+    }
+  }
+
+  function drawHaddad(cx, cy, fistPump, s) {
     // Bob + optional fist-pump when Zé scores.
-    const bob = Math.sin(timeNow * 3.4) * 2;
+    const walking = s && Math.abs(s.vx) > 5;
+    const facing = s && s.facing < 0 ? -1 : 1;
+    // Walking shuffle: faster bob when moving; tiny step animation
+    const bob = walking
+      ? Math.abs(Math.sin(timeNow * 12)) * -2
+      : Math.sin(timeNow * 3.4) * 2;
     ctx.save();
     ctx.translate(cx, cy);
-    ctx.scale(0.6, 0.6);    // 60% scale of the main fighter
+    ctx.scale(0.6 * facing, 0.6);    // 60% scale, flipped to face target
     ctx.globalAlpha = 0.85;
 
     // Shadow
@@ -3820,12 +4367,16 @@ canvas#stage {
     ctx.restore();
   }
 
-  function drawEdu(cx, cy, holdPhoneHigh) {
+  function drawEdu(cx, cy, holdPhoneHigh, s) {
     // Edu Bolsonaro - selfie-snapping sidekick
-    const bob = Math.sin(timeNow * 3.4 + 1.5) * 2;
+    const walking = s && Math.abs(s.vx) > 5;
+    const facing = s && s.facing < 0 ? -1 : 1;
+    const bob = walking
+      ? Math.abs(Math.sin(timeNow * 12 + 1.5)) * -2
+      : Math.sin(timeNow * 3.4 + 1.5) * 2;
     ctx.save();
     ctx.translate(cx, cy);
-    ctx.scale(0.6, 0.6);
+    ctx.scale(0.6 * facing, 0.6);
     ctx.globalAlpha = 0.85;
 
     // Shadow
@@ -4209,37 +4760,81 @@ canvas#stage {
     ctx.restore();
   }
 
+  // Lula's celebration — both variants share the cachaça-tilt drinking
+  // animation (vertical → ~70° → vertical over 0.5s) plus a head-tilt that
+  // sways the entire figure with the bottle. After the drink, sways L-R
+  // and a ★★★ appears above his head. Variant only changes the speech.
   function drawZeCelebration(t) {
-    // Sway L↔R: position the winner center-stage doing a cachaça dance.
-    const sx = W / 2 + Math.sin(t * 4) * 30;
+    // Drinking phase: 0–0.5s tilting back, 0.5–1.0s tilting upright,
+    // then sway + stars from 1.0s on.
+    const drinkPhase = t < 1.0;
+    const drinkAngle = drinkPhase
+      ? (t < 0.5 ? (t / 0.5) * (Math.PI / 180 * 70)
+                 : ((1 - (t - 0.5) / 0.5)) * (Math.PI / 180 * 70))
+      : 0;
+    const swayX = drinkPhase ? 0 : Math.sin((t - 1.0) * 5) * 25;
+    const swayTilt = drinkPhase ? 0 : Math.sin((t - 1.0) * 5) * 0.08;
+    // Tilt the WHOLE fighter with the bottle: up to 15° during the drink.
+    const totalTilt = -drinkAngle * 0.22 + swayTilt;
+
+    const sx = W / 2 + swayX;
     const sy = GROUND_Y;
-    const tilt = Math.sin(t * 4) * 0.08;
+
     ctx.save();
     ctx.translate(sx, sy);
-    ctx.rotate(tilt);
-    ctx.scale(1.4, 1.4);   // bigger so the celebration reads
-    // Force facing toward the camera
+    ctx.rotate(totalTilt);
+    ctx.scale(1.4, 1.4);
     const fakeP1 = { ...p1, x: 0, y: 0, vx: 0, vy: 0, hp: p1.maxHp,
       stance: "walk", stanceT: Math.floor(t * 30), stanceDur: 999, attackKind: null,
       hitConnected: false, facing: 1, blocking: false, onGround: true, flash: 0,
       cd: { punch: 0, kick: 0, special: 0 } };
     drawZe(fakeP1, t);
 
-    // Tiny pixelated cachaça bottle in his front hand (right side from camera)
-    drawCachacaBottle(40, -34);
-
+    // Bottle in his front hand. During the drink, the bottle tilts back
+    // toward his mouth; after, it sits at his side.
+    ctx.save();
+    ctx.translate(34, -50);
+    ctx.rotate(-drinkAngle);   // tilt the bottle (counter-clockwise toward mouth)
+    drawCachacaBottle(0, 0);
     ctx.restore();
 
-    // Speech bubble — animated typewriter
-    const bubbleX = sx - 220, bubbleY = sy - 230;
-    drawSpeechBubble(bubbleX, bubbleY, 320, 56, "ESSE APARTO NÃO É MEU!", t);
+    // Liquid drops arcing out of the bottle while tilted enough
+    if (drinkPhase && drinkAngle > 0.6) {
+      ctx.fillStyle = "rgba(220, 180, 80, 0.85)";
+      for (let i = 0; i < 4; i++) {
+        const dropT = (t * 4 + i * 0.3) % 1;
+        const dx = -10 - dropT * 30;
+        const dy = -50 + dropT * dropT * 60 - 30;
+        ctx.beginPath();
+        ctx.ellipse(34 + dx, dy, 1.5, 2.5, 0, 0, Math.PI * 2);
+        ctx.fill();
+      }
+    }
+    ctx.restore();
+
+    // ★★★ above his head once he's done drinking
+    if (!drinkPhase) {
+      const starsY = sy - 240;
+      ctx.fillStyle = "#ffdf00";
+      ctx.strokeStyle = "#000";
+      ctx.lineWidth = 2;
+      ctx.font = '900 36px "Impact","Arial Black",system-ui';
+      ctx.textAlign = "center"; ctx.textBaseline = "middle";
+      const wobble = Math.sin(t * 6) * 4;
+      ctx.strokeText("★ ★ ★", sx, starsY + wobble);
+      ctx.fillText("★ ★ ★", sx, starsY + wobble);
+    }
+
+    // Speech bubble — variant-driven
+    const text = celebrationVariant === "ze-cachaca"
+      ? "QUE CACHAÇA BOA!"
+      : "O AP NÃO É MEU!";
+    drawSpeechBubble(sx - 200, sy - 200, 360, 56, text, t);
   }
 
   function drawCapitaoCelebration(t) {
     const sx = W / 2;
     const sy = GROUND_Y;
-    const phase1 = t < 1.5;   // fishing skit
-    const phase2 = !phase1;   // salute pose
 
     ctx.save();
     ctx.translate(sx, sy);
@@ -4250,63 +4845,101 @@ canvas#stage {
       cd: { punch: 0, kick: 0, special: 0 } };
     drawCapitao(fakeP2, t);
 
-    if (phase1) {
-      // Fishing rod going forward + line + fish at end
+    if (celebrationVariant === "cap-pesca") {
+      // ----- PESCARIA: rod up-and-right with bouncing fish -----
+      // Diagonal rod from his hand outward
       ctx.strokeStyle = "#5a3a1c"; ctx.lineWidth = 2.5;
       ctx.beginPath();
-      ctx.moveTo(28, -64);
-      ctx.bezierCurveTo(60, -88, 90, -64, 110, -32);
+      ctx.moveTo(20, -60);
+      ctx.lineTo(80, -120);     // ~60px diagonal toward upper-right
       ctx.stroke();
-      // Reel
+      // Reel (small grey circle near the rod handle)
       ctx.fillStyle = "#7a7a7a";
-      ctx.beginPath(); ctx.arc(40, -56, 4, 0, Math.PI * 2); ctx.fill();
-      // Fishing line
-      ctx.strokeStyle = "rgba(255,255,255,0.6)"; ctx.lineWidth = 1;
+      ctx.beginPath(); ctx.arc(28, -68, 4, 0, Math.PI * 2); ctx.fill();
+      // Line dangling from rod-tip to fish
+      const bounce = Math.sin(t * 6) * 6;
+      const fishX = 76, fishY = -90 + bounce;
+      ctx.strokeStyle = "rgba(255,255,255,0.7)"; ctx.lineWidth = 1;
       ctx.beginPath();
-      ctx.moveTo(110, -32); ctx.lineTo(120, 6 + Math.sin(t * 8) * 4);
+      ctx.moveTo(80, -120); ctx.lineTo(fishX, fishY);
       ctx.stroke();
-      // Fish appears at t > 0.6
-      if (t > 0.6) {
+      // Orange fish (per spec)
+      ctx.save();
+      ctx.translate(fishX, fishY);
+      ctx.rotate(Math.sin(t * 6) * 0.3);
+      ctx.fillStyle = "#ff8a3a";
+      ctx.beginPath(); ctx.ellipse(0, 0, 10, 6, 0, 0, Math.PI * 2); ctx.fill();
+      // Tail
+      ctx.fillStyle = "#c86018";
+      ctx.beginPath();
+      ctx.moveTo(-8, 0); ctx.lineTo(-16, -5); ctx.lineTo(-16, 5);
+      ctx.closePath(); ctx.fill();
+      // Eye
+      ctx.fillStyle = "#fff";
+      ctx.beginPath(); ctx.arc(4, -1, 1.6, 0, Math.PI * 2); ctx.fill();
+      ctx.fillStyle = "#000";
+      ctx.beginPath(); ctx.arc(4, -1, 0.8, 0, Math.PI * 2); ctx.fill();
+      ctx.restore();
+    } else {
+      // ----- OLHA O GOLPE: pointing finger up at 45°, military stars -----
+      // Front arm raised at 45°
+      ctx.strokeStyle = "#3d4a20"; ctx.lineWidth = 9;
+      ctx.lineCap = "round";
+      ctx.beginPath();
+      ctx.moveTo(18, -60);
+      ctx.lineTo(60, -100);
+      ctx.stroke();
+      ctx.lineCap = "butt";
+      // Hand + index finger
+      ctx.fillStyle = "#b89a78";
+      ctx.beginPath(); ctx.arc(64, -104, 5, 0, Math.PI * 2); ctx.fill();
+      ctx.strokeStyle = "#b89a78"; ctx.lineWidth = 3;
+      ctx.beginPath();
+      ctx.moveTo(64, -104); ctx.lineTo(78, -118);
+      ctx.stroke();
+
+      // Military stars bursting around him, rotating
+      ctx.fillStyle = "#ffdf00";
+      ctx.strokeStyle = "rgba(0,0,0,0.7)"; ctx.lineWidth = 1.5;
+      for (let i = 0; i < 5; i++) {
+        const ang = (i / 5) * Math.PI * 2 + t * 1.5;
+        const dist = 90 + Math.sin(t * 4 + i) * 14;
+        const sxStar = Math.cos(ang) * dist;
+        const syStar = -60 + Math.sin(ang) * dist * 0.5;
         ctx.save();
-        ctx.translate(120, 6 + Math.sin(t * 8) * 4);
-        ctx.rotate(Math.sin(t * 6) * 0.4);
-        // Fish body
-        ctx.fillStyle = "#5a7adc";
-        ctx.beginPath(); ctx.ellipse(0, 0, 14, 7, 0, 0, Math.PI * 2); ctx.fill();
-        ctx.fillStyle = "#1a4a8a";
-        ctx.beginPath(); ctx.ellipse(0, 1, 12, 4, 0, 0, Math.PI * 2); ctx.fill();
-        // Tail
-        ctx.fillStyle = "#5a7adc";
-        ctx.beginPath();
-        ctx.moveTo(-12, 0); ctx.lineTo(-22, -6); ctx.lineTo(-22, 6); ctx.closePath();
-        ctx.fill();
-        // Eye
-        ctx.fillStyle = "#fff";
-        ctx.beginPath(); ctx.arc(6, -1, 2, 0, Math.PI * 2); ctx.fill();
-        ctx.fillStyle = "#000";
-        ctx.beginPath(); ctx.arc(6, -1, 1, 0, Math.PI * 2); ctx.fill();
+        ctx.translate(sxStar, syStar);
+        ctx.rotate(t * 3 + i);
+        drawStar(0, 0, 8, 5);
+        ctx.stroke();
         ctx.restore();
       }
-    } else {
-      // Salute pose: front arm raised, stiff
-      ctx.fillStyle = "#3d4a20";
-      ctx.fillRect(20, -90, 8, 30);
-      // Hand at brow
-      ctx.fillStyle = "#b89a78";
-      ctx.beginPath(); ctx.arc(24, -94, 5, 0, Math.PI * 2); ctx.fill();
     }
     ctx.restore();
 
-    // Speech bubble swap
-    if (phase1) {
-      drawSpeechBubble(sx + 80, sy - 240, 360, 56, "PESCARIA EM ÁREA PROIBIDA!", t);
+    // Variant-driven text
+    if (celebrationVariant === "cap-pesca") {
+      drawSpeechBubble(sx + 80, sy - 240, 320, 56, "PESCARIA BOA!", t);
     } else {
-      drawSpeechBubble(sx - 220, sy - 240, 360, 56, "ORDEM E PROGRESSO… EU!", t - 1.5);
+      // "OLHA O GOLPE!" speech bubble + a flashing red "GOLPE!" stinger
+      drawSpeechBubble(sx - 220, sy - 240, 320, 56, "OLHA O GOLPE!", t);
+      // Flashing red GOLPE! every ~0.25s
+      if (Math.floor(t * 4) % 2 === 0) {
+        ctx.save();
+        ctx.fillStyle = "#ff3344";
+        ctx.strokeStyle = "#000"; ctx.lineWidth = 5;
+        ctx.font = '900 56px "Impact","Arial Black",system-ui';
+        ctx.textAlign = "center"; ctx.textBaseline = "middle";
+        const flashY = H / 2 - 60 + Math.sin(t * 12) * 6;
+        ctx.strokeText("GOLPE!", sx, flashY);
+        ctx.fillText("GOLPE!", sx, flashY);
+        ctx.restore();
+      }
     }
   }
 
   function drawDrawCelebration(t) {
-    // Both fighters face camera and samba-step in sync
+    // Both fighters face camera and samba-step in sync, with speech
+    // bubbles on each side saying NÃO FOI DESSA VEZ!
     const bob = Math.abs(Math.sin(t * 8)) * 5;
     const lean = Math.sin(t * 4) * 0.10;
     ctx.save();
@@ -4331,32 +4964,39 @@ canvas#stage {
     drawCapitao(fakeP2, t);
     ctx.restore();
 
-    drawSpeechBubble(W / 2 - 180, GROUND_Y - 230, 360, 56, "EMPATE DEMOCRÁTICO!", t);
+    // Two side-by-side bubbles
+    drawSpeechBubble(W / 2 - 360, GROUND_Y - 230, 280, 50, "NÃO FOI DESSA VEZ!", t);
+    drawSpeechBubble(W / 2 + 80,  GROUND_Y - 230, 280, 50, "NÃO FOI DESSA VEZ!", t);
   }
 
-  // Tiny stylized cachaça bottle (yellow glass + label) for the Lula dance.
+  // Cachaça bottle: brown glass + neck + "51" white label.
   function drawCachacaBottle(x, y) {
-    // Bottle body
-    ctx.fillStyle = "#c8a040";
+    // Bottle body — brown rectangle 8x20
+    ctx.fillStyle = "#7a4a18";
     ctx.beginPath();
-    ctx.roundRect ? ctx.roundRect(x - 6, y, 12, 20, 2) : ctx.rect(x - 6, y, 12, 20);
+    if (ctx.roundRect) ctx.roundRect(x - 4, y, 8, 20, 1);
+    else ctx.rect(x - 4, y, 8, 20);
     ctx.fill();
-    // Neck
-    ctx.fillStyle = "#a87018";
-    ctx.fillRect(x - 3, y - 6, 6, 8);
-    // Cork
+    // Glass shine
+    ctx.fillStyle = "rgba(255,255,255,0.18)";
+    ctx.fillRect(x - 3, y + 1, 1, 16);
+    // Neck — small 4x6
     ctx.fillStyle = "#5a3010";
-    ctx.fillRect(x - 3, y - 9, 6, 4);
-    // White label with "51"
+    ctx.fillRect(x - 2, y - 6, 4, 6);
+    // Cork
+    ctx.fillStyle = "#3a1808";
+    ctx.fillRect(x - 2, y - 9, 4, 3);
+    // White label with "51" in red
     ctx.fillStyle = "#fff";
-    ctx.fillRect(x - 5, y + 5, 10, 8);
+    ctx.fillRect(x - 4, y + 6, 8, 7);
     ctx.fillStyle = "#c8102e";
-    ctx.font = "bold 7px system-ui";
+    ctx.font = "900 6px system-ui";
     ctx.textAlign = "center"; ctx.textBaseline = "middle";
-    ctx.fillText("51", x, y + 9);
-    // Tiny shine
-    ctx.fillStyle = "rgba(255,255,255,0.4)";
-    ctx.fillRect(x - 5, y + 1, 1, 12);
+    ctx.fillText("51", x, y + 9.5);
+    // Outline
+    ctx.strokeStyle = "rgba(0,0,0,0.6)";
+    ctx.lineWidth = 0.6;
+    ctx.strokeRect(x - 4, y, 8, 20);
   }
 
   // Comic-style speech bubble with typewriter text reveal.
@@ -4555,12 +5195,19 @@ canvas#stage {
 
     // Free-to-play: skip paywall, jump straight to the menu.
     showMenu();
+    // Title soundtrack starts as soon as the AudioContext is woken on the
+    // first user gesture (we'll kick it off from firstGestureWake below).
 
     // Wake up the AudioContext on the very first user gesture anywhere on
     // the page (browsers refuse to resume audio without one). After the
     // first wake-up we remove the listener so it doesn't fire forever.
     function firstGestureWake() {
       audio.ensure();
+      // Now that the context is alive, fire up the title loop if we're
+      // still on the title/select screen.
+      if (phase === "title" || phase === "select") {
+        audio.startTitleMusic();
+      }
       document.removeEventListener("pointerdown", firstGestureWake, true);
       document.removeEventListener("keydown",     firstGestureWake, true);
       document.removeEventListener("touchstart",  firstGestureWake, true);
