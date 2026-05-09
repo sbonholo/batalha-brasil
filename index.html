@@ -787,6 +787,7 @@ canvas#stage {
   let playerSide = "p1";               // "p1" = playing Zé (left); "p2" = playing Capitão (right)
   let paused = false;                  // pause modal open
   let celebrationVariant = "default";  // which celebration skit to play
+  let endActionsShown = false;         // edge-flag so the matchEnd buttons fire exactly once
 
   const inputState = { p1: blankInputs(), p2: blankInputs() };
 
@@ -1661,6 +1662,7 @@ canvas#stage {
       cd: { punch: 0, kick: 0, special: 0 },
       onGround: true, blocking: false,
       flash: 0,
+      hpFlash: 0,            // counts down per frame; HP bar glows red while > 0
     };
   }
 
@@ -1678,6 +1680,7 @@ canvas#stage {
     inputState.p1 = blankInputs();
     inputState.p2 = blankInputs();
     paused = false;
+    endActionsShown = false;
     hidePauseModal();
     hideEndActions();
     showPauseBtn();
@@ -1721,6 +1724,7 @@ canvas#stage {
     phase = "title";
     phaseT = 0;
     paused = false;
+    endActionsShown = false;
     hidePauseModal();
     hideEndActions();
     hidePauseBtn();
@@ -1787,6 +1791,14 @@ canvas#stage {
 
   document.addEventListener("keydown", (e) => {
     if (e.repeat) return;
+    // Always block arrow-key default behavior so the browser doesn't
+    // navigate Back/Forward, scroll the page, or hijack focus during the
+    // title / select / matchEnd screens (where arrows aren't otherwise
+    // mapped to gameplay).
+    if (e.code === "ArrowLeft" || e.code === "ArrowRight" ||
+        e.code === "ArrowUp"   || e.code === "ArrowDown") {
+      e.preventDefault();
+    }
     if (KEYMAP_P1[e.code]) { inputState.p1[KEYMAP_P1[e.code]] = true; e.preventDefault(); }
     if (e.code === "Escape") {
       if (phase === "fight" || phase === "ready" || phase === "roundEnd" || phase === "celebrate") {
@@ -2000,6 +2012,7 @@ canvas#stage {
       const dmg = blocked ? Math.max(1, Math.round(m.dmg * 0.2)) : m.dmg;
       def.hp = Math.max(0, def.hp - dmg);
       def.flash = 6;
+      def.hpFlash = 8;       // glow the HP bar red for ~8 frames after hit
       const dir = att.facing;
       const cx = hb.x + hb.w / 2, cy = hb.y + hb.h / 2;
 
@@ -2143,8 +2156,13 @@ canvas#stage {
     if (phase === "matchEnd") {
       phaseT++;
       updateEffects();
-      // Show the end buttons after the K.O. settles
-      if (phaseT === 60) showEndActions();
+      // Show the end buttons once the K.O. settles. Use an edge flag so a
+      // tab-hidden visibilitychange that warps phaseT past the threshold
+      // can't lock us out of the buttons forever.
+      if (phaseT >= 60 && !endActionsShown) {
+        endActionsShown = true;
+        showEndActions();
+      }
       return;
     }
 
@@ -4931,8 +4949,18 @@ canvas#stage {
 
   function drawHpBar(f, x, y, mirror) {
     const w = 360, h = 22;
+    // HP-flash on damage: brighten the whole bar for a few frames after a hit.
+    const flashing = f.hpFlash > 0;
+    if (flashing) {
+      ctx.save();
+      // Filter is the simplest way to brighten an already-multi-layer bar
+      // without rewriting the gradient. Falls back to a no-op on older
+      // engines that don't support filter — bar still renders.
+      ctx.filter = "brightness(1.5)";
+      f.hpFlash--;
+    }
     // Brazil-flag-themed double border: 3px gold outer + 2px green inner
-    ctx.fillStyle = "#ffdf00";                     // outer gold
+    ctx.fillStyle = flashing ? "#ff5050" : "#ffdf00";   // outer gold (red while flashing)
     ctx.fillRect(x - 5, y - 5, w + 10, h + 10);
     ctx.fillStyle = "#009c3b";                     // inner green
     ctx.fillRect(x - 2, y - 2, w + 4, h + 4);
@@ -4968,6 +4996,7 @@ canvas#stage {
     ctx.fillStyle = "rgba(255,255,255,0.18)";
     if (mirror) ctx.fillRect(x + lostW, y + 1, fillW, 3);
     else        ctx.fillRect(x, y + 1, fillW, 3);
+    if (flashing) ctx.restore();
   }
 
   function drawRoundDots(n, x, y, rightAlign) {
@@ -5027,6 +5056,17 @@ canvas#stage {
       ctx.fillStyle = "#cfd6e0";
       ctx.font = "16px system-ui";
       ctx.fillText("Toque ou pressione ENTER para voltar", W / 2, H / 2 + 50);
+      // Pulsing "Toque para continuar" hint once the buttons are interactive.
+      if (phaseT > 60) {
+        const pulse = 0.55 + Math.sin(phaseT * 0.12) * 0.35;
+        ctx.save();
+        ctx.globalAlpha = pulse;
+        ctx.fillStyle = "#ffdf00";
+        ctx.font = "900 18px system-ui";
+        ctx.textAlign = "center"; ctx.textBaseline = "middle";
+        ctx.fillText("👇 TOQUE PARA CONTINUAR", W / 2, H / 2 + 88);
+        ctx.restore();
+      }
     }
   }
 
@@ -5783,10 +5823,13 @@ canvas#stage {
       paused = true;
       showPauseModal();
     });
-    // Modal actions (delegated)
+    // Modal actions (delegated). stopPropagation prevents a rapid double-tap
+    // on NÃO from bubbling to elements under the now-hidden modal — most
+    // notably btn-online which sits in the same z-stack.
     el("pause-modal").addEventListener("click", (e) => {
       const t = e.target.closest("[data-action]");
       if (!t) return;
+      e.stopPropagation();
       const action = t.dataset.action;
       if (action === "resume") { audio.menuClick(); paused = false; hidePauseModal(); }
       else if (action === "back-to-menu") { audio.menuBack(); paused = false; hidePauseModal(); backToTitle(); }
@@ -5841,9 +5884,16 @@ canvas#stage {
       btn.addEventListener("contextmenu", (e) => e.preventDefault());
     });
 
-    // Tap canvas at match end → back to title (mobile-friendly)
+    // Tap canvas at match end → back to title (mobile-friendly).
+    // During the celebration skit, tap also fast-forwards to the round-end
+    // overlay so impatient players don't have to sit through the full 3 s.
     canvas.addEventListener("pointerdown", () => {
       if (phase === "matchEnd" && phaseT > 60) backToTitle();
+      else if (phase === "celebrate" && phaseT > 30) {
+        // Jump just past the threshold so the next step() tick rolls into
+        // the standard roundEnd overlay.
+        phaseT = CELEBRATE_FRAMES + 1;
+      }
     });
 
     // Resize-aware canvas (kept at virtual 960x540 — CSS handles fit)
