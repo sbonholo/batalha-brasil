@@ -52,73 +52,31 @@ canvas#stage {
 #hint b { color: #ffd84a; }
 
 /* ---------- Paywall ---------- */
-#paywall {
-  position: fixed; inset: 0; z-index: 5;
-  background: linear-gradient(160deg, #0e3b2c 0%, #1a1a1a 60%, #0a1830 100%);
-  display: flex; align-items: center; justify-content: center;
-  padding: env(safe-area-inset-top) env(safe-area-inset-right)
-    env(safe-area-inset-bottom) env(safe-area-inset-left);
+/* ---------- Tutorial hint (auto-fade overlay, first 10s of first match) ---------- */
+#tutorial-hint {
+  position: fixed; left: 50%; top: 22%;
+  transform: translateX(-50%);
+  z-index: 6;
+  background: rgba(0, 0, 0, 0.70);
+  border: 2px solid #009c3b;
+  border-radius: 10px;
+  padding: 10px 14px;
+  font-size: 12px; line-height: 1.5;
+  color: #cfd6e0; text-align: center;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.5);
+  max-width: 360px;
+  pointer-events: none;
+  opacity: 0; visibility: hidden;
+  transition: opacity 0.5s ease;
 }
-.paywall-card {
-  width: min(420px, 92vw); max-height: 92vh; overflow: auto;
-  background: linear-gradient(180deg, #131b2c 0%, #0a0f1a 100%);
-  border: 2px solid #2a3658; border-radius: 16px;
-  padding: 22px 22px 18px;
-  text-align: center; box-shadow: 0 20px 60px rgba(0,0,0,0.6);
+#tutorial-hint.show { opacity: 1; visibility: visible; }
+#tutorial-hint.fade { opacity: 0; }
+#tutorial-hint b { color: #ffdf00; }
+#tutorial-hint .head {
+  display: block; color: #009c3b; font-weight: 900; letter-spacing: 1.5px;
+  font-family: "Impact", "Arial Black", system-ui, sans-serif;
+  margin-bottom: 4px;
 }
-.paywall-card h1 {
-  margin: 0 0 4px; font-size: 32px; letter-spacing: 3px;
-  background: linear-gradient(180deg, #ffe066 0%, #009c3b 60%, #002776 100%);
-  -webkit-background-clip: text; background-clip: text; color: transparent;
-  text-shadow: 0 1px 0 rgba(0,0,0,0.4);
-}
-.paywall-sub { margin: 0 0 14px; color: #cfd6e0; font-size: 14px; }
-.paywall-price {
-  display: inline-block; margin: 6px 0 12px; padding: 8px 16px;
-  border: 2px solid #32bcad; border-radius: 999px;
-  font-weight: 800; font-size: 20px; color: #32bcad; letter-spacing: 1px;
-}
-.qr-wrap {
-  width: 220px; height: 220px; margin: 0 auto 12px;
-  background: #fff; border-radius: 12px; padding: 10px;
-  position: relative;
-}
-.qr-wrap svg { width: 100%; height: 100%; display: block; }
-.qr-watermark {
-  position: absolute; left: 50%; top: 50%;
-  transform: translate(-50%, -50%) rotate(-12deg);
-  font-weight: 900; color: rgba(255, 60, 60, 0.85);
-  border: 3px solid rgba(255, 60, 60, 0.85);
-  padding: 4px 10px; font-size: 14px; letter-spacing: 2px;
-  pointer-events: none; background: rgba(255,255,255,0.85);
-  border-radius: 6px;
-}
-.pix-key {
-  font-family: ui-monospace, Menlo, Consolas, monospace;
-  background: #0a0f1a; border: 1px dashed #2a3658; border-radius: 8px;
-  padding: 8px; font-size: 13px; color: #9cc6ff; margin-bottom: 12px;
-  word-break: break-all;
-}
-#btn-paid {
-  width: 100%; padding: 14px;
-  border: none; border-radius: 12px; cursor: pointer;
-  background: linear-gradient(180deg, #32bcad 0%, #1a8d80 100%);
-  color: #062421; font-weight: 800; font-size: 18px; letter-spacing: 1px;
-  transition: transform 0.06s ease, filter 0.15s;
-}
-#btn-paid:hover { filter: brightness(1.1); }
-#btn-paid:active { transform: scale(0.97); }
-.demo-banner {
-  margin: 10px 0 0; padding: 8px; border-radius: 8px;
-  background: rgba(255, 80, 60, 0.12); border: 1px solid rgba(255, 80, 60, 0.4);
-  color: #ffb3a8; font-size: 11px; line-height: 1.45;
-}
-.controls-block {
-  margin-top: 14px; padding: 10px; border-radius: 8px;
-  background: rgba(255,255,255,0.04); border: 1px solid rgba(255,255,255,0.08);
-  color: #cfd6e0; font-size: 11px; text-align: left; line-height: 1.5;
-}
-.controls-block b { color: #ffd84a; }
 
 /* ---------- Title menu (HTML overlay over canvas) ---------- */
 #menu {
@@ -145,7 +103,19 @@ canvas#stage {
 }
 .menu-btn:hover { filter: brightness(1.06); }
 .menu-btn:active { transform: translateY(2px); box-shadow: 0 2px 0 rgba(0,0,0,0.4), 0 0 0 2px #c8902e; }
-.menu-btn.facil   { background: linear-gradient(180deg, #6ee07a 0%, #2bb054 100%); box-shadow: 0 4px 0 rgba(0,0,0,0.4), 0 0 0 2px #1d7e3c; color: #082a12; }
+.menu-btn.facil {
+  background: linear-gradient(180deg, #6ee07a 0%, #2bb054 100%);
+  box-shadow: 0 5px 0 rgba(0,0,0,0.45), 0 0 0 3px #1d7e3c, 0 0 22px rgba(110, 224, 122, 0.4);
+  color: #082a12;
+  font-size: 22px; padding: 16px 22px;
+  letter-spacing: 2px;
+  position: relative;
+}
+.menu-btn.facil::after {
+  content: " ▶ JOGAR AGORA";
+  font-size: 11px; opacity: 0.85;
+  letter-spacing: 1px;
+}
 .menu-btn.medio   { background: linear-gradient(180deg, #ffe066 0%, #ffb13a 100%); box-shadow: 0 4px 0 rgba(0,0,0,0.4), 0 0 0 2px #c8902e; color: #1a0e00; }
 .menu-btn.dificil { background: linear-gradient(180deg, #ff6b6b 0%, #c8102e 100%); box-shadow: 0 4px 0 rgba(0,0,0,0.4), 0 0 0 2px #7a0a18; color: #2a0509; }
 .menu-btn.online {
@@ -169,17 +139,33 @@ canvas#stage {
 /* ---------- Touch controls ---------- */
 #touch {
   position: fixed; left: 0; right: 0; bottom: 0;
+  /* Hidden by default; the .show class is added on touch devices and on
+     small viewports via @media query below. */
   display: none;
-  pointer-events: none;
+  pointer-events: auto;
   padding: 10px 14px env(safe-area-inset-bottom);
-  z-index: 4;
+  z-index: 10;
+  justify-content: space-between; align-items: flex-end;
 }
-#touch.show { display: flex; justify-content: space-between; align-items: flex-end; }
+#touch.show { display: flex; }
 .dpad { position: relative; width: 168px; height: 168px; pointer-events: auto; flex-shrink: 0; }
-.actions { display: grid; grid-template-columns: repeat(3, 60px); gap: 10px; pointer-events: auto; flex-shrink: 0; }
+.actions {
+  position: relative;
+  display: grid; grid-template-columns: repeat(3, 60px); gap: 10px;
+  pointer-events: auto; flex-shrink: 0;
+}
+.actions::before {
+  content: "ATACAR";
+  position: absolute; left: 0; right: 0; top: -16px;
+  text-align: center;
+  font: 900 11px "Impact","Arial Black", system-ui, sans-serif;
+  letter-spacing: 2px;
+  color: #ffdf00;
+  text-shadow: 0 1px 0 #000, 0 0 4px rgba(0,0,0,0.6);
+}
 .tbtn {
-  background: rgba(0,0,0,0.45); color: #fff;
-  border: 2px solid rgba(255,255,255,0.35);
+  background: rgba(0,0,0,0.55); color: #fff;
+  border: 2px solid rgba(255,215,100,0.45);
   border-radius: 14px;
   font-size: 16px; font-weight: 900; letter-spacing: 1px;
   width: 60px; height: 60px;
@@ -188,19 +174,9 @@ canvas#stage {
   font-family: "Impact","Arial Black", system-ui, sans-serif;
   text-align: center; line-height: 1;
   padding: 0;
+  -webkit-tap-highlight-color: transparent;
 }
-.tbtn .lbl { display: block; font-size: 8px; opacity: 0.75; margin-top: 1px; letter-spacing: 0.3px; font-weight: 700; }
-/* Narrow landscape phones — shrink controls so all 3 fit */
-@media (max-height: 480px), (max-width: 920px) {
-  .dpad { width: 140px; height: 140px; }
-  .actions { grid-template-columns: repeat(3, 50px); gap: 8px; }
-  .tbtn { width: 50px; height: 50px; font-size: 14px; border-radius: 12px; }
-  .tbtn .lbl { font-size: 7px; }
-  .dp-up    { top: 0;    left: 46px; }
-  .dp-left  { top: 46px; left: 0;    }
-  .dp-right { top: 46px; left: 92px; }
-  .dp-down  { top: 92px; left: 46px; }
-}
+.tbtn .lbl { display: block; font-size: 8px; opacity: 0.85; margin-top: 1px; letter-spacing: 0.3px; font-weight: 700; }
 .tbtn:active, .tbtn.is-down {
   background: rgba(255, 215, 100, 0.55); color: #1a0e00;
   border-color: rgba(255, 215, 100, 0.95);
@@ -210,13 +186,42 @@ canvas#stage {
 .dp-left  { top: 56px; left: 0;    }
 .dp-right { top: 56px; left: 112px;}
 .dp-down  { top: 112px;left: 56px; }
-.ab-punch   { background: rgba(255, 80, 60, 0.40); }
-.ab-kick    { background: rgba(80, 160, 255, 0.40); }
-.ab-special { background: rgba(255, 200, 60, 0.45); color: #1a0e00; }
+.ab-punch   { background: rgba(200, 16, 46, 0.55); }   /* PT red */
+.ab-kick    { background: rgba(0, 39, 118, 0.55); }    /* flag blue */
+.ab-special { background: rgba(255, 215, 0, 0.55); color: #1a0e00; }   /* flag yellow */
 
-/* Always show touch controls on touch devices and small landscape screens */
+/* ---- Mobile portrait: bigger D-pad + bigger action buttons ---- */
+@media (orientation: portrait) and (max-width: 768px) {
+  #touch.show, .always-on #touch { display: flex !important; }
+  .dpad { width: 180px; height: 180px; }
+  .actions { grid-template-columns: repeat(3, 64px); gap: 12px; }
+  .tbtn { width: 64px; height: 64px; font-size: 18px; border-radius: 16px; }
+  .tbtn .lbl { font-size: 9px; }
+  .dp-up    { top: 0;    left: 60px; }
+  .dp-left  { top: 60px; left: 0;    }
+  .dp-right { top: 60px; left: 120px;}
+  .dp-down  { top: 120px;left: 60px; }
+  /* Reserve room above the controls so canvas isn't hidden by them */
+  canvas#stage { max-height: calc(100dvh - 220px); }
+}
+
+/* ---- Mobile landscape: shrunk D-pad, all 3 attack buttons fit ---- */
+@media (orientation: landscape) and (max-height: 480px) {
+  .dpad { width: 140px; height: 140px; }
+  .actions { grid-template-columns: repeat(3, 50px); gap: 8px; }
+  .tbtn { width: 50px; height: 50px; font-size: 14px; border-radius: 12px; }
+  .tbtn .lbl { font-size: 7px; }
+  .dp-up    { top: 0;    left: 46px; }
+  .dp-left  { top: 46px; left: 0;    }
+  .dp-right { top: 46px; left: 92px; }
+  .dp-down  { top: 92px; left: 46px; }
+  canvas#stage { max-height: calc(100dvh - 150px); }
+}
+
+/* Always show touch controls on coarse-pointer devices */
 @media (hover: none) and (pointer: coarse) {
-  #touch.always-on { display: flex; justify-content: space-between; align-items: flex-end; }
+  #touch          { display: flex; }
+  #touch.always-on, #touch.show { display: flex; }
 }
 
 /* ---------- Character select overlay ---------- */
@@ -395,27 +400,11 @@ canvas#stage {
 </head>
 <body>
 
-<div id="paywall" aria-hidden="false">
-  <div class="paywall-card">
-    <h1>BATALHA BRASIL</h1>
-    <p class="paywall-sub">Pague para entrar na luta</p>
-    <div class="paywall-price">R$ 2,00 via Pix</div>
-    <div class="qr-wrap">
-      <svg viewBox="0 0 25 25" id="fakeQR" aria-label="QR Code de demonstração"></svg>
-      <div class="qr-watermark">DEMO</div>
-    </div>
-    <div class="pix-key">demo@batalhabrasil.example</div>
-    <button id="btn-paid">JÁ PAGUEI — JOGAR</button>
-    <div class="demo-banner">
-      <b>DEMONSTRAÇÃO</b> — nenhum pagamento real é processado. A chave Pix
-      acima é fictícia. Não envie dinheiro.
-    </div>
-    <div class="controls-block">
-      <b>Movimento:</b> ← → mover · ↑ pular · ↓ defender<br>
-      <b>Ataques:</b> A soco · S chute · D especial<br>
-      No celular: D-pad e botões na tela.
-    </div>
-  </div>
+<div id="tutorial-hint">
+  <span class="head">CONTROLES</span>
+  <b>Setas</b> para mover · <b>↑</b> pular · <b>↓</b> defender<br>
+  <b>A</b> soco · <b>S</b> chute · <b>D</b> especial<br>
+  No celular: D-pad e botões na tela.
 </div>
 
 <div id="stage-wrap">
@@ -510,9 +499,9 @@ canvas#stage {
   const ROUND_TIME = 99;
   const MAX_HP = 100;
   const WINS_TO_WIN = 2;            // best of 3
-  const READY_FRAMES = 110;
-  const ROUND_END_FRAMES = 170;
-  const PAID_KEY = "batalhaBrasilPaid";
+  const READY_FRAMES = 95;        // ~1.6s — was 110, snappier round-start
+  const ROUND_END_FRAMES = 140;   // ~2.3s — was 170
+  const CELEBRATE_FRAMES = 180;   // 3s political-skit celebration before round/match end
 
   // ============================================================
   // FIGHTER SPECS — pure parody archetypes
@@ -737,8 +726,173 @@ canvas#stage {
       }
     }
 
+    // ----- Background music (synthesized, MK-inspired industrial groove) -----
+    // Pattern: 16 sixteenth-notes per bar, 120 BPM. Each pattern bar lasts
+    // 2 seconds. We schedule a 4-bar (8s) chunk and re-schedule when running
+    // low. All sound is built from oscillators + filtered noise — zero
+    // external assets, zero licensed material.
+    const BPM = 116;
+    const BEAT = 60 / BPM;        // ~0.517 s per beat
+    const STEP = BEAT / 4;        // sixteenth
+    let musicNodes = [];          // active scheduled nodes (for cancel)
+    let musicNextTime = 0;        // next scheduled bar start (ctx time)
+    let musicTimer = null;
+    let musicBar = 0;             // bar counter for variation
+
+    function killMusic() {
+      for (const n of musicNodes) {
+        try { n.stop(); } catch {}
+        try { n.disconnect(); } catch {}
+      }
+      musicNodes = [];
+    }
+
+    // Schedule one 4-beat bar starting at startT.
+    function scheduleBar(startT) {
+      if (!ctx || muted) return;
+      // Music submix gain — slightly under SFX so hits punch through.
+      const music = ctx.createGain();
+      music.gain.value = 0.45;
+      music.connect(master);
+
+      // ----- Bass drone (industrial wobble at 50 Hz) -----
+      const drone = ctx.createOscillator();
+      drone.type = "sawtooth";
+      drone.frequency.value = 50;
+      const droneFilter = ctx.createBiquadFilter();
+      droneFilter.type = "lowpass";
+      droneFilter.frequency.value = 200;
+      droneFilter.Q.value = 6;
+      // LFO wobble on the filter cutoff
+      const lfo = ctx.createOscillator();
+      lfo.type = "sine"; lfo.frequency.value = 0.6;
+      const lfoGain = ctx.createGain(); lfoGain.gain.value = 80;
+      lfo.connect(lfoGain); lfoGain.connect(droneFilter.frequency);
+      const droneG = ctx.createGain();
+      droneG.gain.setValueAtTime(0.0, startT);
+      droneG.gain.linearRampToValueAtTime(0.55, startT + 0.05);
+      droneG.gain.setValueAtTime(0.55, startT + 4 * BEAT - 0.05);
+      droneG.gain.linearRampToValueAtTime(0.0, startT + 4 * BEAT);
+      drone.connect(droneFilter); droneFilter.connect(droneG); droneG.connect(music);
+      drone.start(startT); lfo.start(startT);
+      drone.stop(startT + 4 * BEAT + 0.05);
+      lfo.stop(startT + 4 * BEAT + 0.05);
+      musicNodes.push(drone, lfo, droneFilter, droneG, lfoGain, music);
+
+      // ----- Kick drum on every beat -----
+      for (let beat = 0; beat < 4; beat++) {
+        const t0 = startT + beat * BEAT;
+        const k = ctx.createOscillator();
+        const kg = ctx.createGain();
+        k.type = "sine";
+        k.frequency.setValueAtTime(120, t0);
+        k.frequency.exponentialRampToValueAtTime(45, t0 + 0.10);
+        kg.gain.setValueAtTime(0.0, t0);
+        kg.gain.linearRampToValueAtTime(0.55, t0 + 0.005);
+        kg.gain.exponentialRampToValueAtTime(0.001, t0 + 0.18);
+        k.connect(kg); kg.connect(music);
+        k.start(t0); k.stop(t0 + 0.20);
+        musicNodes.push(k, kg);
+      }
+
+      // ----- Snare on beats 2 and 4 (off-beat clap feel) -----
+      for (const beat of [1, 3]) {
+        const t0 = startT + beat * BEAT;
+        const buf = ctx.createBuffer(1, Math.ceil(ctx.sampleRate * 0.20), ctx.sampleRate);
+        const data = buf.getChannelData(0);
+        for (let i = 0; i < data.length; i++) data[i] = (Math.random() * 2 - 1) * Math.exp(-i / (ctx.sampleRate * 0.04));
+        const src = ctx.createBufferSource(); src.buffer = buf;
+        const f = ctx.createBiquadFilter();
+        f.type = "bandpass"; f.frequency.value = 2000; f.Q.value = 0.9;
+        const sg = ctx.createGain();
+        sg.gain.setValueAtTime(0.0, t0);
+        sg.gain.linearRampToValueAtTime(0.32, t0 + 0.005);
+        sg.gain.exponentialRampToValueAtTime(0.001, t0 + 0.18);
+        src.connect(f); f.connect(sg); sg.connect(music);
+        src.start(t0); src.stop(t0 + 0.20);
+        musicNodes.push(src, f, sg);
+      }
+
+      // ----- Hi-hat sixteenths (subtle) -----
+      for (let s = 0; s < 16; s++) {
+        if (s % 4 === 0) continue; // skip the on-beats so the kick reads
+        const t0 = startT + s * STEP;
+        const buf = ctx.createBuffer(1, Math.ceil(ctx.sampleRate * 0.04), ctx.sampleRate);
+        const data = buf.getChannelData(0);
+        for (let i = 0; i < data.length; i++) data[i] = (Math.random() * 2 - 1) * Math.exp(-i / (ctx.sampleRate * 0.012));
+        const src = ctx.createBufferSource(); src.buffer = buf;
+        const f = ctx.createBiquadFilter();
+        f.type = "highpass"; f.frequency.value = 6000;
+        const hg = ctx.createGain();
+        hg.gain.value = 0.06 + (s % 2 === 0 ? 0.04 : 0);
+        src.connect(f); f.connect(hg); hg.connect(music);
+        src.start(t0); src.stop(t0 + 0.05);
+        musicNodes.push(src, f, hg);
+      }
+
+      // ----- Menacing minor lead — short staccato sawtooths
+      // Two-bar pattern alternates between a low riff and an ascending tail.
+      const A4 = 440;
+      const semi = (n) => A4 * Math.pow(2, n / 12);
+      // Notes (semi offsets from A4): A2 = -24, C3 = -21, E3 = -17, G3 = -14
+      // Pattern: dum-dum -- dum -- ascending --
+      const pattern = (musicBar % 2 === 0)
+        ? [{ s: 0, n: -24, d: 1 }, { s: 2, n: -24, d: 1 }, { s: 4, n: -21, d: 2 },
+           { s: 7, n: -24, d: 1 }, { s: 8, n: -24, d: 1 }, { s: 10, n: -17, d: 2 },
+           { s: 12, n: -24, d: 1 }, { s: 13, n: -21, d: 1 }, { s: 14, n: -17, d: 2 }]
+        : [{ s: 0, n: -24, d: 2 }, { s: 3, n: -21, d: 1 }, { s: 4, n: -17, d: 2 },
+           { s: 6, n: -14, d: 1 }, { s: 8, n: -17, d: 2 }, { s: 11, n: -21, d: 1 },
+           { s: 12, n: -24, d: 2 }, { s: 14, n: -21, d: 2 }];
+      for (const n of pattern) {
+        const t0 = startT + n.s * STEP;
+        const dur = n.d * STEP - 0.01;
+        const o = ctx.createOscillator();
+        o.type = "sawtooth"; o.frequency.value = semi(n.n);
+        const f = ctx.createBiquadFilter();
+        f.type = "lowpass"; f.frequency.value = 1100; f.Q.value = 4;
+        const og = ctx.createGain();
+        og.gain.setValueAtTime(0.0, t0);
+        og.gain.linearRampToValueAtTime(0.16, t0 + 0.008);
+        og.gain.linearRampToValueAtTime(0.10, t0 + dur * 0.7);
+        og.gain.linearRampToValueAtTime(0.0, t0 + dur);
+        o.connect(f); f.connect(og); og.connect(music);
+        o.start(t0); o.stop(t0 + dur + 0.02);
+        musicNodes.push(o, f, og);
+      }
+
+      musicBar++;
+    }
+
+    // Public music controls
+    function startMusic() {
+      if (!ensure() || muted) return;
+      stopMusic(); // idempotent
+      musicBar = 0;
+      musicNextTime = ctx.currentTime + 0.05;
+      // Re-schedule every ~3.5s so we always have ~4s of music queued up.
+      musicTimer = setInterval(() => {
+        if (!ctx || muted) return;
+        const aheadOf = ctx.currentTime + 4;
+        while (musicNextTime < aheadOf) {
+          scheduleBar(musicNextTime);
+          musicNextTime += 4 * BEAT;
+        }
+      }, 1500);
+      // Prime the first bar immediately
+      scheduleBar(musicNextTime);
+      musicNextTime += 4 * BEAT;
+    }
+    function stopMusic() {
+      if (musicTimer) { clearInterval(musicTimer); musicTimer = null; }
+      killMusic();
+      musicNextTime = 0;
+    }
+
     return {
-      ensure, isMuted, setMuted, toggleMuted,
+      ensure, isMuted,
+      setMuted(v)    { setMuted(v);    if (v) stopMusic(); },
+      toggleMuted()  { const m = toggleMuted(); if (m) stopMusic(); return m; },
+      startMusic, stopMusic,
 
       jump() {
         tone({ freq: 520, freqEnd: 180, freqType: "exp", dur: 0.18, type: "square", gain: 0.15, release: 0.04 });
@@ -753,30 +907,34 @@ canvas#stage {
         tone({ freq: 1100, freqEnd: 380, freqType: "exp", dur: 0.08, type: "sawtooth", gain: 0.04 });
       },
       punchHit() {
-        tone({ freq: 200, freqEnd: 60, dur: 0.16, type: "sine", gain: 0.40 });
-        tone({ freq: 320, freqEnd: 100, dur: 0.10, type: "square", gain: 0.18 });
-        noise({ filter: { type: "lowpass", freq: 800 }, dur: 0.10, gain: 0.25 });
+        // Pitch variation ±10% so each hit sounds slightly different
+        const v = 1 + (Math.random() - 0.5) * 0.20;
+        tone({ freq: 200 * v, freqEnd: 60 * v, dur: 0.16, type: "sine", gain: 0.60 });
+        tone({ freq: 320 * v, freqEnd: 100 * v, dur: 0.10, type: "square", gain: 0.28 });
+        noise({ filter: { type: "lowpass", freq: 800 }, dur: 0.10, gain: 0.40 });
       },
       kickHit() {
-        tone({ freq: 130, freqEnd: 35, dur: 0.22, type: "sine", gain: 0.50 });
-        tone({ freq: 250, freqEnd: 80, dur: 0.14, type: "triangle", gain: 0.20 });
-        noise({ filter: { type: "lowpass", freq: 600 }, dur: 0.16, gain: 0.30 });
+        const v = 1 + (Math.random() - 0.5) * 0.20;
+        tone({ freq: 130 * v, freqEnd: 35 * v, dur: 0.22, type: "sine", gain: 0.70 });
+        tone({ freq: 250 * v, freqEnd: 80 * v, dur: 0.14, type: "triangle", gain: 0.30 });
+        noise({ filter: { type: "lowpass", freq: 600 }, dur: 0.16, gain: 0.45 });
       },
       specialHit() {
-        tone({ freq: 80, freqEnd: 25, dur: 0.40, type: "sine", gain: 0.55 });
-        tone({ freq: 200, freqEnd: 60, dur: 0.30, type: "sawtooth", gain: 0.25 });
-        tone({ freq: 400, freqEnd: 120, dur: 0.20, type: "square", gain: 0.15 });
-        noise({ filter: { type: "bandpass", freq: 400, Q: 1 }, dur: 0.30, gain: 0.32 });
+        const v = 1 + (Math.random() - 0.5) * 0.15;
+        tone({ freq: 80 * v, freqEnd: 25 * v, dur: 0.40, type: "sine", gain: 0.80 });
+        tone({ freq: 200 * v, freqEnd: 60 * v, dur: 0.30, type: "sawtooth", gain: 0.40 });
+        tone({ freq: 400 * v, freqEnd: 120 * v, dur: 0.20, type: "square", gain: 0.22 });
+        noise({ filter: { type: "bandpass", freq: 400, Q: 1 }, dur: 0.30, gain: 0.45 });
       },
       block() {
-        tone({ freq: 1900, freqEnd: 1300, dur: 0.08, type: "square", gain: 0.16, release: 0.04 });
-        noise({ filter: { type: "highpass", freq: 3200 }, dur: 0.05, gain: 0.08 });
+        tone({ freq: 1900, freqEnd: 1300, dur: 0.08, type: "square", gain: 0.20, release: 0.04 });
+        noise({ filter: { type: "highpass", freq: 3200 }, dur: 0.05, gain: 0.10 });
       },
       ko() {
-        tone({ freq: 60, freqEnd: 22, dur: 0.80, type: "sine", gain: 0.55, release: 0.4 });
-        tone({ freq: 110, freqEnd: 35, dur: 0.65, type: "square", gain: 0.25, release: 0.3 });
-        noise({ filter: { type: "lowpass", freq: 350 }, dur: 0.6, gain: 0.32, release: 0.4 });
-        setTimeout(() => noise({ filter: { type: "bandpass", freq: 1200, Q: 0.7 }, dur: 0.5, gain: 0.10, release: 0.3 }), 80);
+        tone({ freq: 60, freqEnd: 22, dur: 0.80, type: "sine", gain: 0.70, release: 0.4 });
+        tone({ freq: 110, freqEnd: 35, dur: 0.65, type: "square", gain: 0.32, release: 0.3 });
+        noise({ filter: { type: "lowpass", freq: 350 }, dur: 0.6, gain: 0.40, release: 0.4 });
+        setTimeout(() => noise({ filter: { type: "bandpass", freq: 1200, Q: 0.7 }, dur: 0.5, gain: 0.14, release: 0.3 }), 80);
       },
       roundStart() {
         tone({ freq: 220, dur: 0.4, type: "sine", gain: 0.30, release: 0.5 });
@@ -1020,6 +1178,22 @@ canvas#stage {
     hideSelect();
     hidePauseBtn();   // showPauseBtn fires at the bottom of newMatch
     newMatch();
+    // First-fight tutorial overlay: appears when round 1 starts, auto-fades
+    // after ~10 seconds, never shown again in the same session.
+    maybeShowTutorialHint();
+  }
+
+  // Tutorial hint shown only on the very first match of a session.
+  let tutorialShown = false;
+  function maybeShowTutorialHint() {
+    if (tutorialShown) return;
+    tutorialShown = true;
+    const t = el("tutorial-hint");
+    if (!t) return;
+    t.classList.add("show");
+    t.classList.remove("fade");
+    setTimeout(() => { t.classList.add("fade"); }, 9000);
+    setTimeout(() => { t.classList.remove("show"); t.classList.remove("fade"); }, 10000);
   }
 
   function backToTitle() {
@@ -1031,6 +1205,7 @@ canvas#stage {
     hidePauseBtn();
     hideSelect();
     showMenu();
+    audio.stopMusic();
   }
 
   // Replay same matchup, same difficulty, same character pick
@@ -1085,7 +1260,7 @@ canvas#stage {
     if (e.repeat) return;
     if (KEYMAP_P1[e.code]) { inputState.p1[KEYMAP_P1[e.code]] = true; e.preventDefault(); }
     if (e.code === "Escape") {
-      if (phase === "fight" || phase === "ready" || phase === "roundEnd") {
+      if (phase === "fight" || phase === "ready" || phase === "roundEnd" || phase === "celebrate") {
         if (paused) { paused = false; hidePauseModal(); }
         else { paused = true; showPauseModal(); }
         e.preventDefault();
@@ -1109,6 +1284,19 @@ canvas#stage {
     if (KEYMAP_P1[e.code]) { inputState.p1[KEYMAP_P1[e.code]] = false; e.preventDefault(); }
   }, { passive: false });
 
+  // Touch input buffers — fast taps can complete (touchstart + touchend)
+  // entirely within a single 16 ms game tick, which means edge detection
+  // would never see them. Pressing a touch attack button sets
+  // inputBuffer.{punch|kick|special} = N, and refreshEdges() treats the
+  // edge as TRUE while the buffer is non-zero, decrementing each frame.
+  const TOUCH_BUFFER_FRAMES = 3;
+  const inputBuffer = { punch: 0, kick: 0, special: 0 };
+  function bufferTouchAttack(key) {
+    if (key === "punch" || key === "kick" || key === "special") {
+      inputBuffer[key] = TOUCH_BUFFER_FRAMES;
+    }
+  }
+
   function refreshEdges() {
     for (const side of ["p1", "p2"]) {
       const cur = inputState[side];
@@ -1119,6 +1307,12 @@ canvas#stage {
       prv.punch = cur.punch; prv.kick = cur.kick; prv.special = cur.special;
       prv.left = cur.left; prv.right = cur.right; prv.up = cur.up; prv.down = cur.down;
     }
+    // Touch buffer rides on top of inputState.p1: if the buffer is hot,
+    // force the edge true for that frame, then decrement.
+    const p1 = inputState.p1;
+    if (inputBuffer.punch   > 0) { p1.punchEdge   = true; inputBuffer.punch--;   }
+    if (inputBuffer.kick    > 0) { p1.kickEdge    = true; inputBuffer.kick--;    }
+    if (inputBuffer.special > 0) { p1.specialEdge = true; inputBuffer.special--; }
   }
 
   // ============================================================
@@ -1339,7 +1533,9 @@ canvas#stage {
       lastWinner = winner;
       if (winner === "p1") wins.p1++;
       else if (winner === "p2") wins.p2++;
-      phase = "roundEnd"; phaseT = 0;
+      // Pop into the celebration phase before the standard round-end overlay.
+      phase = "celebrate"; phaseT = 0;
+      audio.stopMusic();    // hush the loop so the fanfare reads
       // Fanfare on a clean win; skip on draw
       if (winner !== "draw") audio.roundWin();
     }
@@ -1367,6 +1563,22 @@ canvas#stage {
       if (phaseT >= READY_FRAMES) {
         phase = "fight"; phaseT = 0;
         audio.fight();
+        audio.startMusic();   // industrial loop kicks in
+      }
+      return;
+    }
+
+    if (phase === "celebrate") {
+      // 3-second winner pose / dance before the standard round-end overlay.
+      // Fighters are frozen except for any in-progress particles.
+      phaseT++;
+      // Let knockback finish settling on the loser
+      applyInputs(p1, blankInputs());
+      applyInputs(p2, blankInputs());
+      integrate(p1); integrate(p2);
+      updateEffects();
+      if (phaseT >= CELEBRATE_FRAMES) {
+        phase = "roundEnd"; phaseT = 0;
       }
       return;
     }
@@ -1479,9 +1691,9 @@ canvas#stage {
     if (shake > 0) shake = Math.max(0, shake - 1);
   }
 
-  const COMIC_WORDS_PUNCH = ["PAU!", "SOCO!", "ÔPA!", "VAPT!"];
-  const COMIC_WORDS_KICK = ["TCHAU!", "BIFE!", "CHUTÃO!", "PÁ!"];
-  const COMIC_WORDS_SPECIAL = ["PORRADA!", "ÊITA!", "BUM!", "CARAMBA!"];
+  const COMIC_WORDS_PUNCH   = ["PAU!", "SOCO!", "ÔPA!", "VAPT!", "TOMA!", "BAH!", "EITA!"];
+  const COMIC_WORDS_KICK    = ["TCHAU!", "BIFE!", "CHUTÃO!", "PÁ!", "SAPATADA!", "BOLA!", "PERNADA!"];
+  const COMIC_WORDS_SPECIAL = ["PORRADA!", "ÊITA!", "BUM!", "CARAMBA!", "MIIITO!", "VIXE!", "É TRETA!", "PEGA-PRA-CAPAR!"];
   function randomComicWord(kind) {
     const arr = kind === "punch" ? COMIC_WORDS_PUNCH
               : kind === "kick" ? COMIC_WORDS_KICK
@@ -1528,6 +1740,8 @@ canvas#stage {
       // Both phases show the marquee title art behind their HTML overlay
       drawTitle();
     } else {
+      // Round-3 sidekicks render BEHIND the main fighters
+      if (round === 3) drawSidekicks();
       // Active attacker draws on top so the punching arm / kicking leg overlaps
       // the opponent's body. Otherwise back-to-front by x.
       let order;
@@ -1555,25 +1769,31 @@ canvas#stage {
 
   // ---------- BACKGROUND ----------
   function drawSky() {
-    const g = ctx.createLinearGradient(0, 0, 0, H);
-    g.addColorStop(0, "#ff9b3a");
-    g.addColorStop(0.35, "#ff5a8a");
-    g.addColorStop(0.7, "#5b3a8a");
-    g.addColorStop(1, "#1a1d3a");
+    // Vivid Brasília sunset gradient: orange at horizon, deep magenta in
+    // mid, near-black at the top.
+    const g = ctx.createLinearGradient(0, 0, 0, GROUND_Y);
+    g.addColorStop(0,    "#0c0a14");   // near-black at top
+    g.addColorStop(0.20, "#3a1a4a");   // deep purple
+    g.addColorStop(0.45, "#9a2a6a");   // magenta
+    g.addColorStop(0.70, "#ff5a3a");   // orange
+    g.addColorStop(1,    "#ffb24a");   // bright orange at horizon
     ctx.fillStyle = g;
-    ctx.fillRect(0, 0, W, H);
+    ctx.fillRect(0, 0, W, GROUND_Y);
 
-    // Sun
-    ctx.fillStyle = "rgba(255, 230, 140, 0.95)";
-    ctx.beginPath(); ctx.arc(W * 0.7, 130, 60, 0, Math.PI * 2); ctx.fill();
-    ctx.fillStyle = "rgba(255, 230, 140, 0.25)";
-    ctx.beginPath(); ctx.arc(W * 0.7, 130, 90, 0, Math.PI * 2); ctx.fill();
+    // Sun — sits low on the horizon (Brasília is a planned-city sunset)
+    const sunX = W * 0.72, sunY = GROUND_Y - 80;
+    ctx.fillStyle = "rgba(255, 220, 130, 0.30)";
+    ctx.beginPath(); ctx.arc(sunX, sunY, 110, 0, Math.PI * 2); ctx.fill();
+    ctx.fillStyle = "rgba(255, 230, 150, 0.55)";
+    ctx.beginPath(); ctx.arc(sunX, sunY, 75, 0, Math.PI * 2); ctx.fill();
+    ctx.fillStyle = "rgba(255, 240, 180, 0.95)";
+    ctx.beginPath(); ctx.arc(sunX, sunY, 50, 0, Math.PI * 2); ctx.fill();
 
-    // clouds
-    ctx.fillStyle = "rgba(255, 230, 200, 0.55)";
-    drawCloud(160, 90, 60);
-    drawCloud(420, 60, 40);
-    drawCloud(820, 110, 50);
+    // Soft clouds (high up so they don't fight with the sun glow)
+    ctx.fillStyle = "rgba(255, 200, 160, 0.45)";
+    drawCloud(160, 70, 55);
+    drawCloud(440, 50, 38);
+    drawCloud(820, 95, 48);
   }
   function drawCloud(cx, cy, r) {
     ctx.beginPath();
@@ -1583,8 +1803,12 @@ canvas#stage {
     ctx.fill();
   }
 
+  // Far-background skyline + Niemeyer's TV Tower
   function drawDistantSkyline() {
-    ctx.fillStyle = "rgba(15, 20, 40, 0.55)";
+    // Receding ministry buildings (deterministic, so they don't flicker).
+    // Each ministry is a uniform white slab — a stylized nod to the
+    // Esplanada dos Ministérios.
+    ctx.fillStyle = "rgba(40, 36, 60, 0.65)";
     const heights = [42, 60, 36, 78, 54, 30, 88, 50, 64, 40, 70, 46, 58, 36, 72, 48, 90, 44];
     let cur = 0;
     for (let i = 0; i < heights.length; i++) {
@@ -1592,66 +1816,207 @@ canvas#stage {
       ctx.fillRect(cur, GROUND_Y - 110 - heights[i] * 0.3, w, heights[i] + 110);
       cur += w;
     }
+    // ----- TV Tower (Torre de Televisão) — far background, tall + thin -----
+    const tvX = W * 0.18;
+    const tvBase = GROUND_Y - 60;
+    const tvTop = 60;
+    // Tapered tower body (slightly narrower at the top)
+    ctx.fillStyle = "rgba(140, 110, 90, 0.65)";
+    ctx.beginPath();
+    ctx.moveTo(tvX - 6, tvBase);
+    ctx.lineTo(tvX - 3, tvTop);
+    ctx.lineTo(tvX + 3, tvTop);
+    ctx.lineTo(tvX + 6, tvBase);
+    ctx.closePath();
+    ctx.fill();
+    // Observation deck box
+    ctx.fillStyle = "rgba(220, 210, 180, 0.7)";
+    ctx.fillRect(tvX - 12, tvTop + 30, 24, 14);
+    // Disk on top
+    ctx.beginPath();
+    ctx.ellipse(tvX, tvTop + 10, 18, 4, 0, 0, Math.PI * 2);
+    ctx.fill();
+    // Antenna spike
+    ctx.fillStyle = "rgba(160, 140, 100, 0.9)";
+    ctx.fillRect(tvX - 1, tvTop - 22, 2, 22);
+    // Red blinking warning light (frame-time pulse)
+    if ((Math.floor(timeNow * 1.5)) % 2 === 0) {
+      ctx.fillStyle = "rgba(255, 60, 60, 0.95)";
+      ctx.beginPath(); ctx.arc(tvX, tvTop - 23, 2, 0, Math.PI * 2); ctx.fill();
+    }
   }
 
   function drawCongressBuilding() {
     const cx = W / 2;
-    const baseY = GROUND_Y - 16;
+    const baseY = GROUND_Y - 18;
 
-    // Reflection pool (subtle)
-    ctx.fillStyle = "rgba(80, 120, 180, 0.35)";
-    ctx.fillRect(cx - 320, baseY - 4, 640, 6);
+    // ----- Reflection pool (Espelho d'Água) - prominent, blue-green -----
+    const pool = ctx.createLinearGradient(0, baseY, 0, baseY + 22);
+    pool.addColorStop(0,   "rgba(80, 200, 180, 0.55)");
+    pool.addColorStop(0.5, "rgba(60, 120, 170, 0.45)");
+    pool.addColorStop(1,   "rgba(20, 60, 90, 0.30)");
+    ctx.fillStyle = pool;
+    ctx.fillRect(cx - 400, baseY - 2, 800, 22);
+    // Subtle ripple shimmer (sine pattern across the pool)
+    ctx.fillStyle = "rgba(255, 255, 255, 0.25)";
+    for (let i = 0; i < 26; i++) {
+      const px = cx - 380 + i * 30;
+      const offset = Math.sin(timeNow * 1.4 + i * 0.5) * 1.5;
+      ctx.fillRect(px, baseY + 6 + offset, 14, 1);
+    }
 
-    // Slab base (long horizontal)
+    // ----- Glow halo behind the building (subtle backlight) -----
+    const halo = ctx.createRadialGradient(cx, baseY - 80, 30, cx, baseY - 80, 360);
+    halo.addColorStop(0,   "rgba(255, 240, 200, 0.18)");
+    halo.addColorStop(0.5, "rgba(255, 200, 150, 0.10)");
+    halo.addColorStop(1,   "rgba(0, 0, 0, 0)");
+    ctx.fillStyle = halo;
+    ctx.beginPath(); ctx.arc(cx, baseY - 80, 360, 0, Math.PI * 2); ctx.fill();
+
+    // ----- Slab base (long horizontal) -----
     ctx.fillStyle = "#f3efe1";
-    ctx.fillRect(cx - 300, baseY - 36, 600, 36);
-    ctx.strokeStyle = "rgba(0,0,0,0.2)";
+    ctx.fillRect(cx - 320, baseY - 38, 640, 38);
+    ctx.strokeStyle = "rgba(0,0,0,0.25)";
     ctx.lineWidth = 1;
-    ctx.strokeRect(cx - 300, baseY - 36, 600, 36);
-
-    // Slab columns / window stripes
-    ctx.fillStyle = "rgba(0,0,0,0.25)";
-    for (let i = 0; i < 24; i++) {
-      ctx.fillRect(cx - 290 + i * 25, baseY - 30, 1.5, 24);
+    ctx.strokeRect(cx - 320, baseY - 38, 640, 38);
+    // Slab horizontal floor lines
+    ctx.fillStyle = "rgba(0,0,0,0.18)";
+    ctx.fillRect(cx - 320, baseY - 26, 640, 1);
+    ctx.fillRect(cx - 320, baseY - 14, 640, 1);
+    // Slab vertical window stripes
+    ctx.fillStyle = "rgba(0,0,0,0.30)";
+    for (let i = 0; i < 26; i++) {
+      ctx.fillRect(cx - 308 + i * 25, baseY - 32, 1.5, 26);
     }
 
-    // Twin towers (Congresso)
+    // ----- Niemeyer ramps/catwalks running up to the slab -----
+    // Left ramp
+    ctx.fillStyle = "rgba(220, 215, 200, 0.7)";
+    ctx.beginPath();
+    ctx.moveTo(cx - 320, baseY);
+    ctx.lineTo(cx - 380, baseY);
+    ctx.lineTo(cx - 350, baseY - 14);
+    ctx.lineTo(cx - 320, baseY - 14);
+    ctx.closePath();
+    ctx.fill();
+    // Right ramp
+    ctx.beginPath();
+    ctx.moveTo(cx + 320, baseY);
+    ctx.lineTo(cx + 380, baseY);
+    ctx.lineTo(cx + 350, baseY - 14);
+    ctx.lineTo(cx + 320, baseY - 14);
+    ctx.closePath();
+    ctx.fill();
+
+    // ----- Twin towers (Congresso Nacional) — TALLER than before -----
+    const towerH = 280;
+    const towerTop = baseY - 38 - towerH;
     ctx.fillStyle = "#f8f4e6";
-    ctx.fillRect(cx - 14, baseY - 220, 11, 184);
-    ctx.fillRect(cx + 3, baseY - 220, 11, 184);
-    // Tower windows
-    ctx.fillStyle = "rgba(80, 100, 140, 0.55)";
-    for (let i = 0; i < 22; i++) {
-      ctx.fillRect(cx - 12, baseY - 215 + i * 8, 7, 4);
-      ctx.fillRect(cx + 5, baseY - 215 + i * 8, 7, 4);
+    ctx.fillRect(cx - 16, towerTop, 13, towerH);
+    ctx.fillRect(cx + 3,  towerTop, 13, towerH);
+    // Tower side-shading (right edge slightly darker for depth)
+    ctx.fillStyle = "rgba(0, 0, 0, 0.18)";
+    ctx.fillRect(cx - 5,  towerTop, 2, towerH);
+    ctx.fillRect(cx + 14, towerTop, 2, towerH);
+    // Tower windows — denser grid for the new height
+    ctx.fillStyle = "rgba(60, 80, 110, 0.65)";
+    const winCount = 32;
+    for (let i = 0; i < winCount; i++) {
+      ctx.fillRect(cx - 14, towerTop + 6 + i * 8, 9, 4);
+      ctx.fillRect(cx + 5,  towerTop + 6 + i * 8, 9, 4);
     }
+    // Lit window sparkle (a few warm-yellow ones, sunset reflections)
+    ctx.fillStyle = "rgba(255, 220, 120, 0.6)";
+    [3, 11, 19, 27].forEach((i) => {
+      ctx.fillRect(cx - 14, towerTop + 6 + i * 8, 9, 4);
+      ctx.fillRect(cx + 5,  towerTop + 6 + i * 8 + 4, 9, 4);
+    });
 
-    // Senate dome (regular hemisphere) on LEFT
+    // ----- Senate dome (true HEMISPHERE) on the LEFT -----
+    const senateCx = cx - 130, senateBaseY = baseY - 38;
+    const senateR = 70;
     ctx.fillStyle = "#f3efe1";
     ctx.beginPath();
-    ctx.moveTo(cx - 180, baseY - 36);
-    ctx.arc(cx - 130, baseY - 36, 50, Math.PI, 0, false);
-    ctx.lineTo(cx - 80, baseY - 36);
+    ctx.arc(senateCx, senateBaseY, senateR, Math.PI, 0, false);
     ctx.closePath();
     ctx.fill();
-    ctx.strokeStyle = "rgba(0,0,0,0.2)";
+    ctx.strokeStyle = "rgba(0,0,0,0.25)";
     ctx.stroke();
+    // Dome highlight (sunlit upper-left)
+    ctx.fillStyle = "rgba(255, 255, 255, 0.20)";
+    ctx.beginPath();
+    ctx.ellipse(senateCx - 18, senateBaseY - 35, 24, 14, -0.4, 0, Math.PI * 2);
+    ctx.fill();
+    // Dome floor disc (ground-line cap)
+    ctx.fillStyle = "rgba(0,0,0,0.15)";
+    ctx.fillRect(senateCx - senateR, senateBaseY - 1, senateR * 2, 2);
 
-    // Chamber bowl (inverted hemisphere) on RIGHT
+    // ----- Chamber bowl (INVERTED hemisphere) on the RIGHT -----
+    const chamberCx = cx + 130;
+    const chamberR = 70;
+    const chamberRimY = senateBaseY - 8; // rim above the slab
     ctx.fillStyle = "#f3efe1";
     ctx.beginPath();
-    ctx.moveTo(cx + 80, baseY - 36);
-    ctx.lineTo(cx + 80, baseY - 86);
-    ctx.arc(cx + 130, baseY - 86, 50, Math.PI, 0, true);
-    ctx.lineTo(cx + 180, baseY - 36);
+    ctx.moveTo(chamberCx - chamberR, chamberRimY);
+    // Top of bowl (the rim) is at chamberRimY, the bowl OPENS upward —
+    // so we drop the curve DOWNWARD then back up to draw an inverted
+    // hemisphere (a half-pipe).
+    ctx.bezierCurveTo(
+      chamberCx - chamberR, chamberRimY - 2,
+      chamberCx - chamberR, chamberRimY - 4,
+      chamberCx - chamberR, chamberRimY
+    );
+    ctx.arc(chamberCx, chamberRimY, chamberR, Math.PI, 0, true);
     ctx.closePath();
     ctx.fill();
     ctx.stroke();
+    // Bowl rim highlight
+    ctx.fillStyle = "rgba(255, 255, 255, 0.18)";
+    ctx.fillRect(chamberCx - chamberR + 3, chamberRimY, chamberR * 2 - 6, 2);
+    // Inside-bowl shading
+    ctx.fillStyle = "rgba(0, 0, 0, 0.20)";
+    ctx.beginPath();
+    ctx.ellipse(chamberCx, chamberRimY + 24, chamberR - 8, 14, 0, 0, Math.PI * 2);
+    ctx.fill();
 
-    // Brazilian flag pole + flag, tiny on top of slab
+    // ----- Palm trees (Esplanada landscaping) - silhouette only -----
+    drawPalmTree(cx - 360, baseY);
+    drawPalmTree(cx - 410, baseY + 4);
+    drawPalmTree(cx + 360, baseY);
+    drawPalmTree(cx + 410, baseY + 4);
+
+    // Brazilian flag pole + flag, on top of the slab
     ctx.fillStyle = "#444";
-    ctx.fillRect(cx - 270, baseY - 90, 1.5, 54);
-    drawTinyFlag(cx - 270, baseY - 88);
+    ctx.fillRect(cx - 290, baseY - 92, 1.8, 56);
+    drawTinyFlag(cx - 290, baseY - 90);
+  }
+
+  // Simple silhouette palm tree
+  function drawPalmTree(x, y) {
+    ctx.fillStyle = "rgba(15, 18, 28, 0.85)";
+    // Trunk
+    ctx.beginPath();
+    ctx.moveTo(x - 2, y);
+    ctx.lineTo(x - 1, y - 40);
+    ctx.lineTo(x + 1, y - 40);
+    ctx.lineTo(x + 2, y);
+    ctx.closePath();
+    ctx.fill();
+    // Fronds — five triangular leaves
+    const fronds = [
+      [-18, -50], [18, -50], [-22, -42], [22, -42], [0, -54],
+    ];
+    for (const [fx, fy] of fronds) {
+      ctx.beginPath();
+      ctx.moveTo(x, y - 38);
+      ctx.lineTo(x + fx,     y + fy);
+      ctx.lineTo(x + fx * 0.6, y + fy + 6);
+      ctx.closePath();
+      ctx.fill();
+    }
+    // Trunk highlight
+    ctx.fillStyle = "rgba(80, 70, 50, 0.5)";
+    ctx.fillRect(x - 1, y - 38, 1, 38);
   }
 
   function drawTinyFlag(px, py) {
@@ -3350,6 +3715,209 @@ canvas#stage {
     ctx.fill();
   }
 
+  // ---------- ROUND-3 SIDEKICKS ----------
+  // Haddad behind Zé, Edu (Bolsonaro Jr) behind Capitão. Pure visual flair —
+  // they don't fight, just bob in place and react when their fighter lands a
+  // hit (using the small flash counter on the main fighter). They vanish if
+  // their fighter is KO'd so the celebration phase reads cleanly.
+  function drawSidekicks() {
+    if (p1.stance !== "ko") drawHaddad(p1.x - 90, GROUND_Y, p1.flash > 0);
+    if (p2.stance !== "ko") drawEdu(p2.x + 90, GROUND_Y, p2.flash > 0);
+  }
+
+  function drawHaddad(cx, cy, fistPump) {
+    // Bob + optional fist-pump when Zé scores.
+    const bob = Math.sin(timeNow * 3.4) * 2;
+    ctx.save();
+    ctx.translate(cx, cy);
+    ctx.scale(0.6, 0.6);    // 60% scale of the main fighter
+    ctx.globalAlpha = 0.85;
+
+    // Shadow
+    ctx.fillStyle = "rgba(0,0,0,0.35)";
+    ctx.beginPath(); ctx.ellipse(0, 0, 30, 7, 0, 0, Math.PI * 2); ctx.fill();
+
+    // Legs / dark trousers
+    ctx.fillStyle = "#0e1428";
+    ctx.fillRect(-13, -32, 11, 32);
+    ctx.fillRect(2, -32, 11, 32);
+    // Shoes
+    ctx.fillStyle = "#0a0a0a";
+    ctx.beginPath(); ctx.ellipse(-7, -2, 9, 4, 0, 0, Math.PI * 2); ctx.fill();
+    ctx.beginPath(); ctx.ellipse(7,  -2, 9, 4, 0, 0, Math.PI * 2); ctx.fill();
+
+    // Suit body (dark navy)
+    ctx.fillStyle = "#1a2240";
+    ctx.beginPath();
+    ctx.moveTo(-22, -34 + bob);
+    ctx.lineTo(-26, -86 + bob);
+    ctx.lineTo(26, -86 + bob);
+    ctx.lineTo(22, -34 + bob);
+    ctx.closePath();
+    ctx.fill();
+    // White shirt + red tie
+    ctx.fillStyle = "#ffffff";
+    ctx.fillRect(-7, -86 + bob, 14, 50);
+    ctx.fillStyle = "#c8102e";
+    ctx.beginPath();
+    ctx.moveTo(-3, -84 + bob);
+    ctx.lineTo(3, -84 + bob);
+    ctx.lineTo(5, -50 + bob);
+    ctx.lineTo(0, -42 + bob);
+    ctx.lineTo(-5, -50 + bob);
+    ctx.closePath();
+    ctx.fill();
+
+    // PREFEITO badge
+    ctx.fillStyle = "#ffdf00";
+    ctx.beginPath();
+    ctx.roundRect ? ctx.roundRect(8, -82 + bob, 18, 8, 2) : ctx.rect(8, -82 + bob, 18, 8);
+    ctx.fill();
+    ctx.fillStyle = "#1a0e00";
+    ctx.font = "bold 6px system-ui";
+    ctx.textAlign = "center"; ctx.textBaseline = "middle";
+    ctx.fillText("PREFEITO", 17, -78 + bob);
+
+    // Front arm — fist-pump on hit, otherwise hangs at side
+    ctx.fillStyle = "#1a2240";
+    if (fistPump) {
+      // Raised fist
+      ctx.fillRect(18, -100 + bob, 8, 20);
+      ctx.fillStyle = "#caa07a";
+      ctx.beginPath(); ctx.arc(22, -104 + bob, 5, 0, Math.PI * 2); ctx.fill();
+    } else {
+      ctx.fillRect(20, -78 + bob, 8, 26);
+    }
+
+    // Head — pale, with dark hair
+    ctx.fillStyle = "#caa07a";
+    ctx.beginPath(); ctx.arc(0, -98 + bob, 12, 0, Math.PI * 2); ctx.fill();
+    // Hair (dark, swept)
+    ctx.fillStyle = "#1c1c1c";
+    ctx.beginPath();
+    ctx.arc(0, -102 + bob, 12, Math.PI, 0, false);
+    ctx.lineTo(11, -102 + bob);
+    ctx.lineTo(-11, -102 + bob);
+    ctx.closePath();
+    ctx.fill();
+    // Rectangular glasses
+    ctx.strokeStyle = "#0a0a0a"; ctx.lineWidth = 1.5;
+    ctx.strokeRect(-7, -100 + bob, 5, 4);
+    ctx.strokeRect(2,  -100 + bob, 5, 4);
+    ctx.beginPath();
+    ctx.moveTo(-2, -98 + bob); ctx.lineTo(2, -98 + bob); ctx.stroke();
+    // Tiny smile
+    ctx.fillStyle = "#3a1010";
+    ctx.fillRect(-2, -90 + bob, 4, 1);
+
+    // Name plate floating just above head
+    ctx.fillStyle = "rgba(0,0,0,0.65)";
+    ctx.fillRect(-22, -126 + bob, 44, 12);
+    ctx.fillStyle = "#c8102e";
+    ctx.font = "900 9px system-ui";
+    ctx.fillText("HADDAD", 0, -120 + bob);
+
+    ctx.restore();
+  }
+
+  function drawEdu(cx, cy, holdPhoneHigh) {
+    // Edu Bolsonaro - selfie-snapping sidekick
+    const bob = Math.sin(timeNow * 3.4 + 1.5) * 2;
+    ctx.save();
+    ctx.translate(cx, cy);
+    ctx.scale(0.6, 0.6);
+    ctx.globalAlpha = 0.85;
+
+    // Shadow
+    ctx.fillStyle = "rgba(0,0,0,0.35)";
+    ctx.beginPath(); ctx.ellipse(0, 0, 30, 7, 0, 0, Math.PI * 2); ctx.fill();
+
+    // Legs / olive trousers
+    ctx.fillStyle = "#1a2410";
+    ctx.fillRect(-13, -32, 11, 32);
+    ctx.fillRect(2, -32, 11, 32);
+    // Shoes
+    ctx.fillStyle = "#0a0a0a";
+    ctx.beginPath(); ctx.ellipse(-7, -2, 9, 4, 0, 0, Math.PI * 2); ctx.fill();
+    ctx.beginPath(); ctx.ellipse(7,  -2, 9, 4, 0, 0, Math.PI * 2); ctx.fill();
+
+    // Suit (similar to dad's camo but smaller — light olive)
+    ctx.fillStyle = "#3a4a22";
+    ctx.beginPath();
+    ctx.moveTo(-22, -34 + bob);
+    ctx.lineTo(-24, -86 + bob);
+    ctx.lineTo(24, -86 + bob);
+    ctx.lineTo(22, -34 + bob);
+    ctx.closePath();
+    ctx.fill();
+    // Camo blob
+    ctx.fillStyle = "#7a8a4a";
+    ctx.beginPath(); ctx.ellipse(-8, -64 + bob, 6, 4, 0, 0, Math.PI * 2); ctx.fill();
+    ctx.beginPath(); ctx.ellipse(10, -50 + bob, 5, 3, 0, 0, Math.PI * 2); ctx.fill();
+    // Tie (yellow)
+    ctx.fillStyle = "#ffdf00";
+    ctx.beginPath();
+    ctx.moveTo(-3, -84 + bob);
+    ctx.lineTo(3, -84 + bob);
+    ctx.lineTo(5, -50 + bob);
+    ctx.lineTo(0, -42 + bob);
+    ctx.lineTo(-5, -50 + bob);
+    ctx.closePath();
+    ctx.fill();
+
+    // Phone in hand — taking selfies, pulled higher when dad scores
+    const phY = holdPhoneHigh ? -110 : -88;
+    ctx.fillStyle = "#3a4a22"; // arm sleeve
+    ctx.fillRect(-26, -78 + bob, 8, 10);
+    ctx.fillStyle = "#caa07a"; // hand
+    ctx.beginPath(); ctx.arc(-26, -68 + bob, 4, 0, Math.PI * 2); ctx.fill();
+    // Phone (black rectangle with white screen)
+    ctx.fillStyle = "#0a0a0a";
+    ctx.fillRect(-32, phY + bob - 8, 12, 20);
+    ctx.fillStyle = "#aaccff";
+    ctx.fillRect(-31, phY + bob - 7, 10, 16);
+    // Tiny "selfie" reflection
+    ctx.fillStyle = "#caa07a";
+    ctx.beginPath(); ctx.arc(-26, phY + bob - 1, 3, 0, Math.PI * 2); ctx.fill();
+    // Phone glow when held high (he just got a banger)
+    if (holdPhoneHigh) {
+      ctx.fillStyle = "rgba(255, 220, 80, 0.45)";
+      ctx.beginPath(); ctx.arc(-26, phY + bob, 14, 0, Math.PI * 2); ctx.fill();
+    }
+
+    // Front arm hangs at the side
+    ctx.fillStyle = "#3a4a22";
+    ctx.fillRect(20, -78 + bob, 8, 26);
+
+    // Head
+    ctx.fillStyle = "#caa07a";
+    ctx.beginPath(); ctx.arc(0, -98 + bob, 12, 0, Math.PI * 2); ctx.fill();
+    // Hair (dark short)
+    ctx.fillStyle = "#1c1c1c";
+    ctx.beginPath();
+    ctx.arc(0, -102 + bob, 12, Math.PI, 0, false);
+    ctx.lineTo(11, -102 + bob);
+    ctx.lineTo(-11, -102 + bob);
+    ctx.closePath();
+    ctx.fill();
+    // Eyes
+    ctx.fillStyle = "#0a0a0a";
+    ctx.fillRect(-5, -100 + bob, 2, 2);
+    ctx.fillRect(3,  -100 + bob, 2, 2);
+    // Smug smirk
+    ctx.fillStyle = "#3a1010";
+    ctx.fillRect(-1, -90 + bob, 4, 1);
+
+    // Name plate
+    ctx.fillStyle = "rgba(0,0,0,0.65)";
+    ctx.fillRect(-22, -126 + bob, 44, 12);
+    ctx.fillStyle = "#4a5d2e";
+    ctx.font = "900 9px system-ui";
+    ctx.fillText("EDU", 0, -120 + bob);
+
+    ctx.restore();
+  }
+
   // ---------- AURAS ----------
   function drawAuras() {
     for (const e of effects) {
@@ -3506,32 +4074,30 @@ canvas#stage {
 
   function drawHpBar(f, x, y, mirror) {
     const w = 360, h = 22;
-    // Outer green border (flag green)
-    ctx.fillStyle = "#009c3b";
-    ctx.fillRect(x - 4, y - 4, w + 8, h + 8);
-    // Yellow inner field (flag yellow)
-    ctx.fillStyle = "#ffdf00";
+    // Brazil-flag-themed double border: 3px gold outer + 2px green inner
+    ctx.fillStyle = "#ffdf00";                     // outer gold
+    ctx.fillRect(x - 5, y - 5, w + 10, h + 10);
+    ctx.fillStyle = "#009c3b";                     // inner green
+    ctx.fillRect(x - 2, y - 2, w + 4, h + 4);
+    // Black bezel inside the green
+    ctx.fillStyle = "#0a0a0a";
     ctx.fillRect(x, y, w, h);
-    // Damaged (depleted) area shown in dark red
+    // Damaged (depleted) zone — dark red
     const ratio = Math.max(0, f.hp / f.maxHp);
     const fillW = Math.round(w * ratio);
     const lostW = w - fillW;
-    if (mirror) {
-      ctx.fillStyle = "#3a0a14";
-      ctx.fillRect(x, y, lostW, h);
-    } else {
-      ctx.fillStyle = "#3a0a14";
-      ctx.fillRect(x + fillW, y, lostW, h);
-    }
-    // Health gradient on the live portion
+    ctx.fillStyle = "#3a0a14";
+    if (mirror) ctx.fillRect(x, y, lostW, h);
+    else        ctx.fillRect(x + fillW, y, lostW, h);
+    // Live HP — yellow → red gradient (Brazil yellow + danger red)
     const grad = ctx.createLinearGradient(x, y, x + w, y);
-    grad.addColorStop(0, "#ff3344");
-    grad.addColorStop(0.5, "#ff7a3a");
-    grad.addColorStop(1, "#ffe066");
+    grad.addColorStop(0,   "#ff3344");
+    grad.addColorStop(0.5, "#ff9a3a");
+    grad.addColorStop(1,   "#ffdf00");
     ctx.fillStyle = grad;
     if (mirror) ctx.fillRect(x + lostW, y, fillW, h);
-    else ctx.fillRect(x, y, fillW, h);
-    // Blue circle indicator at the leading edge
+    else        ctx.fillRect(x, y, fillW, h);
+    // Blue circle indicator (flag blue) at the leading edge
     const cx = mirror ? x + lostW : x + fillW;
     if (fillW > 0) {
       ctx.fillStyle = "#002776";
@@ -3541,21 +4107,29 @@ canvas#stage {
       ctx.textAlign = "center"; ctx.textBaseline = "middle";
       ctx.fillText("★", cx, y + h / 2 + 1);
     }
-    // Frame
-    ctx.strokeStyle = "rgba(0,0,0,0.7)";
-    ctx.lineWidth = 1;
-    ctx.strokeRect(x - 0.5, y - 0.5, w + 1, h + 1);
+    // Subtle inner highlight stripe
+    ctx.fillStyle = "rgba(255,255,255,0.18)";
+    if (mirror) ctx.fillRect(x + lostW, y + 1, fillW, 3);
+    else        ctx.fillRect(x, y + 1, fillW, 3);
   }
 
   function drawRoundDots(n, x, y, rightAlign) {
     for (let i = 0; i < WINS_TO_WIN; i++) {
-      const cx = rightAlign ? x - i * 18 : x + i * 18;
-      ctx.beginPath(); ctx.arc(cx, y, 6, 0, Math.PI * 2);
-      ctx.fillStyle = i < n ? "#ffd84a" : "rgba(255,255,255,0.18)";
+      const cx = rightAlign ? x - i * 20 : x + i * 20;
+      // Earned wins glow Brazil-flag green; un-earned are flat dim grey
+      ctx.beginPath(); ctx.arc(cx, y, 7, 0, Math.PI * 2);
+      ctx.fillStyle = i < n ? "#009c3b" : "rgba(255,255,255,0.18)";
       ctx.fill();
-      ctx.strokeStyle = "rgba(0,0,0,0.6)";
-      ctx.lineWidth = 1;
+      ctx.strokeStyle = i < n ? "#ffdf00" : "rgba(0,0,0,0.6)";
+      ctx.lineWidth = i < n ? 2 : 1;
       ctx.stroke();
+      if (i < n) {
+        // Inner star to signal "round won"
+        ctx.fillStyle = "#ffdf00";
+        ctx.font = "bold 10px system-ui";
+        ctx.textAlign = "center"; ctx.textBaseline = "middle";
+        ctx.fillText("★", cx, y + 1);
+      }
     }
   }
 
@@ -3570,6 +4144,8 @@ canvas#stage {
       else if (t < 95) label = "PRONTOS?";
       else label = "LUTAR!";
       drawBigBanner(label, t < 50 ? "#ffdf00" : (t < 95 ? "#ff7a3a" : "#c8102e"));
+    } else if (phase === "celebrate") {
+      drawCelebration();
     } else if (phase === "roundEnd") {
       const ko = (lastWinner === "p1" && p2.hp <= 0) || (lastWinner === "p2" && p1.hp <= 0);
       const t = phaseT;
@@ -3597,6 +4173,217 @@ canvas#stage {
     }
   }
 
+  // ---------- CELEBRATION DANCES ----------
+  // Runs during the 'celebrate' phase (180 frames / ~3 s) right before the
+  // standard round-end overlay. Lula does a cachaça shuffle, Capitão does
+  // a fishing-rod skit then a salute, and a draw kicks off a synchronized
+  // samba step. Speech bubbles deliver the political punchlines.
+  function drawCelebration() {
+    const t = phaseT / 60;          // seconds elapsed
+    const totalT = CELEBRATE_FRAMES / 60;
+
+    // Draw spotlights / vignette dim
+    ctx.fillStyle = "rgba(0, 0, 0, 0.30)";
+    ctx.fillRect(0, 0, W, H);
+
+    if (lastWinner === "draw") {
+      drawDrawCelebration(t);
+    } else if (lastWinner === "p1") {
+      drawZeCelebration(t);
+    } else if (lastWinner === "p2") {
+      drawCapitaoCelebration(t);
+    }
+
+    // Comic-book "VITÓRIA" stinger fading in from the top
+    const stingerA = Math.min(1, phaseT / 30);
+    ctx.save();
+    ctx.globalAlpha = stingerA;
+    ctx.fillStyle = "#ffdf00";
+    ctx.strokeStyle = "#000";
+    ctx.lineWidth = 6;
+    ctx.font = '900 60px "Impact","Arial Black",system-ui,sans-serif';
+    ctx.textAlign = "center"; ctx.textBaseline = "middle";
+    const yWobble = Math.sin(phaseT / 10) * 4;
+    ctx.strokeText("VITÓRIA!", W / 2, 80 + yWobble);
+    ctx.fillText("VITÓRIA!", W / 2, 80 + yWobble);
+    ctx.restore();
+  }
+
+  function drawZeCelebration(t) {
+    // Sway L↔R: position the winner center-stage doing a cachaça dance.
+    const sx = W / 2 + Math.sin(t * 4) * 30;
+    const sy = GROUND_Y;
+    const tilt = Math.sin(t * 4) * 0.08;
+    ctx.save();
+    ctx.translate(sx, sy);
+    ctx.rotate(tilt);
+    ctx.scale(1.4, 1.4);   // bigger so the celebration reads
+    // Force facing toward the camera
+    const fakeP1 = { ...p1, x: 0, y: 0, vx: 0, vy: 0, hp: p1.maxHp,
+      stance: "walk", stanceT: Math.floor(t * 30), stanceDur: 999, attackKind: null,
+      hitConnected: false, facing: 1, blocking: false, onGround: true, flash: 0,
+      cd: { punch: 0, kick: 0, special: 0 } };
+    drawZe(fakeP1, t);
+
+    // Tiny pixelated cachaça bottle in his front hand (right side from camera)
+    drawCachacaBottle(40, -34);
+
+    ctx.restore();
+
+    // Speech bubble — animated typewriter
+    const bubbleX = sx - 220, bubbleY = sy - 230;
+    drawSpeechBubble(bubbleX, bubbleY, 320, 56, "ESSE APARTO NÃO É MEU!", t);
+  }
+
+  function drawCapitaoCelebration(t) {
+    const sx = W / 2;
+    const sy = GROUND_Y;
+    const phase1 = t < 1.5;   // fishing skit
+    const phase2 = !phase1;   // salute pose
+
+    ctx.save();
+    ctx.translate(sx, sy);
+    ctx.scale(1.4, 1.4);
+    const fakeP2 = { ...p2, x: 0, y: 0, vx: 0, vy: 0, hp: p2.maxHp,
+      stance: "idle", stanceT: 0, stanceDur: 0, attackKind: null,
+      hitConnected: false, facing: 1, blocking: false, onGround: true, flash: 0,
+      cd: { punch: 0, kick: 0, special: 0 } };
+    drawCapitao(fakeP2, t);
+
+    if (phase1) {
+      // Fishing rod going forward + line + fish at end
+      ctx.strokeStyle = "#5a3a1c"; ctx.lineWidth = 2.5;
+      ctx.beginPath();
+      ctx.moveTo(28, -64);
+      ctx.bezierCurveTo(60, -88, 90, -64, 110, -32);
+      ctx.stroke();
+      // Reel
+      ctx.fillStyle = "#7a7a7a";
+      ctx.beginPath(); ctx.arc(40, -56, 4, 0, Math.PI * 2); ctx.fill();
+      // Fishing line
+      ctx.strokeStyle = "rgba(255,255,255,0.6)"; ctx.lineWidth = 1;
+      ctx.beginPath();
+      ctx.moveTo(110, -32); ctx.lineTo(120, 6 + Math.sin(t * 8) * 4);
+      ctx.stroke();
+      // Fish appears at t > 0.6
+      if (t > 0.6) {
+        ctx.save();
+        ctx.translate(120, 6 + Math.sin(t * 8) * 4);
+        ctx.rotate(Math.sin(t * 6) * 0.4);
+        // Fish body
+        ctx.fillStyle = "#5a7adc";
+        ctx.beginPath(); ctx.ellipse(0, 0, 14, 7, 0, 0, Math.PI * 2); ctx.fill();
+        ctx.fillStyle = "#1a4a8a";
+        ctx.beginPath(); ctx.ellipse(0, 1, 12, 4, 0, 0, Math.PI * 2); ctx.fill();
+        // Tail
+        ctx.fillStyle = "#5a7adc";
+        ctx.beginPath();
+        ctx.moveTo(-12, 0); ctx.lineTo(-22, -6); ctx.lineTo(-22, 6); ctx.closePath();
+        ctx.fill();
+        // Eye
+        ctx.fillStyle = "#fff";
+        ctx.beginPath(); ctx.arc(6, -1, 2, 0, Math.PI * 2); ctx.fill();
+        ctx.fillStyle = "#000";
+        ctx.beginPath(); ctx.arc(6, -1, 1, 0, Math.PI * 2); ctx.fill();
+        ctx.restore();
+      }
+    } else {
+      // Salute pose: front arm raised, stiff
+      ctx.fillStyle = "#3d4a20";
+      ctx.fillRect(20, -90, 8, 30);
+      // Hand at brow
+      ctx.fillStyle = "#b89a78";
+      ctx.beginPath(); ctx.arc(24, -94, 5, 0, Math.PI * 2); ctx.fill();
+    }
+    ctx.restore();
+
+    // Speech bubble swap
+    if (phase1) {
+      drawSpeechBubble(sx + 80, sy - 240, 360, 56, "PESCARIA EM ÁREA PROIBIDA!", t);
+    } else {
+      drawSpeechBubble(sx - 220, sy - 240, 360, 56, "ORDEM E PROGRESSO… EU!", t - 1.5);
+    }
+  }
+
+  function drawDrawCelebration(t) {
+    // Both fighters face camera and samba-step in sync
+    const bob = Math.abs(Math.sin(t * 8)) * 5;
+    const lean = Math.sin(t * 4) * 0.10;
+    ctx.save();
+    ctx.translate(W / 2 - 110, GROUND_Y - bob);
+    ctx.rotate(lean);
+    ctx.scale(1.15, 1.15);
+    const fakeP1 = { ...p1, x: 0, y: 0, vx: 0, vy: 0, hp: p1.maxHp,
+      stance: "walk", stanceT: Math.floor(t * 30), stanceDur: 999, attackKind: null,
+      hitConnected: false, facing: 1, blocking: false, onGround: true, flash: 0,
+      cd: { punch: 0, kick: 0, special: 0 } };
+    drawZe(fakeP1, t);
+    ctx.restore();
+
+    ctx.save();
+    ctx.translate(W / 2 + 110, GROUND_Y - bob);
+    ctx.rotate(-lean);
+    ctx.scale(1.15, 1.15);
+    const fakeP2 = { ...p2, x: 0, y: 0, vx: 0, vy: 0, hp: p2.maxHp,
+      stance: "walk", stanceT: Math.floor(t * 30), stanceDur: 999, attackKind: null,
+      hitConnected: false, facing: -1, blocking: false, onGround: true, flash: 0,
+      cd: { punch: 0, kick: 0, special: 0 } };
+    drawCapitao(fakeP2, t);
+    ctx.restore();
+
+    drawSpeechBubble(W / 2 - 180, GROUND_Y - 230, 360, 56, "EMPATE DEMOCRÁTICO!", t);
+  }
+
+  // Tiny stylized cachaça bottle (yellow glass + label) for the Lula dance.
+  function drawCachacaBottle(x, y) {
+    // Bottle body
+    ctx.fillStyle = "#c8a040";
+    ctx.beginPath();
+    ctx.roundRect ? ctx.roundRect(x - 6, y, 12, 20, 2) : ctx.rect(x - 6, y, 12, 20);
+    ctx.fill();
+    // Neck
+    ctx.fillStyle = "#a87018";
+    ctx.fillRect(x - 3, y - 6, 6, 8);
+    // Cork
+    ctx.fillStyle = "#5a3010";
+    ctx.fillRect(x - 3, y - 9, 6, 4);
+    // White label with "51"
+    ctx.fillStyle = "#fff";
+    ctx.fillRect(x - 5, y + 5, 10, 8);
+    ctx.fillStyle = "#c8102e";
+    ctx.font = "bold 7px system-ui";
+    ctx.textAlign = "center"; ctx.textBaseline = "middle";
+    ctx.fillText("51", x, y + 9);
+    // Tiny shine
+    ctx.fillStyle = "rgba(255,255,255,0.4)";
+    ctx.fillRect(x - 5, y + 1, 1, 12);
+  }
+
+  // Comic-style speech bubble with typewriter text reveal.
+  function drawSpeechBubble(x, y, w, h, text, t) {
+    // Bubble body
+    ctx.fillStyle = "rgba(255, 255, 255, 0.95)";
+    ctx.strokeStyle = "#000";
+    ctx.lineWidth = 3;
+    ctx.beginPath();
+    ctx.roundRect ? ctx.roundRect(x, y, w, h, 14) : ctx.rect(x, y, w, h);
+    ctx.fill(); ctx.stroke();
+    // Tail (pointing down toward speaker)
+    ctx.beginPath();
+    ctx.moveTo(x + w * 0.45, y + h);
+    ctx.lineTo(x + w * 0.55, y + h);
+    ctx.lineTo(x + w * 0.50, y + h + 16);
+    ctx.closePath();
+    ctx.fill(); ctx.stroke();
+    // Text — typewriter reveal
+    const visible = Math.min(text.length, Math.floor(t * 24));
+    const shown = text.slice(0, visible);
+    ctx.fillStyle = "#0a0a0a";
+    ctx.font = "900 22px Impact, system-ui";
+    ctx.textAlign = "center"; ctx.textBaseline = "middle";
+    ctx.fillText(shown, x + w / 2, y + h / 2);
+  }
+
   function drawBigBanner(label, color, yOpt) {
     const y = yOpt != null ? yOpt : H / 2;
     ctx.save();
@@ -3620,19 +4407,37 @@ canvas#stage {
 
   // ---------- TITLE SCREEN ----------
   function drawTitle() {
-    // Big title
+    // Big title with vertical Brazil-flag gradient (green → yellow → blue)
     ctx.save();
-    ctx.translate(W / 2, 130);
-    ctx.fillStyle = "#ffdf00";
+    ctx.translate(W / 2, 110);
+    const titleGrad = ctx.createLinearGradient(0, -42, 0, 42);
+    titleGrad.addColorStop(0,   "#009c3b");   // flag green
+    titleGrad.addColorStop(0.5, "#ffdf00");   // flag yellow
+    titleGrad.addColorStop(1,   "#002776");   // flag blue
+    ctx.fillStyle = titleGrad;
     ctx.strokeStyle = "#000";
-    ctx.lineWidth = 8;
-    ctx.font = '900 90px "Impact","Arial Black",system-ui,sans-serif';
+    ctx.lineWidth = 9;
+    ctx.font = '900 92px "Impact","Arial Black",system-ui,sans-serif';
     ctx.textAlign = "center"; ctx.textBaseline = "middle";
     ctx.strokeText("BATALHA BRASIL", 0, 0);
     ctx.fillText("BATALHA BRASIL", 0, 0);
+
+    // Free-to-play badge — bright pulsing green call-out
+    const pulse = 1 + Math.sin(timeNow * 5) * 0.05;
+    ctx.save();
+    ctx.scale(pulse, pulse);
+    ctx.fillStyle = "#009c3b";
+    ctx.strokeStyle = "#000";
+    ctx.lineWidth = 4;
+    ctx.font = '900 30px "Impact","Arial Black",system-ui,sans-serif';
+    ctx.strokeText("JOGUE GRÁTIS!", 0, 56);
+    ctx.fillText("JOGUE GRÁTIS!", 0, 56);
+    ctx.restore();
+
+    // Subtitle
     ctx.fillStyle = "#fff";
-    ctx.font = "900 22px system-ui";
-    ctx.fillText("PARÓDIA POLÍTICA", 0, 50);
+    ctx.font = "700 17px system-ui";
+    ctx.fillText("A paródia política mais épica do Brasil", 0, 88);
     ctx.restore();
 
     // Two fighter portraits as large versions of in-game art
@@ -3738,47 +4543,9 @@ canvas#stage {
   }
 
   // ============================================================
-  // FAKE QR
-  // ============================================================
-  function buildFakeQR() {
-    const svg = document.getElementById("fakeQR");
-    if (!svg) return;
-    const N = 25;
-    let s = "";
-    s += `<rect width="25" height="25" fill="#fff"/>`;
-    // pseudo-random module pattern (deterministic via seeded rand)
-    let seed = 3133;
-    function rnd() { seed = (seed * 1103515245 + 12345) & 0x7fffffff; return seed; }
-    for (let y = 0; y < N; y++) {
-      for (let x = 0; x < N; x++) {
-        if (isFinder(x, y)) continue;
-        if ((rnd() & 1) === 0) {
-          s += `<rect x="${x}" y="${y}" width="1" height="1" fill="#000"/>`;
-        }
-      }
-    }
-    // Three finder squares
-    s += finderAt(0, 0);
-    s += finderAt(N - 7, 0);
-    s += finderAt(0, N - 7);
-    svg.innerHTML = s;
-  }
-  function isFinder(x, y) {
-    return (x < 8 && y < 8) || (x > 16 && y < 8) || (x < 8 && y > 16);
-  }
-  function finderAt(x, y) {
-    return (
-      `<rect x="${x}" y="${y}" width="7" height="7" fill="#000"/>` +
-      `<rect x="${x + 1}" y="${y + 1}" width="5" height="5" fill="#fff"/>` +
-      `<rect x="${x + 2}" y="${y + 2}" width="3" height="3" fill="#000"/>`
-    );
-  }
-
-  // ============================================================
   // BOOT
   // ============================================================
   function boot() {
-    buildFakeQR();
     buildCrowd();
 
     // Initial fighters (for title portraits to render)
@@ -3786,20 +4553,21 @@ canvas#stage {
     p2 = makeFighter(CAPITAO, "p2");
     phase = "title";
 
-    const paid = (function () {
-      try { return localStorage.getItem(PAID_KEY) === "yes"; } catch { return false; }
-    })();
-    if (paid) hidePaywall();
-    // Show menu once paywall is dismissed; if paid already, show now.
-    if (paid) showMenu();
+    // Free-to-play: skip paywall, jump straight to the menu.
+    showMenu();
 
-    document.getElementById("btn-paid").addEventListener("click", () => {
-      try { localStorage.setItem(PAID_KEY, "yes"); } catch {}
-      hidePaywall();
-      showMenu();
-      audio.ensure();      // wake up AudioContext on this user gesture
-      audio.pay();
-    });
+    // Wake up the AudioContext on the very first user gesture anywhere on
+    // the page (browsers refuse to resume audio without one). After the
+    // first wake-up we remove the listener so it doesn't fire forever.
+    function firstGestureWake() {
+      audio.ensure();
+      document.removeEventListener("pointerdown", firstGestureWake, true);
+      document.removeEventListener("keydown",     firstGestureWake, true);
+      document.removeEventListener("touchstart",  firstGestureWake, true);
+    }
+    document.addEventListener("pointerdown", firstGestureWake, { capture: true, passive: true });
+    document.addEventListener("keydown",     firstGestureWake, { capture: true, passive: true });
+    document.addEventListener("touchstart",  firstGestureWake, { capture: true, passive: true });
 
     // Wire menu buttons → go to character select
     document.querySelectorAll("#menu .menu-btn").forEach((btn) => {
@@ -3822,7 +4590,7 @@ canvas#stage {
 
     // Pause button
     el("pause-btn").addEventListener("click", () => {
-      if (phase !== "fight" && phase !== "ready" && phase !== "roundEnd") return;
+      if (phase !== "fight" && phase !== "ready" && phase !== "roundEnd" && phase !== "celebrate") return;
       audio.menuClick();
       paused = true;
       showPauseModal();
@@ -3854,10 +4622,13 @@ canvas#stage {
     });
     updateMuteBtn(audio.isMuted());
 
-    // Wire touch controls (works for mouse too — useful for desktop testing)
+    // Wire touch controls (works for mouse too — useful for desktop testing).
+    // On any touch-capable device we keep the overlay always visible, since
+    // the keyboard simply doesn't exist there.
     const touch = document.getElementById("touch");
     const isTouch = ("ontouchstart" in window) || (navigator.maxTouchPoints || 0) > 0;
     if (isTouch) {
+      touch.classList.add("show");
       touch.classList.add("always-on");
       touch.setAttribute("aria-hidden", "false");
     }
@@ -3868,6 +4639,9 @@ canvas#stage {
         e.preventDefault();
         inputState.p1[key] = v;
         btn.classList.toggle("is-down", v);
+        // Buffer attack key-DOWN events so a sub-frame tap still registers
+        // as an edge inside refreshEdges() on the next game tick.
+        if (v) bufferTouchAttack(key);
       };
       btn.addEventListener("touchstart", set(true),  { passive: false });
       btn.addEventListener("touchend",   set(false), { passive: false });
@@ -3920,11 +4694,6 @@ canvas#stage {
     });
 
     requestAnimationFrame(frame);
-  }
-
-  function hidePaywall() {
-    const el = document.getElementById("paywall");
-    if (el) el.style.display = "none";
   }
 
   if (document.readyState === "loading") {
