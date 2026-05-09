@@ -358,6 +358,128 @@ canvas#stage {
 .modal-btn.no  { background: linear-gradient(180deg, #6ee07a, #2bb054); color: #082a12; box-shadow: 0 3px 0 rgba(0,0,0,0.4); }
 .modal-btn:active { transform: translateY(2px); box-shadow: 0 1px 0 rgba(0,0,0,0.4); }
 
+/* ---------- Online multiplayer modal ---------- */
+#online-modal {
+  position: fixed; inset: 0; z-index: 50;
+  display: none;
+  align-items: center; justify-content: center;
+  background: rgba(0, 0, 0, 0.78);
+  backdrop-filter: blur(6px);
+  padding: 16px;
+}
+#online-modal.show { display: flex; }
+.online-card {
+  width: min(480px, 96vw);
+  background: linear-gradient(180deg, #131b2c 0%, #0a0f1a 100%);
+  border: 3px solid #009c3b;
+  border-radius: 18px;
+  padding: 24px 22px 18px;
+  box-shadow: 0 24px 80px rgba(0,0,0,0.7), 0 0 0 1px rgba(255,223,0,0.18);
+  text-align: center;
+}
+.online-title {
+  font-family: "Impact","Arial Black", system-ui, sans-serif;
+  letter-spacing: 3px; font-size: 26px;
+  background: linear-gradient(180deg, #ffe066, #009c3b 60%, #002776);
+  -webkit-background-clip: text; background-clip: text; color: transparent;
+  margin-bottom: 18px;
+}
+.online-btn {
+  display: block; width: 100%; padding: 14px 16px;
+  margin: 8px 0; border: none; border-radius: 12px;
+  font-family: "Impact","Arial Black", system-ui, sans-serif;
+  font-weight: 900; font-size: 18px; letter-spacing: 1.5px;
+  cursor: pointer;
+  text-align: left; line-height: 1.2;
+  transition: transform 0.07s ease, filter 0.15s;
+}
+.online-btn:hover { filter: brightness(1.08); }
+.online-btn:active { transform: scale(0.98); }
+.online-btn.host {
+  background: linear-gradient(180deg, #6ee07a 0%, #2bb054 100%);
+  color: #082a12;
+  box-shadow: 0 4px 0 rgba(0,0,0,0.45), 0 0 0 2px #1d7e3c;
+}
+.online-btn.join {
+  background: linear-gradient(180deg, #5a90c4 0%, #234a85 100%);
+  color: #fff;
+  box-shadow: 0 4px 0 rgba(0,0,0,0.45), 0 0 0 2px #163966;
+}
+.online-sub {
+  display: block; font-size: 11px; opacity: 0.85;
+  font-weight: 700; letter-spacing: 0.5px;
+  margin-top: 3px;
+  font-family: system-ui, sans-serif;
+}
+.online-text { color: #cfd6e0; margin: 8px 0; font-size: 14px; }
+.online-code-row {
+  display: flex; align-items: center; justify-content: center; gap: 10px;
+  margin: 10px 0;
+}
+#online-code-display {
+  font-family: ui-monospace, Menlo, Consolas, monospace;
+  font-size: 38px; font-weight: 900; letter-spacing: 6px;
+  background: #0a0f1a; color: #ffdf00;
+  padding: 12px 18px; border-radius: 12px;
+  border: 2px dashed #009c3b;
+  user-select: all;
+}
+.online-copy-btn {
+  background: #1a2240; color: #fff;
+  border: 2px solid #2a3658; border-radius: 10px;
+  width: 44px; height: 44px;
+  cursor: pointer; font-size: 20px;
+}
+.online-copy-btn:hover { filter: brightness(1.2); }
+.online-copy-btn.copied { background: #2bb054; border-color: #1d7e3c; }
+#online-code-input {
+  width: 100%; box-sizing: border-box;
+  background: #0a0f1a; color: #ffdf00;
+  border: 2px dashed #009c3b; border-radius: 12px;
+  padding: 14px 16px;
+  font-family: ui-monospace, Menlo, Consolas, monospace;
+  font-size: 28px; font-weight: 900; letter-spacing: 6px;
+  text-align: center; text-transform: uppercase;
+  margin: 10px 0;
+}
+#online-code-input:focus { outline: none; border-color: #ffdf00; }
+.online-go-btn {
+  width: 100%; padding: 12px;
+  background: linear-gradient(180deg, #ffe066 0%, #ffb13a 100%);
+  color: #1a0e00; border: none; border-radius: 12px;
+  font-family: "Impact","Arial Black", system-ui, sans-serif;
+  font-weight: 900; font-size: 16px; letter-spacing: 1.5px;
+  cursor: pointer;
+  box-shadow: 0 4px 0 rgba(0,0,0,0.4), 0 0 0 2px #c8902e;
+}
+.online-status {
+  color: #ffdf00; font-size: 13px;
+  margin-top: 10px; min-height: 20px;
+  font-family: system-ui, sans-serif;
+}
+.online-status.error { color: #ff8a8a; }
+.online-cancel-btn {
+  margin-top: 14px;
+  background: transparent; color: #cfd6e0;
+  border: 2px solid rgba(255,255,255,0.4);
+  border-radius: 10px; padding: 8px 18px;
+  font-weight: 800; letter-spacing: 1px; cursor: pointer;
+}
+.online-cancel-btn:hover { background: rgba(255,255,255,0.06); }
+
+/* Online badge during fight */
+#online-badge {
+  position: fixed; top: calc(env(safe-area-inset-top) + 8px); left: 110px;
+  z-index: 4;
+  background: rgba(0, 60, 120, 0.75); color: #fff;
+  border: 2px solid rgba(120, 200, 255, 0.65);
+  border-radius: 10px; padding: 4px 10px;
+  font-weight: 900; font-size: 12px; letter-spacing: 1.5px;
+  font-family: "Impact","Arial Black", system-ui, sans-serif;
+  display: none;
+}
+#online-badge.show { display: inline-block; }
+
 /* ---------- Match-end actions ---------- */
 #end-actions {
   position: fixed; left: 0; right: 0;
@@ -416,10 +538,49 @@ canvas#stage {
   <button class="menu-btn facil"   data-difficulty="facil">FÁCIL</button>
   <button class="menu-btn medio"   data-difficulty="medio">MÉDIO</button>
   <button class="menu-btn dificil" data-difficulty="dificil">DIFÍCIL</button>
-  <button class="menu-btn online" disabled aria-disabled="true">
-    2 JOGADORES ONLINE
-    <span class="em-breve">EM BREVE…</span>
-  </button>
+  <button class="menu-btn online" id="btn-online">⚔️ JOGAR ONLINE</button>
+</div>
+
+<!-- Online multiplayer modal -->
+<div id="online-modal" aria-hidden="true">
+  <div class="online-card">
+    <div class="online-title">⚔️ JOGAR ONLINE</div>
+
+    <!-- Step 1: pick host or join -->
+    <div id="online-step-pick">
+      <button class="online-btn host" id="online-host">
+        🏠 CRIAR SALA
+        <span class="online-sub">Você será o anfitrião (Lula)</span>
+      </button>
+      <button class="online-btn join" id="online-join">
+        🚪 ENTRAR NA SALA
+        <span class="online-sub">Conectar com um amigo (Bolsonaro)</span>
+      </button>
+    </div>
+
+    <!-- Step 2a: hosting (room code displayed) -->
+    <div id="online-step-host" class="online-step" hidden>
+      <p class="online-text">Compartilhe este código com seu amigo:</p>
+      <div class="online-code-row">
+        <code id="online-code-display">------</code>
+        <button id="online-copy" class="online-copy-btn" title="Copiar">📋</button>
+      </div>
+      <div id="online-status" class="online-status">Aguardando oponente…</div>
+    </div>
+
+    <!-- Step 2b: joining (input) -->
+    <div id="online-step-join" class="online-step" hidden>
+      <p class="online-text">Digite o código da sala:</p>
+      <input id="online-code-input" type="text"
+             autocomplete="off" autocorrect="off" autocapitalize="characters"
+             spellcheck="false" maxlength="6"
+             placeholder="BR4921">
+      <button id="online-connect" class="online-go-btn">CONECTAR</button>
+      <div id="online-join-status" class="online-status"></div>
+    </div>
+
+    <button id="online-cancel" class="online-cancel-btn">CANCELAR</button>
+  </div>
 </div>
 
 <div id="select" aria-hidden="true">
@@ -446,6 +607,8 @@ canvas#stage {
 <button id="pause-btn" hidden aria-label="Pausar">⏸ PAUSAR</button>
 
 <button id="mute-btn" aria-label="Som ligado / desligado">🔊</button>
+
+<div id="online-badge">🌐 ONLINE</div>
 
 <div id="pause-modal" role="dialog" aria-modal="true" aria-labelledby="pause-modal-title">
   <div class="modal-card">
@@ -1105,6 +1268,118 @@ canvas#stage {
         beatInBar += playBeats;
       }
 
+      // ===== EPIC LAYER 1: War-drum reverb tail =====
+      // Quieter delayed kick on each beat 1 & 3, plus a short low-rumble
+      // at every quarter for that "movie trailer" arena thump.
+      for (const bIdx of [0, 2]) {
+        const t0 = startT + bIdx * beat;
+        // Reverb tail: a quieter, longer kick 0.15s after the main hit
+        for (const tail of [0.15, 0.30]) {
+          const t1 = t0 + tail;
+          const k = ctx.createOscillator();
+          const kg = ctx.createGain();
+          k.type = "sine";
+          k.frequency.setValueAtTime(80, t1);
+          k.frequency.exponentialRampToValueAtTime(28, t1 + 0.30);
+          const peak = tail < 0.2 ? 0.30 : 0.18;
+          kg.gain.setValueAtTime(0.0, t1);
+          kg.gain.linearRampToValueAtTime(peak, t1 + 0.005);
+          kg.gain.exponentialRampToValueAtTime(0.001, t1 + 0.40);
+          k.connect(kg); kg.connect(sub);
+          k.start(t1); k.stop(t1 + 0.42);
+          titleNodes.push(k, kg);
+        }
+      }
+      // Snare reverb tail on 2 & 4
+      for (const bIdx of [1, 3]) {
+        const t0 = startT + bIdx * beat + 0.12;
+        const dur = 0.18;
+        const buf = ctx.createBuffer(1, Math.ceil(ctx.sampleRate * dur), ctx.sampleRate);
+        const data = buf.getChannelData(0);
+        for (let i = 0; i < data.length; i++) {
+          data[i] = (Math.random() * 2 - 1) * Math.exp(-i / (ctx.sampleRate * 0.060));
+        }
+        const src = ctx.createBufferSource(); src.buffer = buf;
+        const f = ctx.createBiquadFilter();
+        f.type = "bandpass"; f.frequency.value = 1800; f.Q.value = 0.6;
+        const sg = ctx.createGain();
+        sg.gain.setValueAtTime(0.0, t0);
+        sg.gain.linearRampToValueAtTime(0.16, t0 + 0.005);
+        sg.gain.exponentialRampToValueAtTime(0.001, t0 + dur);
+        src.connect(f); f.connect(sg); sg.connect(sub);
+        src.start(t0); src.stop(t0 + dur + 0.02);
+        titleNodes.push(src, f, sg);
+      }
+
+      // ===== EPIC LAYER 2: Rising tension strings =====
+      // Two-note sustained sawtooth pad (root + fifth), one octave below
+      // the chord, with a slow 4-second swell across the whole bar and
+      // a 5 Hz vibrato. This gives the trailer-style "ominous string"
+      // bed under the hard-rock riff.
+      // Use the FIRST chord of the pattern as the string root.
+      const stringRoot = flatPattern[startBeat % flatPattern.length].root * 0.5;
+      const stringFifth = flatPattern[startBeat % flatPattern.length].fifth * 0.5;
+      for (const f of [stringRoot, stringFifth]) {
+        const sStr = ctx.createOscillator();
+        sStr.type = "sawtooth";
+        sStr.frequency.setValueAtTime(f, startT);
+        // Vibrato LFO
+        const vlfo = ctx.createOscillator();
+        vlfo.type = "sine"; vlfo.frequency.value = 5;
+        const vlfoGain = ctx.createGain(); vlfoGain.gain.value = f * 0.012;
+        vlfo.connect(vlfoGain); vlfoGain.connect(sStr.frequency);
+        // Strings filter — narrower lowpass so they sit BEHIND the lead
+        const sFilt = ctx.createBiquadFilter();
+        sFilt.type = "lowpass"; sFilt.frequency.value = 900; sFilt.Q.value = 2;
+        const sg = ctx.createGain();
+        // Slow attack 0.6s, swell to peak in the middle of the bar, fade out
+        sg.gain.setValueAtTime(0.0, startT);
+        sg.gain.linearRampToValueAtTime(0.10, startT + 0.6);
+        sg.gain.linearRampToValueAtTime(0.16, startT + 2.0);
+        sg.gain.linearRampToValueAtTime(0.10, startT + 3.4);
+        sg.gain.linearRampToValueAtTime(0.0, startT + 4 * beat - 0.05);
+        sStr.connect(sFilt); sFilt.connect(sg); sg.connect(sub);
+        sStr.start(startT); sStr.stop(startT + 4 * beat + 0.05);
+        vlfo.start(startT); vlfo.stop(startT + 4 * beat + 0.05);
+        titleNodes.push(sStr, vlfo, vlfoGain, sFilt, sg);
+      }
+
+      // ===== EPIC LAYER 3: Brass counter-melody (canon at +1 beat) =====
+      // The same 8-note motif played one octave higher, delayed by one
+      // beat — gives a heroic doubling / call-and-response feel. Quieter
+      // than the lead so it adds shimmer without competing.
+      let beatCursor2 = ((titleBar - 1) * barBeats) % melodyTotalBeats;
+      let beatInBar2 = 1;     // start one beat late
+      while (beatInBar2 < barBeats) {
+        let acc = 0, idx = 0, offset = 0;
+        for (let i = 0; i < melody.length; i++) {
+          if (acc + melody[i].beats > beatCursor2) {
+            idx = i; offset = beatCursor2 - acc; break;
+          }
+          acc += melody[i].beats;
+        }
+        const note = melody[idx];
+        const restInNote = note.beats - offset;
+        const playBeats = Math.min(restInNote, barBeats - beatInBar2);
+        const t0 = startT + beatInBar2 * beat;
+        const dur = playBeats * beat;
+        const tri = ctx.createOscillator();
+        tri.type = "triangle";
+        tri.frequency.value = note.hz * 2;     // one octave higher
+        const tFilt = ctx.createBiquadFilter();
+        tFilt.type = "lowpass"; tFilt.frequency.value = 2400; tFilt.Q.value = 0.7;
+        const tg = ctx.createGain();
+        tg.gain.setValueAtTime(0.0, t0);
+        tg.gain.linearRampToValueAtTime(0.10, t0 + 0.06);
+        tg.gain.linearRampToValueAtTime(0.05, t0 + dur * 0.7);
+        tg.gain.linearRampToValueAtTime(0.0, t0 + dur - 0.03);
+        tri.connect(tFilt); tFilt.connect(tg); tg.connect(sub);
+        tri.start(t0); tri.stop(t0 + dur + 0.02);
+        titleNodes.push(tri, tFilt, tg);
+        beatCursor2 = (beatCursor2 + playBeats) % melodyTotalBeats;
+        beatInBar2 += playBeats;
+      }
+
       titleBar++;
     }
 
@@ -1453,6 +1728,13 @@ canvas#stage {
     showMenu();
     audio.stopMusic();
     audio.startTitleMusic();
+    // Tear down online connection if one was active
+    if (onlineMode !== "off") {
+      try { if (onlineConn) onlineConn.close(); } catch {}
+      try { if (onlinePeer) onlinePeer.destroy(); } catch {}
+      onlineConn = null; onlinePeer = null; onlineMode = "off";
+      el("online-badge").classList.remove("show");
+    }
   }
 
   // Replay same matchup, same difficulty, same character pick
@@ -1867,9 +2149,21 @@ canvas#stage {
     }
 
     // ===== FIGHT =====
-    // The human always uses inputState.p1 — we just route it to whichever
-    // fighter they picked, and let the AI drive the other.
-    if (playerSide === "p1") {
+    if (onlineMode !== "off") {
+      // Online: each side is human-driven via the network.
+      //   Local human → inputState.p1 (always — that's where keyboard/touch lands)
+      //   Remote peer → inputState.p2 (writeed by data channel handler)
+      // Host plays p1, guest plays p2 — route accordingly.
+      if (onlineMode === "host") {
+        applyInputs(p1, inputState.p1);
+        applyInputs(p2, inputState.p2);
+      } else {
+        applyInputs(p1, inputState.p2);
+        applyInputs(p2, inputState.p1);
+      }
+      // Send our local input bools to the remote every game tick.
+      sendOnlineInputs();
+    } else if (playerSide === "p1") {
       applyInputs(p1, inputState.p1);
       applyInputs(p2, aiInputs(p2, p1, currentDifficulty));
     } else {
@@ -5195,6 +5489,201 @@ canvas#stage {
   }
 
   // ============================================================
+  // ONLINE MULTIPLAYER — PeerJS WebRTC peer-to-peer
+  // ============================================================
+  // Two-player 1v1 over the network. Host creates a room (Peer ID = room
+  // code, uppercase). Guest connects to that ID. Each frame we send the
+  // local human's input bools across the data channel; the remote bools
+  // land in inputState.p2 (via setOnlineRemoteInputs) so refreshEdges()
+  // computes per-frame edges naturally for both fighters.
+  //
+  // Roles:
+  //   host  → plays as P1 (Zé / Lula side, left)
+  //   guest → plays as P2 (Capitão / Bolsonaro side, right)
+  //
+  // Single-player mode is preserved exactly; the engine only checks
+  // `onlineMode !== "off"` to swap input routing during the fight phase.
+  // ============================================================
+  let onlineMode = "off";       // "off" | "host" | "guest"
+  let onlinePeer = null;        // PeerJS Peer instance
+  let onlineConn = null;        // PeerJS DataConnection
+  let onlineRoomCode = "";      // 6-char uppercase code
+  let netSeq = 0;               // outgoing frame counter
+  let peerJsLoaded = false;
+  let peerJsLoading = null;     // Promise (debounce)
+
+  function loadPeerJs() {
+    if (peerJsLoaded) return Promise.resolve();
+    if (peerJsLoading) return peerJsLoading;
+    peerJsLoading = new Promise((resolve, reject) => {
+      const s = document.createElement("script");
+      s.src = "https://unpkg.com/peerjs@1.5.4/dist/peerjs.min.js";
+      s.async = true;
+      s.onload = () => { peerJsLoaded = true; resolve(); };
+      s.onerror = () => reject(new Error("PeerJS CDN failed"));
+      document.head.appendChild(s);
+    });
+    return peerJsLoading;
+  }
+
+  function genRoomCode() {
+    // 6-char alphanumeric room code (avoid 0/O and 1/I/L confusables)
+    const ALPHA = "ABCDEFGHJKMNPQRSTUVWXYZ23456789";
+    let code = "";
+    for (let i = 0; i < 6; i++) {
+      code += ALPHA.charAt((Math.random() * ALPHA.length) | 0);
+    }
+    return code;
+  }
+
+  // Apply remote raw inputs to inputState.p2 (the side the remote drives).
+  function setOnlineRemoteInputs(keys) {
+    const i = inputState.p2;
+    i.left   = !!keys.left;
+    i.right  = !!keys.right;
+    i.up     = !!keys.up;
+    i.down   = !!keys.down;
+    i.punch  = !!keys.punch;
+    i.kick   = !!keys.kick;
+    i.special= !!keys.special;
+  }
+
+  // Send the local human's raw inputs to the remote peer.
+  function sendOnlineInputs() {
+    if (!onlineConn || !onlineConn.open) return;
+    const i = inputState.p1;        // local always lives in p1
+    try {
+      onlineConn.send({
+        keys: {
+          left: !!i.left, right: !!i.right, up: !!i.up, down: !!i.down,
+          punch: !!i.punch, kick: !!i.kick, special: !!i.special,
+        },
+        seq: netSeq++,
+      });
+    } catch {}                       // swallow if channel closed mid-send
+  }
+
+  function attachConnHandlers(conn) {
+    conn.on("data", (msg) => {
+      if (msg && msg.keys) setOnlineRemoteInputs(msg.keys);
+    });
+    conn.on("close", () => onlineDisconnect("Conexão encerrada"));
+    conn.on("error", () => onlineDisconnect("Erro de conexão"));
+  }
+
+  function onlineDisconnect(reason) {
+    if (onlineMode === "off") return;
+    onlineMode = "off";
+    try { if (onlineConn) onlineConn.close(); } catch {}
+    try { if (onlinePeer) onlinePeer.destroy(); } catch {}
+    onlineConn = null;
+    onlinePeer = null;
+    onlineRoomCode = "";
+    el("online-badge").classList.remove("show");
+    // Bail back to title menu and surface the disconnect reason.
+    backToTitle();
+    setOnlineStatus(reason || "Desconectado", true);
+    showOnlineModal();
+    showOnlineStep("pick");
+  }
+
+  async function onlineHost() {
+    setOnlineStatus("Carregando…");
+    try { await loadPeerJs(); } catch { setOnlineStatus("Falha ao carregar PeerJS.", true); return; }
+    onlineRoomCode = genRoomCode();
+    el("online-code-display").textContent = onlineRoomCode;
+    showOnlineStep("host");
+    setOnlineStatus("Conectando ao servidor…");
+    try {
+      const peer = new window.Peer(onlineRoomCode, { debug: 1 });
+      onlinePeer = peer;
+      peer.on("open", () => setOnlineStatus("Aguardando oponente…"));
+      peer.on("error", (err) => {
+        const msg = err && err.type === "unavailable-id"
+          ? "Código já em uso. Tente outro." : "Erro: " + (err && err.type);
+        setOnlineStatus(msg, true);
+      });
+      peer.on("connection", (conn) => {
+        onlineConn = conn;
+        attachConnHandlers(conn);
+        conn.on("open", () => {
+          onlineMode = "host";
+          setOnlineStatus("Conectado! Iniciando…");
+          setTimeout(() => onlineStartFight(), 600);
+        });
+      });
+    } catch (e) {
+      setOnlineStatus("Erro ao criar sala.", true);
+    }
+  }
+
+  async function onlineJoin(code) {
+    if (!code || code.length !== 6) {
+      setOnlineStatus("Digite o código de 6 caracteres.", true);
+      return;
+    }
+    code = code.toUpperCase();
+    setOnlineStatus("Carregando…");
+    try { await loadPeerJs(); } catch { setOnlineStatus("Falha ao carregar PeerJS.", true); return; }
+    setOnlineStatus("Conectando…");
+    try {
+      const peer = new window.Peer({ debug: 1 });
+      onlinePeer = peer;
+      peer.on("open", () => {
+        const conn = peer.connect(code, { reliable: true });
+        onlineConn = conn;
+        attachConnHandlers(conn);
+        conn.on("open", () => {
+          onlineMode = "guest";
+          setOnlineStatus("Conectado! Iniciando…");
+          setTimeout(() => onlineStartFight(), 600);
+        });
+        conn.on("error", () => setOnlineStatus("Sala não encontrada.", true));
+      });
+      peer.on("error", () => setOnlineStatus("Erro de conexão. Verifique o código.", true));
+    } catch {
+      setOnlineStatus("Erro ao conectar.", true);
+    }
+  }
+
+  function onlineStartFight() {
+    hideOnlineModal();
+    // Force the role-based player side; ignore character select.
+    playerSide = (onlineMode === "host") ? "p1" : "p2";
+    currentDifficulty = "medio";   // unused in online but keep set
+    hideMenu();
+    hideSelect();
+    newMatch();
+    el("online-badge").classList.add("show");
+    audio.stopTitleMusic();
+  }
+
+  function showOnlineModal() {
+    el("online-modal").classList.add("show");
+    el("online-modal").setAttribute("aria-hidden", "false");
+    showOnlineStep("pick");
+    setOnlineStatus("");
+  }
+  function hideOnlineModal() {
+    el("online-modal").classList.remove("show");
+    el("online-modal").setAttribute("aria-hidden", "true");
+  }
+  function showOnlineStep(name) {
+    el("online-step-pick").hidden = (name !== "pick");
+    el("online-step-host").hidden = (name !== "host");
+    el("online-step-join").hidden = (name !== "join");
+  }
+  function setOnlineStatus(text, isError) {
+    const el1 = el("online-status");
+    const el2 = el("online-join-status");
+    [el1, el2].forEach((e) => {
+      if (!e) return;
+      e.textContent = text;
+      e.classList.toggle("error", !!isError);
+    });
+  }
+
+  // ============================================================
   // BOOT
   // ============================================================
   function boot() {
@@ -5231,8 +5720,48 @@ canvas#stage {
     // Wire menu buttons → go to character select
     document.querySelectorAll("#menu .menu-btn").forEach((btn) => {
       const diff = btn.dataset.difficulty;
-      if (!diff) return; // online button is disabled
+      if (!diff) return; // online + other no-difficulty buttons handled separately
       btn.addEventListener("click", () => { audio.menuPick(); startSelect(diff); });
+    });
+
+    // Online button → open the online modal
+    el("btn-online").addEventListener("click", () => {
+      audio.menuPick();
+      showOnlineModal();
+    });
+    // Online modal handlers
+    el("online-host").addEventListener("click", () => { audio.menuPick(); onlineHost(); });
+    el("online-join").addEventListener("click", () => { audio.menuPick(); showOnlineStep("join"); setOnlineStatus(""); });
+    el("online-connect").addEventListener("click", () => {
+      audio.menuPick();
+      const code = (el("online-code-input").value || "").trim().toUpperCase();
+      onlineJoin(code);
+    });
+    el("online-cancel").addEventListener("click", () => {
+      audio.menuBack();
+      // Tear down any pending peer/conn
+      try { if (onlineConn) onlineConn.close(); } catch {}
+      try { if (onlinePeer) onlinePeer.destroy(); } catch {}
+      onlineConn = null; onlinePeer = null; onlineMode = "off";
+      hideOnlineModal();
+    });
+    el("online-copy").addEventListener("click", async () => {
+      try {
+        await navigator.clipboard.writeText(onlineRoomCode);
+        el("online-copy").classList.add("copied");
+        setTimeout(() => el("online-copy").classList.remove("copied"), 1200);
+      } catch {
+        // Fallback: select the code text
+        const range = document.createRange();
+        range.selectNodeContents(el("online-code-display"));
+        const sel = window.getSelection();
+        sel.removeAllRanges(); sel.addRange(range);
+      }
+    });
+    // Force uppercase + auto-trim on the code input
+    el("online-code-input").addEventListener("input", (e) => {
+      const v = e.target.value.toUpperCase().replace(/[^A-Z0-9]/g, "").slice(0, 6);
+      e.target.value = v;
     });
 
     // Character select: clicking a card picks that fighter for the human
