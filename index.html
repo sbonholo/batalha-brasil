@@ -120,7 +120,7 @@ canvas#stage {
 .menu-btn.dificil { background: linear-gradient(180deg, #ff6b6b 0%, #c8102e 100%); box-shadow: 0 4px 0 rgba(0,0,0,0.4), 0 0 0 2px #7a0a18; color: #2a0509; }
 .menu-btn.online {
   background: linear-gradient(180deg, #3a4763 0%, #1c2540 100%);
-  color: #93a1b3; cursor: pointer; opacity: 0.9;
+  color: #93a1b3; cursor: not-allowed; opacity: 0.9;
   box-shadow: 0 4px 0 rgba(0,0,0,0.5), 0 0 0 2px #2a3658;
 }
 .menu-btn.online .em-breve {
@@ -201,8 +201,7 @@ canvas#stage {
   .dp-left  { top: 60px; left: 0;    }
   .dp-right { top: 60px; left: 120px;}
   .dp-down  { top: 120px;left: 60px; }
-  /* Reserve room above the controls so canvas isn't hidden by them */
-  canvas#stage { max-height: calc(100dvh - 220px); }
+  /* Canvas fills the full screen; touch controls overlay translucently. */
 }
 
 /* ---- Mobile landscape: shrunk D-pad, all 3 attack buttons fit ---- */
@@ -215,7 +214,6 @@ canvas#stage {
   .dp-left  { top: 46px; left: 0;    }
   .dp-right { top: 46px; left: 92px; }
   .dp-down  { top: 92px; left: 46px; }
-  canvas#stage { max-height: calc(100dvh - 150px); }
 }
 
 /* Always show touch controls on coarse-pointer devices */
@@ -323,6 +321,21 @@ canvas#stage {
 #mute-btn:hover { background: rgba(20,20,20,0.7); }
 #mute-btn:active { transform: scale(0.94); }
 #mute-btn.muted { border-color: rgba(255, 100, 100, 0.55); color: #ff8a8a; }
+
+/* ---------- Fullscreen toggle (next to mute) ---------- */
+#fs-btn {
+  position: fixed; top: calc(env(safe-area-inset-top) + 8px); right: 64px; z-index: 100;
+  background: rgba(0,0,0,0.55); color: #fff;
+  border: 2px solid rgba(255, 215, 100, 0.55);
+  border-radius: 10px;
+  width: 44px; height: 36px; padding: 0;
+  font-size: 18px; line-height: 1;
+  cursor: pointer;
+  display: flex; align-items: center; justify-content: center;
+  -webkit-tap-highlight-color: transparent;
+}
+#fs-btn:hover { background: rgba(20,20,20,0.7); }
+#fs-btn:active { transform: scale(0.94); }
 
 #pause-modal {
   position: fixed; inset: 0; z-index: 7;
@@ -606,6 +619,7 @@ canvas#stage {
 
 <button id="pause-btn" hidden aria-label="Pausar">⏸ PAUSAR</button>
 
+<button id="fs-btn" aria-label="Tela cheia">⛶</button>
 <button id="mute-btn" aria-label="Som ligado / desligado">🔊</button>
 
 <div id="online-badge">🌐 ONLINE</div>
@@ -2444,53 +2458,221 @@ canvas#stage {
     ctx.fill();
   }
 
-  // ----- DISTANT SKYLINE (city lights at night, ministries always) + TV TOWER -----
+  // ----- BRASÍLIA HORIZON: Lake Paranoá + cerrado plateau + landmarks -----
+  // Brasília sits on a 1100m plateau in the cerrado biome, on the shore of an
+  // artificial lake. The architecture is famously horizontal — Niemeyer wanted
+  // the eye to read the sky, not silhouettes. So instead of a chunky skyline
+  // we draw a far-horizon water strip, soft cerrado hills, and a few iconic
+  // landmarks (TV Tower, Cathedral) standing alone against the openness.
   function drawDistantSkyline(r) {
-    // Distant skyline silhouette
-    ctx.fillStyle = getMinistryColor(r);
-    const heights = [42, 60, 36, 78, 54, 30, 88, 50, 64, 40, 70, 46, 58, 36, 72, 48, 90, 44];
-    let cur = 0;
-    for (let i = 0; i < heights.length; i++) {
-      const w = 56;
-      ctx.fillRect(cur, GROUND_Y - 110 - heights[i] * 0.3, w, heights[i] + 110);
-      cur += w;
+    const horizonY = GROUND_Y - 130;   // far horizon line
+
+    // ----- Lake Paranoá water strip -----
+    const lakeColor = (r === 1) ? "#5a9ac8"
+                    : (r === 3) ? "#0a1830"
+                    :             "#7a4858";   // sunset reflecting reddish
+    ctx.fillStyle = lakeColor;
+    ctx.fillRect(0, horizonY, W, 10);
+    // A second darker layer beneath for water depth
+    ctx.fillStyle = (r === 1) ? "rgba(40, 80, 120, 0.55)"
+                  : (r === 3) ? "rgba(8, 16, 36, 0.85)"
+                  :             "rgba(60, 30, 50, 0.55)";
+    ctx.fillRect(0, horizonY + 8, W, 4);
+    // Shimmering ripples
+    ctx.fillStyle = (r === 3) ? "rgba(120, 160, 220, 0.22)"
+                  : (r === 2) ? "rgba(255, 220, 180, 0.35)"
+                  :             "rgba(255, 255, 255, 0.35)";
+    for (let i = 0; i < 4; i++) {
+      const ry = horizonY + 1 + i * 2.5 + Math.sin(timeNow * 0.7 + i * 0.6) * 0.5;
+      ctx.fillRect(0, ry, W, 0.8);
     }
-    // Night-only: distant city lights — colored window dots
+
+    // ----- Cerrado plateau — soft rolling hills behind the city -----
+    const plateauColor = (r === 1) ? "rgba(110, 132, 96, 0.65)"
+                       : (r === 3) ? "rgba(18, 22, 44, 0.90)"
+                       :             "rgba(72, 42, 60, 0.72)";
+    ctx.fillStyle = plateauColor;
+    ctx.beginPath();
+    ctx.moveTo(0, horizonY + 12);
+    // Bezier-stitched gentle hills
+    const hills = [22, 36, 18, 42, 28, 38, 24, 32, 20];
+    const segW = W / (hills.length - 1);
+    for (let i = 0; i < hills.length - 1; i++) {
+      const x1 = i * segW;
+      const x2 = (i + 1) * segW;
+      const y1 = horizonY + 12 - hills[i];
+      const y2 = horizonY + 12 - hills[i + 1];
+      ctx.bezierCurveTo(
+        x1 + segW * 0.35, y1,
+        x1 + segW * 0.65, y2,
+        x2, y2
+      );
+    }
+    ctx.lineTo(W, GROUND_Y - 20);
+    ctx.lineTo(0, GROUND_Y - 20);
+    ctx.closePath();
+    ctx.fill();
+
+    // Night-only: distant city lights along the cerrado plateau
     if (r === 3) {
       const lightColors = ["#ffd84a", "#ffbf6a", "#ffc8a0", "#fff8c0", "#a0c8ff"];
-      for (let i = 0; i < 14; i++) {
-        const x = (i * 73) % W;
-        const y = GROUND_Y - 80 - (i * 17 % 80);
+      for (let i = 0; i < 18; i++) {
+        const x = (i * 53 + 7) % W;
+        const y = horizonY + 12 - ((i * 11) % 28) - 2;
         ctx.fillStyle = lightColors[i % lightColors.length];
-        ctx.fillRect(x, y, 3, 4);
+        ctx.fillRect(x, y, 2, 2);
+        if ((i * 7) % 3 === 0) {
+          ctx.fillStyle = "rgba(255, 216, 74, 0.20)";
+          ctx.fillRect(x - 1, y - 1, 4, 4);
+        }
       }
     }
-    // ----- TV Tower (Torre de Televisão) far left at x≈100 -----
-    const tvX = 100;
-    const tvBase = GROUND_Y - 60;
-    const tvTop = GROUND_Y - 60 - 120;   // 120px tall
-    // Thin vertical line (2px)
-    ctx.fillStyle = r === 3 ? "rgba(180, 160, 130, 0.55)" : "rgba(140, 110, 90, 0.65)";
-    ctx.fillRect(tvX - 1, tvTop, 2, 120);
-    // Observation deck at 2/3 height
-    const deckY = tvTop + (120 * 2 / 3);
-    ctx.fillStyle = r === 3 ? "rgba(200, 180, 140, 0.85)" : "rgba(220, 210, 180, 0.7)";
-    ctx.fillRect(tvX - 10, deckY - 4, 20, 8);
-    // Tiny circle at the very top
+
+    // ----- Niemeyer landmarks against the horizon -----
+    drawTVTower(80, r);
+    drawCathedral(195, r);
+  }
+
+  // TV Tower (Torre de Televisão) — thin vertical mast with observation deck
+  function drawTVTower(tvX, r) {
+    const tvHeight = 130;
+    const tvBase = GROUND_Y - 22;
+    const tvTop = tvBase - tvHeight;
+    // Splayed quadripod base (legs)
+    ctx.strokeStyle = (r === 3) ? "rgba(180, 160, 130, 0.55)" : "rgba(140, 110, 90, 0.75)";
+    ctx.lineWidth = 1.5;
     ctx.beginPath();
-    ctx.arc(tvX, tvTop + 2, 3, 0, Math.PI * 2);
-    ctx.fill();
-    // Red blinking warning at top (always-on at night, blinking otherwise)
+    ctx.moveTo(tvX - 7, tvBase); ctx.lineTo(tvX, tvBase - 28);
+    ctx.moveTo(tvX + 7, tvBase); ctx.lineTo(tvX, tvBase - 28);
+    ctx.stroke();
+    // Main mast
+    ctx.fillStyle = (r === 3) ? "rgba(180, 160, 130, 0.65)" : "rgba(140, 110, 90, 0.80)";
+    ctx.fillRect(tvX - 1, tvTop, 2, tvHeight - 28);
+    // Observation deck at ~55% height
+    const deckY = tvTop + Math.floor(tvHeight * 0.45);
+    ctx.fillStyle = (r === 3) ? "rgba(200, 180, 140, 0.90)" : "rgba(220, 210, 180, 0.85)";
+    ctx.fillRect(tvX - 10, deckY - 3, 20, 7);
+    // Deck windows (tiny dark dots, or lit dots at night)
+    ctx.fillStyle = (r === 3) ? "#ffd84a" : "rgba(0, 0, 0, 0.45)";
+    for (let i = 0; i < 5; i++) ctx.fillRect(tvX - 8 + i * 4, deckY - 1, 1, 2);
+    // Antenna mast above the deck (thinner)
+    ctx.fillStyle = (r === 3) ? "rgba(160, 140, 110, 0.55)" : "rgba(120, 90, 70, 0.85)";
+    ctx.fillRect(tvX - 0.5, tvTop - 14, 1, 14);
+    // Top sphere
+    ctx.fillStyle = (r === 3) ? "rgba(220, 200, 150, 0.85)" : "rgba(180, 150, 120, 0.85)";
+    ctx.beginPath(); ctx.arc(tvX, tvTop - 4, 2.5, 0, Math.PI * 2); ctx.fill();
+    // Red warning light (always-on at night, blinking otherwise)
     if (r === 3 || (Math.floor(timeNow * 1.5) % 2 === 0)) {
       ctx.fillStyle = "rgba(255, 60, 60, 0.95)";
-      ctx.beginPath(); ctx.arc(tvX, tvTop - 4, 2.4, 0, Math.PI * 2); ctx.fill();
+      ctx.beginPath(); ctx.arc(tvX, tvTop - 16, 2.2, 0, Math.PI * 2); ctx.fill();
     }
+  }
+
+  // ----- NIEMEYER CATHEDRAL (Catedral Metropolitana) — hyperboloid crown -----
+  // 16 white concrete columns curving up from a circular base, pinching in
+  // the middle and flaring out at the top to form a crown of thorns. We draw
+  // a stylized 2D side view: circular base, 11 visible curving ribs, top
+  // ring, and a central cross.
+  function drawCathedral(cx, r) {
+    const baseY = GROUND_Y - 20;
+    const cathH = 78;
+    const baseHalfW = 32;
+    const pinchHalfW = 14;       // narrowest waist
+    const topHalfW = 30;         // crown rim
+    const pinchY = baseY - cathH * 0.55;
+    const topY = baseY - cathH;
+
+    const colColor = (r === 1) ? "rgba(245, 244, 238, 0.95)"
+                   : (r === 3) ? "rgba(140, 150, 180, 0.85)"
+                   :             "rgba(245, 222, 168, 0.92)";
+    const shadowColor = (r === 1) ? "rgba(0, 0, 0, 0.20)"
+                      : (r === 3) ? "rgba(0, 0, 0, 0.50)"
+                      :             "rgba(120, 60, 30, 0.30)";
+
+    // Inner shadow / interior glow visible between the ribs
+    const innerColor = (r === 1) ? "rgba(180, 200, 220, 0.55)"
+                     : (r === 3) ? "rgba(255, 220, 130, 0.45)"   // lit interior at night
+                     :             "rgba(120, 70, 50, 0.45)";
+    ctx.fillStyle = innerColor;
+    ctx.beginPath();
+    ctx.moveTo(cx - baseHalfW + 4, baseY);
+    ctx.bezierCurveTo(
+      cx - baseHalfW + 2, pinchY + 8,
+      cx - pinchHalfW,    pinchY,
+      cx - pinchHalfW,    pinchY - 4
+    );
+    ctx.lineTo(cx + pinchHalfW, pinchY - 4);
+    ctx.bezierCurveTo(
+      cx + pinchHalfW,    pinchY,
+      cx + baseHalfW - 2, pinchY + 8,
+      cx + baseHalfW - 4, baseY
+    );
+    ctx.closePath();
+    ctx.fill();
+
+    // 11 visible ribs — for each rib, a bezier from base to top through pinch
+    ctx.strokeStyle = colColor;
+    ctx.lineWidth = 1.6;
+    ctx.lineCap = "round";
+    for (let i = 0; i < 11; i++) {
+      const t = (i / 10);                    // 0..1
+      // Side-view: ribs spread across baseHalfW at the base
+      const baseSide = (t - 0.5) * 2;        // -1..+1
+      const xb = cx + baseSide * baseHalfW;
+      const xp = cx + baseSide * pinchHalfW * 0.85;
+      const xt = cx + baseSide * topHalfW;
+      ctx.beginPath();
+      ctx.moveTo(xb, baseY);
+      // Curve in toward the pinch
+      ctx.bezierCurveTo(
+        xb, baseY - cathH * 0.20,
+        xp, pinchY + 4,
+        xp, pinchY
+      );
+      // Curve out to crown top
+      ctx.bezierCurveTo(
+        xp, pinchY - 8,
+        xt, topY + 12,
+        xt, topY
+      );
+      ctx.stroke();
+    }
+    ctx.lineCap = "butt";
+
+    // Crown top ring (subtle ellipse closing the crown)
+    ctx.strokeStyle = colColor;
+    ctx.lineWidth = 1.2;
+    ctx.beginPath();
+    ctx.ellipse(cx, topY, topHalfW, 4, 0, 0, Math.PI * 2);
+    ctx.stroke();
+
+    // Inner top ring shadow
+    ctx.fillStyle = shadowColor;
+    ctx.beginPath();
+    ctx.ellipse(cx, topY + 1, topHalfW - 4, 2.5, 0, 0, Math.PI * 2);
+    ctx.fill();
+
+    // Cross on top
+    ctx.fillStyle = colColor;
+    ctx.fillRect(cx - 0.5, topY - 9, 1, 9);
+    ctx.fillRect(cx - 3,   topY - 6, 6, 1);
+
+    // Reflection pool ring at the base
+    ctx.fillStyle = (r === 1) ? "rgba(120, 170, 200, 0.40)"
+                  : (r === 3) ? "rgba(40, 60, 100, 0.55)"
+                  :             "rgba(180, 130, 110, 0.40)";
+    ctx.beginPath();
+    ctx.ellipse(cx, baseY + 1, baseHalfW + 3, 3, 0, 0, Math.PI * 2);
+    ctx.fill();
   }
 
   // ----- CONGRESS BUILDING (slab + towers + dome + bowl + ramps) -----
   function drawCongressBuilding(r) {
     const cx = W / 2;
-    const slabBottom = GROUND_Y - 20;     // bottom of slab
+    // Slab is lifted on pilotis (Niemeyer's signature open-ground level).
+    // Visible gap between slab bottom and the Esplanada pavement: 15px.
+    const pilotisTop = GROUND_Y - 35;     // top of the open-ground gap
+    const slabBottom = pilotisTop;        // slab sits on top of pilotis
     const slabH = 50;                      // slab height
     const slabTop = slabBottom - slabH;    // top of slab
     const slabHalfW = 290;                 // slab is 580px wide
@@ -2555,7 +2737,30 @@ canvas#stage {
     ctx.closePath();
     ctx.fill();
 
-    // ----- SLAB BODY: 580×50 centered, bottom at GROUND_Y - 20 -----
+    // ----- PILOTIS (open ground level under the slab) -----
+    // The slab is supported by a row of slim concrete pilotis. Between them
+    // you can see through to the cerrado horizon (Niemeyer's signature
+    // "lifted block" idea). We draw a dark shaded band first (open shadow
+    // under the slab), then 30 evenly spaced columns.
+    const pilotisShade = (r === 3) ? "rgba(0, 0, 20, 0.85)"
+                       : (r === 2) ? "rgba(50, 30, 40, 0.55)"
+                       :             "rgba(40, 50, 70, 0.40)";
+    ctx.fillStyle = pilotisShade;
+    ctx.fillRect(cx - slabHalfW, slabBottom, slabHalfW * 2, GROUND_Y - 20 - slabBottom);
+    // Pilotis columns
+    const colColor = (r === 3) ? "rgba(120, 130, 160, 0.85)"
+                   : (r === 2) ? "rgba(220, 200, 150, 0.95)"
+                   :             "rgba(245, 244, 238, 0.95)";
+    ctx.fillStyle = colColor;
+    const piloCount = 30;
+    const piloW = 3;
+    const piloSpacing = (slabHalfW * 2 - piloW) / (piloCount - 1);
+    for (let i = 0; i < piloCount; i++) {
+      const px = cx - slabHalfW + i * piloSpacing;
+      ctx.fillRect(px, slabBottom, piloW, GROUND_Y - 20 - slabBottom);
+    }
+
+    // ----- SLAB BODY: 580×50, lifted above pilotis -----
     ctx.fillStyle = buildingColor;
     ctx.fillRect(cx - slabHalfW, slabTop, slabHalfW * 2, slabH);
     ctx.strokeStyle = "rgba(0,0,0,0.30)";
@@ -2607,12 +2812,15 @@ canvas#stage {
     drawTowerWindows(cx - 20, towerTop, 16, towerH, r);
     drawTowerWindows(cx + 4,  towerTop, 16, towerH, r);
 
-    // ----- SENATE DOME (LEFT) — full hemisphere opening upward -----
-    const senateCx = cx - 160, senateBaseY = slabTop;
-    const senateR = 70;
+    // ----- SENATE DOME (LEFT) — small convex hemisphere sitting on slab -----
+    // In the photo the Senate dome is noticeably smaller than the Chamber
+    // bowl, and slightly compressed vertically (more squat than spherical).
+    const senateCx = cx - 150, senateBaseY = slabTop;
+    const senateRx = 50;        // dome half-width
+    const senateRy = 36;        // dome height (squat)
     ctx.fillStyle = buildingColor;
     ctx.beginPath();
-    ctx.arc(senateCx, senateBaseY, senateR, Math.PI, 0, false);
+    ctx.ellipse(senateCx, senateBaseY, senateRx, senateRy, 0, Math.PI, 2 * Math.PI, false);
     ctx.closePath();
     ctx.fill();
     ctx.strokeStyle = "rgba(0,0,0,0.30)";
@@ -2621,45 +2829,68 @@ canvas#stage {
     if (r === 1) {
       ctx.fillStyle = "rgba(255, 255, 255, 0.35)";
       ctx.beginPath();
-      ctx.ellipse(senateCx - 22, senateBaseY - 38, 26, 14, -0.4, 0, Math.PI * 2);
+      ctx.ellipse(senateCx - 16, senateBaseY - 22, 18, 9, -0.4, 0, Math.PI * 2);
       ctx.fill();
     } else if (r === 2) {
       ctx.fillStyle = "rgba(255, 240, 180, 0.30)";
       ctx.beginPath();
-      ctx.ellipse(senateCx - 22, senateBaseY - 38, 26, 14, -0.4, 0, Math.PI * 2);
+      ctx.ellipse(senateCx - 16, senateBaseY - 22, 18, 9, -0.4, 0, Math.PI * 2);
       ctx.fill();
     } else {
       // Night: dim, tiny window-style lights along the rim
       ctx.fillStyle = "#ffe066";
-      for (let i = -3; i <= 3; i++) {
-        ctx.fillRect(senateCx - 4 + i * 12, senateBaseY - 10, 2, 2);
+      for (let i = -2; i <= 2; i++) {
+        ctx.fillRect(senateCx - 1 + i * 11, senateBaseY - 6, 2, 2);
       }
     }
 
-    // ----- CHAMBER BOWL (RIGHT) — INVERTED dome, opens UPWARD like a bowl -----
-    const chamberCx = cx + 160, chamberBaseY = slabTop - 100;
-    const chamberR = 70;
+    // ----- CHAMBER BOWL (RIGHT) — wide shallow saucer sitting on the slab -----
+    // In the photo the Chamber is a noticeably WIDER and FLATTER shape than
+    // the Senate dome — it reads almost like a horizontal flying saucer
+    // resting on the slab. We draw the top half of a wide low-aspect ellipse,
+    // so the silhouette stays above slabTop and rests cleanly on the building.
+    const chamberCx = cx + 165, chamberBaseY = slabTop;
+    const chamberRx = 80;       // bowl half-width (wider than Senate)
+    const chamberRy = 22;       // very shallow — saucer profile
     ctx.fillStyle = buildingColor;
     ctx.beginPath();
-    // The bowl opens upward — i.e., its rim is at the top, and the bottom
-    // curves DOWN to a point. We draw the lower hemisphere (filled bowl).
-    ctx.arc(chamberCx, chamberBaseY - 8, chamberR, 0, Math.PI, false);
+    ctx.ellipse(chamberCx, chamberBaseY, chamberRx, chamberRy, 0, Math.PI, 2 * Math.PI, false);
     ctx.closePath();
     ctx.fill();
     ctx.stroke();
-    // Bowl rim highlight
-    ctx.fillStyle = r === 3 ? "rgba(120, 120, 160, 0.35)" : "rgba(255, 255, 255, 0.30)";
-    ctx.fillRect(chamberCx - chamberR + 3, chamberBaseY - 9, chamberR * 2 - 6, 2);
-    // Inside-bowl shading (darker bowl interior)
-    ctx.fillStyle = r === 3 ? "rgba(0, 0, 20, 0.5)" : "rgba(0, 0, 0, 0.20)";
+    // Concave shadow inside the saucer rim — gives the bowl its "opens
+    // upward" feel without extending below the slab line.
+    ctx.fillStyle = r === 3 ? "rgba(40, 40, 70, 0.55)" : "rgba(0, 0, 0, 0.22)";
     ctx.beginPath();
-    ctx.ellipse(chamberCx, chamberBaseY + 14, chamberR - 8, 14, 0, 0, Math.PI * 2);
+    ctx.ellipse(chamberCx, chamberBaseY - 4, chamberRx - 8, 6, 0, 0, Math.PI * 2);
     ctx.fill();
+    // Highlights on the upper-left for a sunlit saucer
+    if (r === 1) {
+      ctx.fillStyle = "rgba(255, 255, 255, 0.30)";
+      ctx.beginPath();
+      ctx.ellipse(chamberCx - 28, chamberBaseY - 14, 22, 5, -0.2, 0, Math.PI * 2);
+      ctx.fill();
+    } else if (r === 2) {
+      ctx.fillStyle = "rgba(255, 240, 180, 0.28)";
+      ctx.beginPath();
+      ctx.ellipse(chamberCx - 28, chamberBaseY - 14, 22, 5, -0.2, 0, Math.PI * 2);
+      ctx.fill();
+    } else {
+      // Night: rim of small lit windows around the saucer's lower edge
+      ctx.fillStyle = "#ffe066";
+      for (let i = -4; i <= 4; i++) {
+        ctx.fillRect(chamberCx - 1 + i * 14, chamberBaseY - 4, 2, 2);
+      }
+    }
 
-    // ----- Brazilian flag pole + flag, on top of the slab -----
+    // ----- Brazilian flag pole + flag, between right tower and Chamber bowl -----
+    // Matches the photo: pole rises from the slab top in the gap between
+    // the right tower (cx+22) and the Chamber bowl (cx+165-80 = cx+85).
+    const poleX = cx + 50;
+    const poleH = 60;
     ctx.fillStyle = "#444";
-    ctx.fillRect(cx - 250, slabTop - 56, 1.8, 56);
-    drawTinyFlag(cx - 250, slabTop - 54);
+    ctx.fillRect(poleX, slabTop - poleH, 1.8, poleH);
+    drawTinyFlag(poleX - 1, slabTop - poleH + 2);
 
     // ----- NIGHT extras: green laser beam shooting up from near Congress -----
     if (r === 3) {
@@ -2678,11 +2909,14 @@ canvas#stage {
       ctx.fill();
     }
 
-    // ----- Palm trees, drawn AFTER buildings so trunks read against them -----
-    drawPalmTree(150, GROUND_Y, r);
-    drawPalmTree(220, GROUND_Y, r);
-    drawPalmTree(W - 150, GROUND_Y, r);
-    drawPalmTree(W - 220, GROUND_Y, r);
+    // ----- Ipê amarelo trees — kept at the far edges only, so the
+    // architecture (slab + dome + bowl) stays visible and centered like
+    // in the reference photo of Praça dos Três Poderes.
+    drawIpeTree(110, GROUND_Y, r);
+    drawIpeTree(W - 110, GROUND_Y, r);
+
+    // ----- Cerrado grass tufts in the foreground -----
+    drawCerradoGrass(r);
   }
 
   // Ministry building row — receding-perspective slabs
@@ -2762,36 +2996,132 @@ canvas#stage {
     }
   }
 
-  // Palm tree — round-aware silhouette
-  function drawPalmTree(x, y, r) {
-    const trunkColor = r === 3 ? "rgba(15, 18, 28, 0.95)" : "#4a3018";
-    const frondColor = r === 3 ? "rgba(15, 18, 28, 0.95)" : "#1a4020";
-    const trunkH = 60;
-    // Trunk (3px wide, 60px tall)
+  // Ipê amarelo — Brazil's national tree, blooms in vivid yellow during the
+  // Brasília dry season. Twisted grey trunk, wide rounded canopy of dense
+  // yellow flowers (no green leaves while in bloom). At night the canopy
+  // reads as a soft mass; at sunset it picks up warm tones.
+  function drawIpeTree(x, y, r) {
+    const trunkColor = (r === 3) ? "rgba(20, 22, 36, 0.95)"
+                     : (r === 2) ? "#3a2a1a"
+                     :             "#4a3a26";
+    // Trunk: slightly tapered, with a subtle leftward lean
+    const trunkH = 56;
+    const trunkTopY = y - trunkH;
     ctx.fillStyle = trunkColor;
-    ctx.fillRect(x - 1.5, y - trunkH, 3, trunkH);
-    // Trunk segments (stylized)
+    ctx.beginPath();
+    ctx.moveTo(x - 2.5, y);
+    ctx.lineTo(x + 2.5, y);
+    ctx.lineTo(x + 1.5, trunkTopY);
+    ctx.lineTo(x - 1.5, trunkTopY);
+    ctx.closePath();
+    ctx.fill();
+    // Bark texture lines
     if (r !== 3) {
-      ctx.fillStyle = "rgba(0,0,0,0.3)";
-      for (let i = 0; i < 6; i++) ctx.fillRect(x - 1.5, y - trunkH + 8 + i * 9, 3, 1);
+      ctx.fillStyle = "rgba(0, 0, 0, 0.25)";
+      ctx.fillRect(x - 0.5, trunkTopY + 4, 0.7, trunkH - 6);
     }
-    // 6 fronds radiating outward (each 20px), slightly drooping
-    ctx.strokeStyle = frondColor;
-    ctx.lineWidth = 3;
+    // Two thin angled branches splitting at ~80% of trunk height
+    ctx.strokeStyle = trunkColor;
+    ctx.lineWidth = 1.5;
     ctx.lineCap = "round";
-    const fronds = [
-      { dx: -22, dy: -8 }, { dx: -16, dy: -18 }, { dx: -4, dy: -22 },
-      { dx: 4, dy: -22 },  { dx: 16, dy: -18 },  { dx: 22, dy: -8 },
-    ];
-    for (const f of fronds) {
-      ctx.beginPath();
-      ctx.moveTo(x, y - trunkH);
-      // Slight droop: end below the straight-line endpoint
-      ctx.quadraticCurveTo(x + f.dx * 0.6, y - trunkH + f.dy * 0.7,
-                           x + f.dx,        y - trunkH + f.dy + 4);
-      ctx.stroke();
-    }
+    const splitY = trunkTopY + 6;
+    ctx.beginPath();
+    ctx.moveTo(x - 1, splitY); ctx.lineTo(x - 11, trunkTopY - 6);
+    ctx.moveTo(x + 1, splitY); ctx.lineTo(x + 11, trunkTopY - 6);
+    ctx.moveTo(x,     splitY); ctx.lineTo(x,      trunkTopY - 10);
+    ctx.stroke();
     ctx.lineCap = "butt";
+
+    // Canopy of yellow flowers — three overlapping puff balls
+    // Round-aware tones: bright yellow (day), warm amber (sunset), muted (night)
+    const flowerHi  = (r === 1) ? "#ffe83a"
+                    : (r === 2) ? "#ffc24a"
+                    :             "rgba(140, 130, 70, 0.85)";
+    const flowerMid = (r === 1) ? "#f5c820"
+                    : (r === 2) ? "#e89030"
+                    :             "rgba(110, 100, 50, 0.85)";
+    const flowerLo  = (r === 1) ? "#c89a08"
+                    : (r === 2) ? "#a05818"
+                    :             "rgba(70, 60, 28, 0.85)";
+
+    const cy = trunkTopY - 8;
+    // Back/lower mass (darker)
+    ctx.fillStyle = flowerLo;
+    ctx.beginPath();
+    ctx.arc(x - 8,  cy + 2, 14, 0, Math.PI * 2);
+    ctx.arc(x + 8,  cy + 2, 14, 0, Math.PI * 2);
+    ctx.arc(x,      cy + 6, 16, 0, Math.PI * 2);
+    ctx.fill();
+    // Mid mass
+    ctx.fillStyle = flowerMid;
+    ctx.beginPath();
+    ctx.arc(x - 10, cy - 1, 11, 0, Math.PI * 2);
+    ctx.arc(x + 10, cy - 1, 11, 0, Math.PI * 2);
+    ctx.arc(x,      cy - 4, 13, 0, Math.PI * 2);
+    ctx.arc(x - 4,  cy + 4, 10, 0, Math.PI * 2);
+    ctx.arc(x + 4,  cy + 4, 10, 0, Math.PI * 2);
+    ctx.fill();
+    // Highlights (bright top puffs catching the light)
+    ctx.fillStyle = flowerHi;
+    ctx.beginPath();
+    ctx.arc(x - 6,  cy - 6, 6, 0, Math.PI * 2);
+    ctx.arc(x + 6,  cy - 6, 6, 0, Math.PI * 2);
+    ctx.arc(x,      cy - 9, 7, 0, Math.PI * 2);
+    ctx.fill();
+
+    // Petal speckles for texture
+    const speckleColor = (r === 1) ? "rgba(255, 240, 80, 0.85)"
+                       : (r === 2) ? "rgba(255, 200, 100, 0.75)"
+                       :             "rgba(180, 170, 100, 0.55)";
+    ctx.fillStyle = speckleColor;
+    for (let i = 0; i < 7; i++) {
+      const ang = (i / 7) * Math.PI * 2 + 0.4;
+      const sx = x + Math.cos(ang) * 11;
+      const sy = cy + Math.sin(ang) * 8 - 1;
+      ctx.fillRect(sx, sy, 1.6, 1.6);
+    }
+
+    // A few fallen petals at the base (only daytime / sunset)
+    if (r !== 3) {
+      ctx.fillStyle = (r === 1) ? "rgba(220, 180, 30, 0.55)" : "rgba(200, 130, 40, 0.55)";
+      for (let i = 0; i < 6; i++) {
+        const px = x + ((i * 7) % 11) - 5 + ((i % 2) ? 8 : -8);
+        ctx.fillRect(px, y - 1, 1.5, 1.2);
+      }
+    }
+  }
+
+  // Cerrado grass tufts — low yellow-green tussocks in the foreground.
+  // Brasília is in the cerrado biome (tropical savanna); these tufts give
+  // the arena a sense of place between the Esplanada pavement and the dirt
+  // arena floor.
+  function drawCerradoGrass(r) {
+    const grassColor = (r === 1) ? "#7a8c3a"
+                     : (r === 2) ? "#6a4a28"
+                     :             "rgba(40, 50, 30, 0.85)";
+    const tipColor   = (r === 1) ? "#bdc56a"
+                     : (r === 2) ? "#c89058"
+                     :             "rgba(120, 130, 80, 0.65)";
+    // Deterministic positions across the foreground
+    const positions = [
+      40, 90, 175, 260, 320, 380, 450, 520, 580, 640, 710, 770, 845, 910,
+    ];
+    for (const tx of positions) {
+      const tH = 4 + ((tx * 7) % 4);
+      // Base clump
+      ctx.fillStyle = grassColor;
+      ctx.fillRect(tx - 3, GROUND_Y - tH, 6, tH);
+      // Tall blades
+      ctx.strokeStyle = tipColor;
+      ctx.lineWidth = 1;
+      ctx.lineCap = "round";
+      ctx.beginPath();
+      ctx.moveTo(tx - 2, GROUND_Y); ctx.lineTo(tx - 3, GROUND_Y - tH - 2);
+      ctx.moveTo(tx,     GROUND_Y); ctx.lineTo(tx + 1, GROUND_Y - tH - 4);
+      ctx.moveTo(tx + 2, GROUND_Y); ctx.lineTo(tx + 3, GROUND_Y - tH - 1);
+      ctx.stroke();
+      ctx.lineCap = "butt";
+    }
   }
 
   // Tiny Brazilian flag for the slab pole
@@ -4515,10 +4845,10 @@ canvas#stage {
   // Roam zones depend on the current main-fighter positions (so Haddad
   // can't walk through Lula and Edu can't walk through Capitão).
   function haddadZone() {
-    return { lo: 30, hi: W - 30, targetX: eduState ? eduState.x : W / 2 };
+    return { lo: 60, hi: Math.max(70, p1.x - 50) };
   }
   function eduZone() {
-    return { lo: 30, hi: W - 30, targetX: haddadState ? haddadState.x : W / 2 };
+    return { lo: Math.min(W - 70, p2.x + 50), hi: W - 60 };
   }
 
   function updateSidekicks() {
@@ -4538,7 +4868,7 @@ canvas#stage {
   //   "waiting"  → stand still, decrement waitTimer. When ≤ 0 → pick a new
   //                random target inside the zone and switch to "walking".
   function stepSidekick(s, mainFighter, zone) {
-    const SPEED = 360;                       // px/s
+    const SPEED = 60;                       // px/s
     const koMode = mainFighter.stance === "ko";
 
     // KO override: ALWAYS chase to the body (skips any wait).
@@ -4572,7 +4902,7 @@ canvas#stage {
         // start walking again.
         const lo = Math.max(zone.lo, 30);
         const hi = Math.max(lo + 1, zone.hi);
-        s.targetX = (zone.targetX !== undefined) ? zone.targetX : lo + Math.random() * (hi - lo);
+        s.targetX = lo + Math.random() * (hi - lo);
         s.mode = "walking";
       }
     }
@@ -5742,6 +6072,26 @@ canvas#stage {
     // Wake up the AudioContext on the very first user gesture anywhere on
     // the page (browsers refuse to resume audio without one). After the
     // first wake-up we remove the listener so it doesn't fire forever.
+    function goFullscreen() {
+      const el = document.documentElement;
+      try {
+        const req = el.requestFullscreen || el.webkitRequestFullscreen || el.mozRequestFullScreen || el.msRequestFullscreen;
+        if (req) req.call(el).catch(() => {});
+      } catch (_) { /* user denied or not supported — ignore */ }
+    }
+    function exitFullscreen() {
+      try {
+        const fn = document.exitFullscreen || document.webkitExitFullscreen || document.mozCancelFullScreen || document.msExitFullscreen;
+        if (fn) fn.call(document);
+      } catch (_) {}
+    }
+    function isFullscreen() {
+      return !!(document.fullscreenElement || document.webkitFullscreenElement || document.mozFullScreenElement || document.msFullscreenElement);
+    }
+    function toggleFullscreen() {
+      if (isFullscreen()) exitFullscreen(); else goFullscreen();
+    }
+
     function firstGestureWake() {
       audio.ensure();
       // Now that the context is alive, fire up the title loop if we're
@@ -5749,6 +6099,8 @@ canvas#stage {
       if (phase === "title" || phase === "select") {
         audio.startTitleMusic();
       }
+      // Auto-enter fullscreen on first gesture (browsers allow it here).
+      goFullscreen();
       document.removeEventListener("pointerdown", firstGestureWake, true);
       document.removeEventListener("keydown",     firstGestureWake, true);
       document.removeEventListener("touchstart",  firstGestureWake, true);
@@ -5852,6 +6204,22 @@ canvas#stage {
       if (!nowMuted) audio.menuClick();
     });
     updateMuteBtn(audio.isMuted());
+
+    // Fullscreen toggle button — for users who escape fullscreen and
+    // want to re-enter, or to manually exit.
+    function updateFsBtn() {
+      const b = el("fs-btn");
+      if (!b) return;
+      b.textContent = isFullscreen() ? "⛶" : "⛶";
+      b.setAttribute("aria-label", isFullscreen() ? "Sair de tela cheia" : "Tela cheia");
+    }
+    el("fs-btn").addEventListener("click", () => {
+      audio.menuClick();
+      toggleFullscreen();
+    });
+    document.addEventListener("fullscreenchange", updateFsBtn);
+    document.addEventListener("webkitfullscreenchange", updateFsBtn);
+    updateFsBtn();
 
     // Wire touch controls (works for mouse too — useful for desktop testing).
     // On any touch-capable device we keep the overlay always visible, since
