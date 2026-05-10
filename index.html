@@ -532,6 +532,10 @@ canvas#stage {
   #rotate { display: flex; flex-direction: column; }
 }
 </style>
+
+<!-- GoatCounter analytics — privacy-friendly, no cookies. -->
+<script data-goatcounter="https://batalhabrasil.goatcounter.com/count"
+        async src="//gc.zgo.at/count.js"></script>
 </head>
 <body>
 
@@ -4868,7 +4872,7 @@ canvas#stage {
   //   "waiting"  → stand still, decrement waitTimer. When ≤ 0 → pick a new
   //                random target inside the zone and switch to "walking".
   function stepSidekick(s, mainFighter, zone) {
-    const SPEED = 60;                       // px/s
+    const SPEED = 140;                      // px/s
     const koMode = mainFighter.stance === "ko";
 
     // KO override: ALWAYS chase to the body (skips any wait).
@@ -4891,7 +4895,7 @@ canvas#stage {
         s.vx = 0;
         if (!koMode) {
           s.mode = "waiting";
-          s.waitTimer = 30 + (Math.random() * 60 | 0);   // 0.5-1.5 s
+          s.waitTimer = 12 + (Math.random() * 24 | 0);   // 0.2-0.6 s
         }
       }
     } else /* "waiting" */ {
