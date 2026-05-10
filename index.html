@@ -344,6 +344,7 @@ canvas#stage {
   background: rgba(0,0,0,0.65);
   backdrop-filter: blur(3px);
   padding: 16px;
+  pointer-events: auto;
 }
 #pause-modal.show { display: flex; }
 .modal-card {
@@ -351,6 +352,7 @@ canvas#stage {
   border: 2px solid #2a3658; border-radius: 14px;
   padding: 22px 20px; min-width: min(360px, 92vw);
   text-align: center; box-shadow: 0 20px 60px rgba(0,0,0,0.7);
+  pointer-events: auto;
 }
 .modal-title {
   font-family: "Impact","Arial Black", system-ui, sans-serif;
@@ -366,6 +368,9 @@ canvas#stage {
   padding: 12px 18px; border: none; border-radius: 10px;
   font-weight: 900; font-size: 16px; letter-spacing: 1.5px; cursor: pointer;
   font-family: "Impact","Arial Black", system-ui, sans-serif;
+  pointer-events: auto;
+  touch-action: manipulation;
+  -webkit-tap-highlight-color: rgba(255, 215, 100, 0.35);
 }
 .modal-btn.yes { background: linear-gradient(180deg, #ff6b6b, #c8102e); color: #fff; box-shadow: 0 3px 0 rgba(0,0,0,0.4); }
 .modal-btn.no  { background: linear-gradient(180deg, #6ee07a, #2bb054); color: #082a12; box-shadow: 0 3px 0 rgba(0,0,0,0.4); }
@@ -6182,14 +6187,29 @@ canvas#stage {
     // Modal actions (delegated). stopPropagation prevents a rapid double-tap
     // on NÃO from bubbling to elements under the now-hidden modal — most
     // notably btn-online which sits in the same z-stack.
-    el("pause-modal").addEventListener("click", (e) => {
+    //
+    // We listen to BOTH click AND touchend because some mobile browsers
+    // (Mobile Safari with overlapping touch targets, Android WebView with
+    // partially-consumed touches) fire touchend without a synthesized click.
+    // A small guard flag dedupes when both fire for the same gesture.
+    let modalHandling = false;
+    function handlePauseModalAction(e) {
       const t = e.target.closest("[data-action]");
       if (!t) return;
+      if (modalHandling) return;
+      modalHandling = true;
+      // preventDefault on touchend suppresses the synthesized click that
+      // would otherwise fire ~300 ms later and re-enter this handler.
+      if (e.type === "touchend") e.preventDefault();
       e.stopPropagation();
       const action = t.dataset.action;
       if (action === "resume") { audio.menuClick(); paused = false; hidePauseModal(); }
       else if (action === "back-to-menu") { audio.menuBack(); paused = false; hidePauseModal(); backToTitle(); }
-    });
+      // Release the dedupe flag on the next tick so future taps work.
+      setTimeout(() => { modalHandling = false; }, 350);
+    }
+    el("pause-modal").addEventListener("click", handlePauseModalAction);
+    el("pause-modal").addEventListener("touchend", handlePauseModalAction, { passive: false });
 
     // End-of-match actions
     el("end-actions").addEventListener("click", (e) => {
@@ -6260,6 +6280,11 @@ canvas#stage {
     // During the celebration skit, tap also fast-forwards to the round-end
     // overlay so impatient players don't have to sit through the full 3 s.
     canvas.addEventListener("pointerdown", () => {
+      // Guard: if any modal is open, ignore canvas taps. Otherwise the tap
+      // can race with the modal's button taps and trigger game-state
+      // changes underneath the modal backdrop.
+      if (document.getElementById("pause-modal")?.classList.contains("show")) return;
+      if (document.getElementById("online-modal")?.classList.contains("show")) return;
       if (phase === "matchEnd" && phaseT > 60) backToTitle();
       else if (phase === "celebrate" && phaseT > 30) {
         // Jump just past the threshold so the next step() tick rolls into
