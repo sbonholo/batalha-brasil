@@ -150,7 +150,7 @@ canvas#stage {
   /* Hidden by default; the .show class is added on touch devices and on
      small viewports via @media query below. */
   display: none;
-  pointer-events: auto;
+  pointer-events: none; /* container is transparent to taps; children re-enable */
   padding: 10px max(14px, env(safe-area-inset-left)) env(safe-area-inset-bottom) max(14px, env(safe-area-inset-right));
   z-index: 10;
   justify-content: space-between; align-items: flex-end;
@@ -183,6 +183,7 @@ canvas#stage {
   font-family: "Impact","Arial Black", system-ui, sans-serif;
   text-align: center; line-height: 1;
   padding: 0;
+  pointer-events: auto;
   -webkit-tap-highlight-color: transparent;
 }
 .tbtn .lbl { display: block; font-size: 8px; opacity: 0.85; margin-top: 1px; letter-spacing: 0.3px; font-weight: 700; }
