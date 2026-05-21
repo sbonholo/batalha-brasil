@@ -32,7 +32,12 @@ html, body {
   touch-action: none;
 }
 #stage-wrap {
-  position: fixed; inset: 0; display: flex; align-items: center; justify-content: center;
+  position: fixed; left: 0; right: 0; top: 0;
+  /* Use visualViewport height (set by JS) when available — fixes iOS
+     Safari URL-bar bug where 100vh overshoots the visible area. Falls
+     back to 100dvh / 100vh on browsers without visualViewport tracking. */
+  height: var(--vv-height, 100dvh);
+  display: flex; align-items: center; justify-content: center;
   background: #000;
 }
 canvas#stage {
@@ -40,6 +45,7 @@ canvas#stage {
   max-width: 100vw;
   max-height: 100vh;
   max-height: 100dvh;
+  max-height: var(--vv-height, 100dvh);
   object-fit: contain;
   image-rendering: pixelated; image-rendering: crisp-edges;
   background: #0a0a0a;
@@ -91,15 +97,18 @@ canvas#stage {
 #menu.show { display: flex; }
 .menu-btn {
   width: min(360px, 92vw);
-  padding: 14px 18px;
+  padding: 16px 20px;
+  min-height: 56px;             /* WCAG/Apple touch target minimum */
   border: none; border-radius: 14px;
   cursor: pointer;
-  font-weight: 900; font-size: 18px; letter-spacing: 1.5px;
+  font-weight: 900; font-size: 20px; letter-spacing: 1.5px;
   color: #1a0e00; text-align: center;
   background: linear-gradient(180deg, #ffe066 0%, #ffb13a 100%);
   box-shadow: 0 4px 0 rgba(0,0,0,0.4), 0 0 0 2px #c8902e;
   transition: transform 0.05s ease, filter 0.15s;
   font-family: "Impact", "Arial Black", system-ui, sans-serif;
+  touch-action: manipulation;
+  -webkit-tap-highlight-color: rgba(255, 215, 100, 0.35);
 }
 .menu-btn:hover { filter: brightness(1.06); }
 .menu-btn:active { transform: translateY(2px); box-shadow: 0 2px 0 rgba(0,0,0,0.4), 0 0 0 2px #c8902e; }
@@ -107,7 +116,8 @@ canvas#stage {
   background: linear-gradient(180deg, #6ee07a 0%, #2bb054 100%);
   box-shadow: 0 5px 0 rgba(0,0,0,0.45), 0 0 0 3px #1d7e3c, 0 0 22px rgba(110, 224, 122, 0.4);
   color: #082a12;
-  font-size: 22px; padding: 16px 22px;
+  font-size: 24px; padding: 18px 24px;
+  min-height: 64px;             /* taller than the secondary buttons */
   letter-spacing: 2px;
   position: relative;
 }
@@ -204,22 +214,39 @@ canvas#stage {
   /* Canvas fills the full screen; touch controls overlay translucently. */
 }
 
-/* ---- Mobile landscape: shrunk D-pad, all 3 attack buttons fit ---- */
-@media (orientation: landscape) and (max-height: 480px) {
-  .dpad { width: 140px; height: 140px; }
-  .actions { grid-template-columns: repeat(3, 50px); gap: 8px; }
-  .tbtn { width: 50px; height: 50px; font-size: 14px; border-radius: 12px; }
-  .tbtn .lbl { font-size: 7px; }
-  .dp-up    { top: 0;    left: 46px; }
-  .dp-left  { top: 46px; left: 0;    }
-  .dp-right { top: 46px; left: 92px; }
-  .dp-down  { top: 92px; left: 46px; }
+/* ---- Mobile landscape: bigger D-pad and attack buttons (≥56px touch
+       targets per Apple/Material guidelines) ---- */
+@media (orientation: landscape) and (max-height: 500px) {
+  .dpad { width: 168px; height: 168px; }
+  .actions { grid-template-columns: repeat(3, 60px); gap: 10px; }
+  .tbtn { width: 60px; height: 60px; font-size: 16px; border-radius: 14px; }
+  .tbtn .lbl { font-size: 8px; }
+  .dp-up    { top: 0;    left: 56px; }
+  .dp-left  { top: 56px; left: 0;    }
+  .dp-right { top: 56px; left: 112px;}
+  .dp-down  { top: 112px;left: 56px; }
 }
 
 /* Always show touch controls on coarse-pointer devices */
 @media (hover: none) and (pointer: coarse) {
   #touch          { display: flex; }
   #touch.always-on, #touch.show { display: flex; }
+}
+
+/* Robust fallback: also show touch controls on ANY small viewport,
+   regardless of pointer/hover detection. Catches mobile browsers and
+   desktop dev-tools emulators that don't report pointer:coarse. */
+@media (max-width: 900px), (max-height: 600px) {
+  #touch { display: flex !important; }
+}
+
+/* When the rotate-to-landscape prompt is shown (portrait phones), hide the
+   touch overlay — it would otherwise be cut off the right edge since the
+   D-pad + 3 action buttons don't fit in a 390px-wide viewport. The user
+   is expected to rotate before playing. Selector specificity matched to
+   #touch.show (1,1,0) so this wins over the earlier portrait rule. */
+@media (orientation: portrait) and (max-width: 768px) {
+  #touch.show, #touch.always-on { display: none !important; }
 }
 
 /* ---------- Character select overlay ---------- */
@@ -249,12 +276,15 @@ canvas#stage {
   display: flex; flex-direction: column; align-items: center;
   background: linear-gradient(180deg, rgba(255,255,255,0.06), rgba(0,0,0,0.4));
   border: 3px solid #2a3658; border-radius: 18px;
-  padding: 14px 10px;
+  padding: 18px 14px;
+  min-height: 220px;
   cursor: pointer;
   font-family: "Impact","Arial Black", system-ui, sans-serif;
   color: #fff; letter-spacing: 1.5px;
   transition: transform 0.07s ease, border-color 0.15s, box-shadow 0.15s;
   min-width: 0;
+  touch-action: manipulation;
+  -webkit-tap-highlight-color: rgba(255, 215, 100, 0.35);
 }
 .select-card.ze  { border-color: #c8102e; background: linear-gradient(180deg, rgba(200, 16, 46, 0.25), rgba(20, 8, 12, 0.6)); }
 .select-card.cap { border-color: #5a7547; background: linear-gradient(180deg, rgba(74, 93, 46, 0.30), rgba(15, 22, 8, 0.6)); }
@@ -292,6 +322,47 @@ canvas#stage {
 }
 #select-back:hover { background: rgba(255,255,255,0.06); }
 .select-hint { color: #aab4c5; font-size: 11px; margin: 10px 0 0; text-align: center; }
+
+/* ---- Mobile select-screen layout ---- */
+/* Narrow viewports (phones in portrait): stack the two cards vertically
+   so each gets full width and the VS divider compacts to a tiny badge. */
+@media (max-width: 600px) {
+  #select-row {
+    flex-direction: column;
+    gap: 14px;
+    max-width: 360px;
+  }
+  .select-card {
+    flex: 0 0 auto;
+    width: 100%;
+    min-height: 0;
+    flex-direction: row;
+    padding: 14px 16px;
+    gap: 14px;
+    text-align: left;
+  }
+  .select-card > * { flex-shrink: 0; }
+  .select-portrait { width: 80px; height: 100px; }
+  .select-name { margin-top: 0; font-size: 20px; }
+  .select-tag  { display: block; }
+  .select-go   { margin-top: 6px; padding: 10px 14px; font-size: 15px; min-height: 44px; }
+  .select-vs {
+    font-size: 22px;
+    padding: 4px 16px;
+    background: rgba(0,0,0,0.45);
+    border-radius: 999px;
+    -webkit-text-stroke: 1px #c8102e;
+  }
+}
+/* Short landscape phones: keep horizontal but enlarge cards so they're
+   not cramped against the VS divider. */
+@media (orientation: landscape) and (max-height: 500px) {
+  #select-row { gap: 8px; max-width: 100%; }
+  .select-card { min-height: 0; padding: 10px 8px; }
+  .select-portrait { width: 64px; height: 84px; }
+  .select-name { font-size: 14px; }
+  .select-go   { padding: 8px 12px; font-size: 13px; min-height: 40px; }
+}
 
 /* ---------- Pause button + modal ---------- */
 #pause-btn {
@@ -6249,8 +6320,13 @@ canvas#stage {
     // On any touch-capable device we keep the overlay always visible, since
     // the keyboard simply doesn't exist there.
     const touch = document.getElementById("touch");
+    // Show controls if EITHER the device is touch-capable OR the viewport
+    // is small enough that a keyboard probably isn't available (mobile
+    // browser, desktop devtools mobile emulator, etc.). Belt-and-suspenders
+    // with the CSS media queries.
     const isTouch = ("ontouchstart" in window) || (navigator.maxTouchPoints || 0) > 0;
-    if (isTouch) {
+    const isSmall = window.innerWidth <= 900 || window.innerHeight <= 600;
+    if (isTouch || isSmall) {
       touch.classList.add("show");
       touch.classList.add("always-on");
       touch.setAttribute("aria-hidden", "false");
