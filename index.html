@@ -49,14 +49,6 @@ canvas#stage {
   font-size: 12px; color: #aab4c5; text-align: center; background: rgba(0,0,0,0.55);
   letter-spacing: 0.5px; pointer-events: none;
 }
-/* Hide keyboard hint when touch controls are active */
-#touch.show ~ #hint,
-#touch.always-on ~ #hint {
-  display: none;
-}
-@media (max-width: 1024px) {
-  #hint { display: none; }
-}
 #hint b { color: #ffd84a; }
 
 /* ---------- Paywall ---------- */
@@ -150,11 +142,10 @@ canvas#stage {
   /* Hidden by default; the .show class is added on touch devices and on
      small viewports via @media query below. */
   display: none;
-  pointer-events: none; /* container is transparent to taps; children re-enable */
-  padding: 10px max(14px, env(safe-area-inset-left)) env(safe-area-inset-bottom) max(14px, env(safe-area-inset-right));
+  pointer-events: auto;
+  padding: 10px 14px env(safe-area-inset-bottom);
   z-index: 10;
   justify-content: space-between; align-items: flex-end;
-  box-sizing: border-box;
 }
 #touch.show { display: flex; }
 .dpad { position: relative; width: 168px; height: 168px; pointer-events: auto; flex-shrink: 0; }
@@ -183,7 +174,6 @@ canvas#stage {
   font-family: "Impact","Arial Black", system-ui, sans-serif;
   text-align: center; line-height: 1;
   padding: 0;
-  pointer-events: auto;
   -webkit-tap-highlight-color: transparent;
 }
 .tbtn .lbl { display: block; font-size: 8px; opacity: 0.85; margin-top: 1px; letter-spacing: 0.3px; font-weight: 700; }
@@ -201,10 +191,6 @@ canvas#stage {
 .ab-special { background: rgba(255, 215, 0, 0.55); color: #1a0e00; }   /* flag yellow */
 
 /* ---- Mobile portrait: bigger D-pad + bigger action buttons ---- */
-@media (orientation: portrait) {
-  /* Show the rotate-device overlay on ALL portrait phones/tablets */
-  #rotate { display: flex !important; flex-direction: column; align-items: center; justify-content: center; }
-}
 @media (orientation: portrait) and (max-width: 768px) {
   #touch.show, .always-on #touch { display: flex !important; }
   .dpad { width: 180px; height: 180px; }
@@ -235,20 +221,15 @@ canvas#stage {
   #touch          { display: flex; }
   #touch.always-on, #touch.show { display: flex; }
 }
-/* Also show touch controls on small-screen devices regardless of pointer type */
-@media (max-width: 1024px) {
-  #touch { display: flex; }
-  #touch.show, #touch.always-on { display: flex; }
-}
 
 /* ---------- Character select overlay ---------- */
 #select {
   position: fixed; inset: 0; z-index: 3;
   display: none;
   flex-direction: column; align-items: center; justify-content: center;
-  background: rgba(5, 8, 18, 0.92);
+  background: rgba(10, 14, 26, 0.55);
   padding: env(safe-area-inset-top) 16px env(safe-area-inset-bottom);
-  backdrop-filter: blur(6px);
+  backdrop-filter: blur(2px);
 }
 #select.show { display: flex; }
 #select-title {
@@ -579,7 +560,6 @@ canvas#stage {
   <button class="menu-btn facil"   data-difficulty="facil">FÁCIL</button>
   <button class="menu-btn medio"   data-difficulty="medio">MÉDIO</button>
   <button class="menu-btn dificil" data-difficulty="dificil">DIFÍCIL</button>
-  <button class="menu-btn online" id="btn-online">⚔️ JOGAR ONLINE</button>
 </div>
 
 <!-- Online multiplayer modal -->
@@ -673,7 +653,7 @@ canvas#stage {
     <button class="tbtn dp-up"    data-key="up"    aria-label="Pular">▲</button>
     <button class="tbtn dp-left"  data-key="left"  aria-label="Esquerda">◀</button>
     <button class="tbtn dp-right" data-key="right" aria-label="Direita">▶</button>
-    <button class="tbtn dp-down"  data-key="down"  aria-label="Defender">▼<span class="lbl">BLOCK</span></button>
+    <button class="tbtn dp-down"  data-key="down"  aria-label="Defender">▼</button>
   </div>
   <div class="actions">
     <button class="tbtn ab-punch"   data-key="punch"   aria-label="Soco">A<span class="lbl">SOCO</span></button>
@@ -5751,17 +5731,38 @@ canvas#stage {
 
   // ---------- TITLE SCREEN ----------
   function drawTitle() {
-    // Big title with vertical Brazil-flag gradient (green → yellow → blue)
+    // Portraits FIRST so the title text below draws on top of any sprite
+    // pixels that creep into the title's horizontal extent. Also pushed
+    // slightly down (cy = H * 0.66) so the heads sit well below the title
+    // baseline even on tall viewports.
+    drawTitlePortrait(W * 0.27, H * 0.66, "ze", -1);
+    drawTitlePortrait(W * 0.73, H * 0.66, "capitao", 1);
+
+    // VS between portraits
     ctx.save();
-    ctx.translate(W / 2, 110);
-    const titleGrad = ctx.createLinearGradient(0, -42, 0, 42);
+    ctx.translate(W / 2, H * 0.62);
+    ctx.fillStyle = "#c8102e";
+    ctx.strokeStyle = "#fff";
+    ctx.lineWidth = 6;
+    ctx.font = '900 84px "Impact",system-ui,sans-serif';
+    ctx.textAlign = "center"; ctx.textBaseline = "middle";
+    ctx.strokeText("VS", 0, 0);
+    ctx.fillText("VS", 0, 0);
+    ctx.restore();
+
+    // Big title with vertical Brazil-flag gradient (green → yellow → blue).
+    // Drawn AFTER portraits so it always sits on top of them. Font sized
+    // to keep "BATALHA BRASIL" comfortably inside the inner portrait edges.
+    ctx.save();
+    ctx.translate(W / 2, 100);
+    const titleGrad = ctx.createLinearGradient(0, -38, 0, 38);
     titleGrad.addColorStop(0,   "#009c3b");   // flag green
     titleGrad.addColorStop(0.5, "#ffdf00");   // flag yellow
     titleGrad.addColorStop(1,   "#002776");   // flag blue
     ctx.fillStyle = titleGrad;
     ctx.strokeStyle = "#000";
-    ctx.lineWidth = 9;
-    ctx.font = '900 92px "Impact","Arial Black",system-ui,sans-serif';
+    ctx.lineWidth = 8;
+    ctx.font = '900 80px "Impact","Arial Black",system-ui,sans-serif';
     ctx.textAlign = "center"; ctx.textBaseline = "middle";
     ctx.strokeText("BATALHA BRASIL", 0, 0);
     ctx.fillText("BATALHA BRASIL", 0, 0);
@@ -5773,31 +5774,15 @@ canvas#stage {
     ctx.fillStyle = "#009c3b";
     ctx.strokeStyle = "#000";
     ctx.lineWidth = 4;
-    ctx.font = '900 30px "Impact","Arial Black",system-ui,sans-serif';
-    ctx.strokeText("JOGUE GRÁTIS!", 0, 56);
-    ctx.fillText("JOGUE GRÁTIS!", 0, 56);
+    ctx.font = '900 28px "Impact","Arial Black",system-ui,sans-serif';
+    ctx.strokeText("JOGUE GRÁTIS!", 0, 52);
+    ctx.fillText("JOGUE GRÁTIS!", 0, 52);
     ctx.restore();
 
     // Subtitle
     ctx.fillStyle = "#fff";
     ctx.font = "700 17px system-ui";
-    ctx.fillText("A paródia política mais épica do Brasil", 0, 88);
-    ctx.restore();
-
-    // Two fighter portraits as large versions of in-game art
-    drawTitlePortrait(W * 0.27, H * 0.62, "ze", -1);
-    drawTitlePortrait(W * 0.73, H * 0.62, "capitao", 1);
-
-    // VS
-    ctx.save();
-    ctx.translate(W / 2, H * 0.6);
-    ctx.fillStyle = "#c8102e";
-    ctx.strokeStyle = "#fff";
-    ctx.lineWidth = 6;
-    ctx.font = '900 84px "Impact",system-ui,sans-serif';
-    ctx.textAlign = "center"; ctx.textBaseline = "middle";
-    ctx.strokeText("VS", 0, 0);
-    ctx.fillText("VS", 0, 0);
+    ctx.fillText("A paródia política mais épica do Brasil", 0, 84);
     ctx.restore();
 
     // The HTML menu renders the difficulty selector on top of this canvas,
@@ -6144,12 +6129,8 @@ canvas#stage {
       btn.addEventListener("click", () => { audio.menuPick(); startSelect(diff); });
     });
 
-    // Online button → open the online modal
-    el("btn-online").addEventListener("click", () => {
-      audio.menuPick();
-      showOnlineModal();
-    });
-    // Online modal handlers
+    // Online modal handlers (modal infrastructure kept for future re-enable;
+    // the entry-point button has been removed from the menu for now)
     el("online-host").addEventListener("click", () => { audio.menuPick(); onlineHost(); });
     el("online-join").addEventListener("click", () => { audio.menuPick(); showOnlineStep("join"); setOnlineStatus(""); });
     el("online-connect").addEventListener("click", () => {
@@ -6268,7 +6249,7 @@ canvas#stage {
     // On any touch-capable device we keep the overlay always visible, since
     // the keyboard simply doesn't exist there.
     const touch = document.getElementById("touch");
-    const isTouch = ("ontouchstart" in window) || (navigator.maxTouchPoints || 0) > 0 || window.innerWidth <= 1024;
+    const isTouch = ("ontouchstart" in window) || (navigator.maxTouchPoints || 0) > 0;
     if (isTouch) {
       touch.classList.add("show");
       touch.classList.add("always-on");
