@@ -873,6 +873,14 @@ canvas#stage {
   const effects = [];                  // burst comics, hit sparks, dust, aura
   let shake = 0;
   let hitstop = 0;
+  let koFlash = 0;        // frames of bright white flash after a KO (decays each frame)
+
+  // Haptic feedback helper. Wrapped so we can no-op gracefully on browsers
+  // without navigator.vibrate (iOS Safari, most desktops). Pattern can be
+  // a single number (ms) or an array (alternating on/off ms).
+  function vibrate(pattern) {
+    try { navigator.vibrate && navigator.vibrate(pattern); } catch (_) {}
+  }
   const crowd = [];
   let titlePulse = 0;
   let timeNow = 0;                     // animation seconds since boot
@@ -1756,6 +1764,8 @@ canvas#stage {
       onGround: true, blocking: false,
       flash: 0,
       hpFlash: 0,            // counts down per frame; HP bar glows red while > 0
+      comboTaken: 0,         // hits received in the current combo string
+      comboTimer: 0,         // frames left before the combo string expires
     };
   }
 
@@ -1867,7 +1877,7 @@ canvas#stage {
     timer = ROUND_TIME;
     phase = "ready"; phaseT = 0;
     effects.length = 0;
-    shake = 0; hitstop = 0;
+    shake = 0; hitstop = 0; koFlash = 0;
   }
 
   // ============================================================
@@ -1968,6 +1978,11 @@ canvas#stage {
     if (f.cd.kick > 0) f.cd.kick--;
     if (f.cd.special > 0) f.cd.special--;
     if (f.flash > 0) f.flash--;
+    // Combo string expiry — if no new hit lands within the window, reset
+    if (f.comboTimer > 0) {
+      f.comboTimer--;
+      if (f.comboTimer === 0) f.comboTaken = 0;
+    }
 
     if (f.stance === "ko") { f.vx *= 0.85; return; }
     if (isLockedStance(f.stance)) { f.vx *= 0.88; return; }
@@ -2116,6 +2131,9 @@ canvas#stage {
         shake = Math.max(shake, 2);
         hitstop = Math.max(hitstop, 2);
         audio.block();
+        // Soft haptic on block — confirms the input registered
+        vibrate(8);
+        // Blocking does NOT advance the combo string
       } else {
         def.vx = dir * m.knockX;
         def.vy = m.knockY;
@@ -2127,10 +2145,26 @@ canvas#stage {
         shake = Math.max(shake, m.shake);
         hitstop = Math.max(hitstop, m.hitstop);
 
+        // Combo tracking — increment the defender's "hits taken" streak and
+        // refresh the expiry window. We show a popup on every hit from #2
+        // onward, sized up at landmark counts (3, 5, 8, ...).
+        def.comboTaken++;
+        def.comboTimer = 75;     // ~1.25 s @ 60Hz to land the next hit
+        if (def.comboTaken >= 2) {
+          const big = def.comboTaken >= 5;
+          spawnComic(cx, cy - 36, def.comboTaken + " HITS!", big);
+        }
+
         // Hit SFX by attack kind
         if (att.attackKind === "punch") audio.punchHit();
         else if (att.attackKind === "kick") audio.kickHit();
         else audio.specialHit();
+
+        // Haptic feedback proportional to hit weight (mobile only)
+        const vibMs = att.attackKind === "special" ? 30
+                    : att.attackKind === "kick"    ? 20
+                    :                                12;
+        vibrate(vibMs);
 
         if (def.hp <= 0) {
           startStance(def, "ko", 9999);
@@ -2140,6 +2174,10 @@ canvas#stage {
           spawnComic(cx, cy - 30, "K.O.!", true);
           shake = Math.max(shake, 18);
           hitstop = Math.max(hitstop, 22);
+          // Bright white flash framing the KO moment — sells the impact
+          koFlash = 24;
+          // Double-tap haptic pattern for KO
+          vibrate([0, 80, 30, 80]);
           audio.ko();
         }
       }
@@ -2351,6 +2389,7 @@ canvas#stage {
     }
     for (let i = effects.length - 1; i >= 0; i--) if (effects[i].life <= 0) effects.splice(i, 1);
     if (shake > 0) shake = Math.max(0, shake - 1);
+    if (koFlash > 0) koFlash = Math.max(0, koFlash - 1);
   }
 
   const COMIC_WORDS_PUNCH   = ["PAU!", "SOCO!", "ÔPA!", "VAPT!", "TOMA!", "BAH!", "EITA!"];
@@ -2425,6 +2464,14 @@ canvas#stage {
     // hit flash on top
     if (p1 && p1.flash > 3 && phase !== "title") {
       ctx.fillStyle = "rgba(255,255,255,0.06)";
+      ctx.fillRect(0, 0, W, H);
+    }
+    // Full-screen white flash at the moment of KO — strongest in the first
+    // few frames then fades out. Sits over everything (including HUD) so
+    // the impact moment really pops.
+    if (koFlash > 0 && phase !== "title") {
+      const a = (koFlash / 24) * 0.75;
+      ctx.fillStyle = "rgba(255, 255, 255, " + a.toFixed(3) + ")";
       ctx.fillRect(0, 0, W, H);
     }
   }
@@ -5353,6 +5400,33 @@ canvas#stage {
     ctx.font = "900 22px system-ui";
     ctx.textAlign = "center"; ctx.textBaseline = "middle";
     ctx.fillText(String(tNum).padStart(2, "0"), 0, 1);
+    ctx.restore();
+
+    // Difficulty badge — small chip under the timer so players don't forget
+    // which CPU level they're playing against. Color matches the menu button.
+    const diffLabel = currentDifficulty === "facil"   ? "FÁCIL"
+                    : currentDifficulty === "dificil" ? "DIFÍCIL"
+                    :                                   "MÉDIO";
+    const diffColor = currentDifficulty === "facil"   ? "#6ee07a"
+                    : currentDifficulty === "dificil" ? "#ff6b6b"
+                    :                                   "#ffdf00";
+    ctx.save();
+    ctx.translate(W / 2, 96);
+    ctx.font = "900 11px Impact, system-ui";
+    ctx.textAlign = "center"; ctx.textBaseline = "middle";
+    const padX = 8, badgeH = 16;
+    const metrics = ctx.measureText(diffLabel);
+    const badgeW = Math.ceil(metrics.width) + padX * 2;
+    ctx.fillStyle = "rgba(0,0,0,0.55)";
+    if (ctx.roundRect) {
+      ctx.beginPath();
+      ctx.roundRect(-badgeW / 2, -badgeH / 2, badgeW, badgeH, 6);
+      ctx.fill();
+    } else {
+      ctx.fillRect(-badgeW / 2, -badgeH / 2, badgeW, badgeH);
+    }
+    ctx.fillStyle = diffColor;
+    ctx.fillText(diffLabel, 0, 1);
     ctx.restore();
   }
 
