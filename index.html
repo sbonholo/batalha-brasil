@@ -1777,6 +1777,8 @@ canvas#stage {
       hpFlash: 0,            // counts down per frame; HP bar glows red while > 0
       comboTaken: 0,         // hits received in the current combo string
       comboTimer: 0,         // frames left before the combo string expires
+      superMeter: 0,         // 0-100; full bar turns the next special into a SUPER
+      superActive: false,    // true while a meter-burning super attack is live
     };
   }
 
@@ -1885,8 +1887,14 @@ canvas#stage {
   }
 
   function resetForNextRound() {
+    // Super meter persists across rounds (matches fighting-game convention;
+    // rounds are too short to build a full bar from zero every time).
+    const keepP1 = p1 ? p1.superMeter : 0;
+    const keepP2 = p2 ? p2.superMeter : 0;
     p1 = makeFighter(ZE, "p1");
     p2 = makeFighter(CAPITAO, "p2");
+    p1.superMeter = keepP1;
+    p2.superMeter = keepP2;
     timer = ROUND_TIME;
     phase = "ready"; phaseT = 0;
     effects.length = 0;
@@ -1997,6 +2005,8 @@ canvas#stage {
       if (f.comboTimer === 0) f.comboTaken = 0;
     }
 
+    if (f.superActive && f.stance !== "special") f.superActive = false;
+
     if (f.stance === "ko") { f.vx *= 0.85; return; }
     if (isLockedStance(f.stance)) { f.vx *= 0.88; return; }
 
@@ -2006,6 +2016,14 @@ canvas#stage {
         const m = MOVES.special;
         startStance(f, "special", m.total, "special");
         f.cd.special = m.cd; f.vx = 0;
+        // Full super meter converts this special into a SUPER: burns the
+        // whole bar for a heavier, cinematic version of the same move.
+        if (f.superMeter >= 100) {
+          f.superMeter = 0;
+          f.superActive = true;
+          spawnText(f.x, f.y - FH - 24, "SUPER!", "#ffdf00");
+          vibrate(40);
+        }
         audio.whiff();
         return;
       }
@@ -2130,8 +2148,14 @@ canvas#stage {
       const m = MOVES[att.attackKind];
       const attFromFront = (att.x - def.x) * def.facing > 0;
       const blocked = def.blocking && attFromFront && def.onGround;
-      const dmg = blocked ? Math.max(1, Math.round(m.dmg * 0.2)) : m.dmg;
+      const isSuper = att.superActive && att.attackKind === "special";
+      let dmg = blocked ? Math.max(1, Math.round(m.dmg * 0.2)) : m.dmg;
+      if (isSuper) dmg = blocked ? 10 : 34;   // super hits hard, even blocked
       def.hp = Math.max(0, def.hp - dmg);
+      // Super meter economy: land hits to build fast, take hits to build
+      // some, block to build a little. Burned to 0 when the super fires.
+      if (!att.superActive) att.superMeter = Math.min(100, att.superMeter + (blocked ? 4 : m.dmg * 1.1));
+      def.superMeter = Math.min(100, def.superMeter + dmg * 0.7);
       def.flash = 6;
       def.hpFlash = 8;       // glow the HP bar red for ~8 frames after hit
       const dir = att.facing;
@@ -2148,15 +2172,16 @@ canvas#stage {
         vibrate(8);
         // Blocking does NOT advance the combo string
       } else {
-        def.vx = dir * m.knockX;
-        def.vy = m.knockY;
+        def.vx = dir * (isSuper ? 640 : m.knockX);
+        def.vy = isSuper ? -430 : m.knockY;
         def.onGround = false;
         startStance(def, "hurt", 14);
-        spawnSpark(cx, cy, "#ffd84a");
-        spawnComic(cx, cy, randomComicWord(att.attackKind));
+        spawnSpark(cx, cy, isSuper ? "#fff2a0" : "#ffd84a");
+        spawnComic(cx, cy, isSuper ? "SUPERRR!" : randomComicWord(att.attackKind), isSuper);
         if (att.attackKind === "special") spawnAura(att);
-        shake = Math.max(shake, m.shake);
-        hitstop = Math.max(hitstop, m.hitstop);
+        shake = Math.max(shake, isSuper ? 22 : m.shake);
+        hitstop = Math.max(hitstop, isSuper ? 26 : m.hitstop);
+        if (isSuper) { koFlash = Math.max(koFlash, 14); vibrate([0, 60, 20, 60]); }
 
         // Combo tracking — increment the defender's "hits taken" streak and
         // refresh the expiry window. We show a popup on every hit from #2
@@ -5610,6 +5635,8 @@ canvas#stage {
 
     drawHpBar(p1, 30, 30, false);
     drawHpBar(p2, W - 30 - 360, 30, true);
+    drawSuperMeter(p1, 30, 62, false);
+    drawSuperMeter(p2, W - 30 - 240, 62, true);
 
     // Names with black stroke for readability against any background.
     ctx.font = "900 18px system-ui";
@@ -5739,6 +5766,41 @@ canvas#stage {
     ctx.fillStyle = gloss;
     ctx.fillRect(x, y, w, h);
     if (flashing) ctx.restore();
+  }
+
+  // Super meter — thin bar under the HP bar. Fills blue→gold; pulses gold
+  // when full to shout "your D button is now a SUPER".
+  function drawSuperMeter(f, x, y, mirror) {
+    const w = 240, h = 8;
+    const pct = Math.min(1, f.superMeter / 100);
+    const full = pct >= 1;
+    // Frame
+    ctx.fillStyle = "rgba(0, 0, 0, 0.65)";
+    ctx.fillRect(x - 2, y - 2, w + 4, h + 4);
+    // Fill
+    const fillW = Math.round(w * pct);
+    const meterGrad = cachedGradient("superMeter" + x, () => {
+      const g = ctx.createLinearGradient(x, y, x + w, y);
+      g.addColorStop(0, "#2b6cd4");
+      g.addColorStop(0.7, "#38b6ff");
+      g.addColorStop(1, "#ffdf00");
+      return g;
+    });
+    ctx.fillStyle = meterGrad;
+    if (mirror) ctx.fillRect(x + w - fillW, y, fillW, h);
+    else        ctx.fillRect(x, y, fillW, h);
+    if (full) {
+      // Pulsing gold glow + label
+      const pulse = 0.5 + Math.sin(timeNow * 8) * 0.4;
+      ctx.fillStyle = `rgba(255, 223, 0, ${pulse * 0.5})`;
+      ctx.fillRect(x, y, w, h);
+      ctx.fillStyle = `rgba(255, 235, 120, ${0.6 + pulse * 0.4})`;
+      ctx.font = "900 11px Impact, system-ui";
+      ctx.textAlign = mirror ? "right" : "left";
+      ctx.textBaseline = "middle";
+      // Sits in the HUD strip above the HP bar (names own the y=80 line)
+      ctx.fillText("★ SUPER PRONTO! (D)", mirror ? x + w : x, 16);
+    }
   }
 
   function drawRoundDots(n, x, y, rightAlign) {
