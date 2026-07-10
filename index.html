@@ -2376,6 +2376,8 @@ canvas#stage {
         life: 22 + Math.random() * 10, max: 30, color,
       });
     }
+    // Impact shockwave ring — the classic arcade "hit confirmed" read
+    effects.push({ kind: "ring", x, y, life: 12, max: 12, color });
   }
   function spawnDust(x, y, n) {
     for (let i = 0; i < n; i++) {
@@ -2410,7 +2412,8 @@ canvas#stage {
         e.life--;
       } else if (e.kind === "text") {
         e.rise += 1; e.life--;
-      } else if (e.kind === "aura") { e.life--; }
+      } else if (e.kind === "ring") { e.life--; }
+      else if (e.kind === "aura") { e.life--; }
     }
     for (let i = effects.length - 1; i >= 0; i--) if (effects[i].life <= 0) effects.splice(i, 1);
     if (shake > 0) shake = Math.max(0, shake - 1);
@@ -2457,6 +2460,7 @@ canvas#stage {
 
     drawSky(round);
     drawDistantSkyline(round);
+    drawAtmosphere(round);
     drawCongressBuilding(round);
     drawEsplanada(round);
     drawCrowd(round);
@@ -2485,6 +2489,35 @@ canvas#stage {
     }
 
     ctx.restore();
+
+    // ---- Cinematic finish: per-round color grade + vignette ----
+    // A barely-there tint unifies every layer under one light temperature,
+    // and the vignette pulls the eye to the center of the stage.
+    const grade = cachedGradient("grade" + round, () => {
+      const g = ctx.createLinearGradient(0, 0, 0, H);
+      if (round === 3) {           // night: cool blue grade
+        g.addColorStop(0, "rgba(30, 60, 140, 0.10)");
+        g.addColorStop(1, "rgba(10, 25, 70, 0.12)");
+      } else if (round === 2) {    // sunset: hot amber grade
+        g.addColorStop(0, "rgba(255, 120, 40, 0.07)");
+        g.addColorStop(1, "rgba(200, 60, 30, 0.09)");
+      } else {                     // day: gentle golden warmth
+        g.addColorStop(0, "rgba(255, 235, 190, 0.05)");
+        g.addColorStop(1, "rgba(255, 210, 150, 0.05)");
+      }
+      return g;
+    });
+    ctx.fillStyle = grade;
+    ctx.fillRect(0, 0, W, H);
+    const vignette = cachedGradient("vignette", () => {
+      const g = ctx.createRadialGradient(W / 2, H / 2, H * 0.42, W / 2, H / 2, H * 0.85);
+      g.addColorStop(0, "rgba(0, 0, 10, 0)");
+      g.addColorStop(0.7, "rgba(0, 0, 10, 0.16)");
+      g.addColorStop(1, "rgba(0, 0, 10, 0.40)");
+      return g;
+    });
+    ctx.fillStyle = vignette;
+    ctx.fillRect(0, 0, W, H);
 
     // hit flash on top
     if (p1 && p1.flash > 3 && phase !== "title") {
@@ -2621,6 +2654,33 @@ canvas#stage {
     ctx.arc(cx + r * 0.7, cy + 4, r * 0.8, 0, Math.PI * 2);
     ctx.arc(cx - r * 0.7, cy + 4, r * 0.7, 0, Math.PI * 2);
     ctx.fill();
+  }
+
+  // ----- ATMOSPHERIC PERSPECTIVE -----
+  // A haze wash over the far layers (lake + hills + landmarks) before the
+  // Congress is drawn on top. Desaturating the distance is what makes the
+  // foreground pop — the single cheapest "big studio" depth cue there is.
+  function drawAtmosphere(r) {
+    const haze = cachedGradient("haze" + r, () => {
+      const hzTop = GROUND_Y - 175, hzBot = GROUND_Y - 20;
+      const g = ctx.createLinearGradient(0, hzTop, 0, hzBot);
+      if (r === 1) {          // day: pale blue-white distance haze
+        g.addColorStop(0, "rgba(190, 216, 235, 0)");
+        g.addColorStop(0.55, "rgba(196, 222, 240, 0.34)");
+        g.addColorStop(1, "rgba(205, 228, 242, 0.42)");
+      } else if (r === 3) {   // night: deep blue murk
+        g.addColorStop(0, "rgba(8, 16, 40, 0)");
+        g.addColorStop(0.55, "rgba(10, 18, 46, 0.42)");
+        g.addColorStop(1, "rgba(12, 20, 52, 0.5)");
+      } else {                // sunset: warm amber glow haze
+        g.addColorStop(0, "rgba(255, 140, 70, 0)");
+        g.addColorStop(0.55, "rgba(255, 130, 60, 0.28)");
+        g.addColorStop(1, "rgba(250, 120, 55, 0.36)");
+      }
+      return g;
+    });
+    ctx.fillStyle = haze;
+    ctx.fillRect(0, GROUND_Y - 175, W, 155);
   }
 
   // ----- BRASÍLIA HORIZON: Lake Paranoá + cerrado plateau + landmarks -----
@@ -3346,8 +3406,30 @@ canvas#stage {
     const floorStripe = r === 3 ? "#15152a" : (r === 1 ? "#4a3820" : "#332720");
     ctx.fillStyle = floorMain;
     ctx.fillRect(0, GROUND_Y, W, H - GROUND_Y);
+    // Perspective seams converging toward center-stage — sells the floor
+    // as a plane receding under the camera instead of flat stripes.
+    ctx.strokeStyle = floorStripe;
+    ctx.lineWidth = 1;
+    ctx.beginPath();
+    for (let i = 0; i <= 14; i++) {
+      const xTop = (i / 14) * W;
+      const xBot = W / 2 + (xTop - W / 2) * 1.6;
+      ctx.moveTo(xTop, GROUND_Y + 6);
+      ctx.lineTo(xBot, H);
+    }
+    ctx.stroke();
     ctx.fillStyle = floorStripe;
     for (let i = 0; i < 12; i++) ctx.fillRect(0, GROUND_Y + 6 + i * 8, W, 1);
+    // Stage spotlight pool where the fighters stand
+    const spot = cachedGradient("stageSpot" + r, () => {
+      const warm = r === 3 ? "rgba(150, 180, 255, 0.10)" : "rgba(255, 240, 200, 0.12)";
+      const g = ctx.createRadialGradient(W / 2, GROUND_Y + 10, 40, W / 2, GROUND_Y + 10, W * 0.5);
+      g.addColorStop(0, warm);
+      g.addColorStop(1, "rgba(0, 0, 0, 0)");
+      return g;
+    });
+    ctx.fillStyle = spot;
+    ctx.fillRect(0, GROUND_Y, W, H - GROUND_Y);
     // Brazilian-flag green/yellow ring border
     ctx.fillStyle = "#009c3b";
     ctx.fillRect(0, GROUND_Y, W, 4);
@@ -3356,29 +3438,107 @@ canvas#stage {
   }
 
   // ---------- FIGHTER ----------
+  // Cel-shading pass: each fighter is rendered into an offscreen buffer,
+  // then composited onto the stage as (1) an ink outline — the sprite's
+  // silhouette stamped in 8 directions, (2) the sprite itself, (3) a rim
+  // light — the silhouette tinted with the round's key-light color and
+  // carved by the same silhouette offset toward the light, leaving a thin
+  // lit crescent along the sun/moon-facing edge. This is the classic
+  // 2D "cel + rim" trick and it makes flat vector art read as lit forms.
+  const CEL_W = 300, CEL_H = 210, CEL_OX = 150, CEL_OY = 176;
+  const celCanvas = document.createElement("canvas");
+  celCanvas.width = CEL_W; celCanvas.height = CEL_H;
+  const celCtx = celCanvas.getContext("2d");
+  const celTint = document.createElement("canvas");
+  celTint.width = CEL_W; celTint.height = CEL_H;
+  const celTintCtx = celTint.getContext("2d");
+
+  function rimColorFor(r) {
+    if (r === 1) return "rgba(255, 250, 225, 0.75)";   // day: warm white sun
+    if (r === 3) return "rgba(150, 190, 255, 0.80)";   // night: cool moonlight
+    return "rgba(255, 175, 95, 0.85)";                 // sunset: hot orange
+  }
+
   function drawFighter(f) {
     const t = timeNow;
+
+    // ---- Soft contact shadow (stays on the ground even mid-jump, and
+    //      shrinks with altitude the way a real cast shadow does) ----
+    const airHeight = Math.max(0, GROUND_Y - f.y);
+    const shScale = Math.max(0.45, 1 - airHeight / 380);
     ctx.save();
-    ctx.translate(f.x, f.y);
-    ctx.scale(f.facing, 1);
+    ctx.translate(f.x, GROUND_Y + 2);
+    ctx.scale(shScale, shScale * 0.24);
+    const softShadow = cachedGradient("softShadow", () => {
+      const g = ctx.createRadialGradient(0, 0, 4, 0, 0, 44);
+      g.addColorStop(0,   "rgba(0, 0, 0, 0.48)");
+      g.addColorStop(0.6, "rgba(0, 0, 0, 0.30)");
+      g.addColorStop(1,   "rgba(0, 0, 0, 0)");
+      return g;
+    });
+    ctx.fillStyle = softShadow;
+    ctx.beginPath(); ctx.arc(0, 0, 44, 0, Math.PI * 2); ctx.fill();
+    ctx.restore();
 
-    // shadow
-    ctx.fillStyle = "rgba(0, 0, 0, 0.4)";
-    ctx.beginPath();
-    ctx.ellipse(0, 0, 34, 8, 0, 0, Math.PI * 2);
-    ctx.fill();
-
-    if (f.spec.key === "ze") drawZe(f, t);
-    else drawCapitao(f, t);
-
-    // hit flash overlay (white)
+    // ---- 1. Render the fighter into the offscreen buffer ----
+    const main = ctx;
+    celCtx.clearRect(0, 0, CEL_W, CEL_H);
+    ctx = celCtx;
+    try {
+      celCtx.save();
+      celCtx.translate(CEL_OX, CEL_OY);
+      celCtx.scale(f.facing, 1);
+      if (f.spec.key === "ze") drawZe(f, t);
+      else drawCapitao(f, t);
+      celCtx.restore();
+    } finally {
+      ctx = main;
+    }
+    // Hit flash clipped to the sprite, applied in buffer space
     if (f.flash > 0) {
-      ctx.globalCompositeOperation = "source-atop";
-      ctx.fillStyle = `rgba(255, 255, 255, ${0.5 * (f.flash / 6)})`;
-      ctx.fillRect(-FW, -FH - 10, FW * 2, FH + 20);
-      ctx.globalCompositeOperation = "source-over";
+      celCtx.globalCompositeOperation = "source-atop";
+      celCtx.fillStyle = `rgba(255, 255, 255, ${0.5 * (f.flash / 6)})`;
+      celCtx.fillRect(0, 0, CEL_W, CEL_H);
+      celCtx.globalCompositeOperation = "source-over";
     }
 
+    const bx = f.x - CEL_OX, by = f.y - CEL_OY;
+
+    // ---- 2. Ink outline: silhouette stamped in 8 directions ----
+    celTintCtx.globalCompositeOperation = "source-over";
+    celTintCtx.clearRect(0, 0, CEL_W, CEL_H);
+    celTintCtx.drawImage(celCanvas, 0, 0);
+    celTintCtx.globalCompositeOperation = "source-in";
+    celTintCtx.fillStyle = "rgba(12, 14, 24, 0.85)";
+    celTintCtx.fillRect(0, 0, CEL_W, CEL_H);
+    const O = 2;
+    ctx.drawImage(celTint, bx - O, by);
+    ctx.drawImage(celTint, bx + O, by);
+    ctx.drawImage(celTint, bx, by - O);
+    ctx.drawImage(celTint, bx, by + O);
+    ctx.drawImage(celTint, bx - O * 0.7, by - O * 0.7);
+    ctx.drawImage(celTint, bx + O * 0.7, by - O * 0.7);
+    ctx.drawImage(celTint, bx - O * 0.7, by + O * 0.7);
+    ctx.drawImage(celTint, bx + O * 0.7, by + O * 0.7);
+
+    // ---- 3. The sprite itself ----
+    ctx.drawImage(celCanvas, bx, by);
+
+    // ---- 4. Rim light crescent along the lit edge ----
+    celTintCtx.globalCompositeOperation = "source-over";
+    celTintCtx.clearRect(0, 0, CEL_W, CEL_H);
+    celTintCtx.drawImage(celCanvas, 0, 0);
+    celTintCtx.globalCompositeOperation = "source-in";
+    celTintCtx.fillStyle = rimColorFor(round);
+    celTintCtx.fillRect(0, 0, CEL_W, CEL_H);
+    // Carve away everything except a thin crescent on the upper light side
+    celTintCtx.globalCompositeOperation = "destination-out";
+    celTintCtx.drawImage(celCanvas, -2.5, 3);
+    celTintCtx.globalCompositeOperation = "source-over";
+    ctx.save();
+    ctx.globalCompositeOperation = "lighter";
+    ctx.globalAlpha = 0.7;
+    ctx.drawImage(celTint, bx, by);
     ctx.restore();
   }
 
@@ -5319,17 +5479,53 @@ canvas#stage {
   function drawEffects() {
     for (const e of effects) {
       if (e.kind === "spark") drawSpark(e);
+      else if (e.kind === "ring") drawRing(e);
       else if (e.kind === "dust") drawDust(e);
       else if (e.kind === "comic") drawComic(e);
       else if (e.kind === "text") drawTextEffect(e);
     }
   }
+  // Sparks render as additive motion streaks — a short line trailing the
+  // particle's velocity with a hot white core, instead of flat squares.
   function drawSpark(e) {
     const a = Math.min(1, e.life / 16);
+    const tail = 0.035;   // seconds of motion the streak represents
+    ctx.save();
+    ctx.globalCompositeOperation = "lighter";
+    ctx.globalAlpha = a * 0.9;
+    ctx.strokeStyle = e.color;
+    ctx.lineWidth = 3;
+    ctx.lineCap = "round";
+    ctx.beginPath();
+    ctx.moveTo(e.x - e.vx * tail, e.y - e.vy * tail);
+    ctx.lineTo(e.x, e.y);
+    ctx.stroke();
+    // hot core
+    ctx.globalAlpha = a * 0.8;
+    ctx.strokeStyle = "#fff";
+    ctx.lineWidth = 1.2;
+    ctx.beginPath();
+    ctx.moveTo(e.x - e.vx * tail * 0.5, e.y - e.vy * tail * 0.5);
+    ctx.lineTo(e.x, e.y);
+    ctx.stroke();
+    ctx.restore();
+  }
+  // Expanding shockwave ring at the point of impact
+  function drawRing(e) {
+    const t = 1 - e.life / e.max;              // 0 → 1
+    const r = 6 + t * 46;
+    const a = (1 - t) * 0.85;
+    ctx.save();
+    ctx.globalCompositeOperation = "lighter";
     ctx.globalAlpha = a;
-    ctx.fillStyle = e.color;
-    ctx.fillRect(e.x - 3, e.y - 3, 6, 6);
-    ctx.globalAlpha = 1;
+    ctx.strokeStyle = e.color;
+    ctx.lineWidth = 3.5 * (1 - t) + 0.5;
+    ctx.beginPath(); ctx.arc(e.x, e.y, r, 0, Math.PI * 2); ctx.stroke();
+    ctx.globalAlpha = a * 0.6;
+    ctx.strokeStyle = "#fff";
+    ctx.lineWidth = 1.2;
+    ctx.beginPath(); ctx.arc(e.x, e.y, r * 0.82, 0, Math.PI * 2); ctx.stroke();
+    ctx.restore();
   }
   function drawDust(e) {
     const a = Math.min(1, e.life / 14);
@@ -5530,10 +5726,18 @@ canvas#stage {
       ctx.textAlign = "center"; ctx.textBaseline = "middle";
       ctx.fillText("★", cx, y + h / 2 + 1);
     }
-    // Subtle inner highlight stripe
-    ctx.fillStyle = "rgba(255,255,255,0.18)";
-    if (mirror) ctx.fillRect(x + lostW, y + 1, fillW, 3);
-    else        ctx.fillRect(x, y + 1, fillW, 3);
+    // Glass gloss — bright sheen over the top half of the whole bar frame,
+    // the "console UI" finish that reads as depth instead of flat paint.
+    const gloss = cachedGradient("hpGloss" + x, () => {
+      const g = ctx.createLinearGradient(0, y, 0, y + h);
+      g.addColorStop(0,    "rgba(255, 255, 255, 0.38)");
+      g.addColorStop(0.45, "rgba(255, 255, 255, 0.10)");
+      g.addColorStop(0.5,  "rgba(255, 255, 255, 0)");
+      g.addColorStop(1,    "rgba(0, 0, 0, 0.18)");
+      return g;
+    });
+    ctx.fillStyle = gloss;
+    ctx.fillRect(x, y, w, h);
     if (flashing) ctx.restore();
   }
 
