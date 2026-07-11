@@ -3512,7 +3512,20 @@ canvas#stage {
     try {
       celCtx.save();
       celCtx.translate(CEL_OX, CEL_OY);
-      celCtx.scale(f.facing, 1);
+      // Squash & stretch (scales around the feet, so they stay planted):
+      // anticipation squash on startup, lunge stretch on active frames,
+      // impact squash when hurt — plus a visible breathing cycle at idle.
+      let sqX = 1, sqY = 1;
+      const aph = attackPhase(f);
+      if (aph === "startup")       { sqX = 0.955; sqY = 1.04; }
+      else if (aph === "active")   { sqX = 1.09;  sqY = 0.94; }
+      else if (aph === "recovery") { sqX = 1.02,  sqY = 0.99; }
+      else if (f.stance === "hurt"){ sqX = 1.07;  sqY = 0.93; }
+      else if (f.stance === "idle"){
+        const br = Math.sin(t * 2.6);
+        sqY = 1 + br * 0.010; sqX = 1 - br * 0.006;
+      }
+      celCtx.scale(f.facing * sqX, sqY);
       if (f.spec.key === "ze") drawZe(f, t);
       else drawCapitao(f, t);
       celCtx.restore();
@@ -3548,6 +3561,20 @@ canvas#stage {
 
     // ---- 3. The sprite itself ----
     ctx.drawImage(celCanvas, bx, by);
+
+    // ---- 3b. Form shadow: soft core shadow along the side facing away
+    //      from the key light (lower-left), the volume cue that pairs
+    //      with the rim light on the opposite edge ----
+    celTintCtx.globalCompositeOperation = "source-over";
+    celTintCtx.clearRect(0, 0, CEL_W, CEL_H);
+    celTintCtx.drawImage(celCanvas, 0, 0);
+    celTintCtx.globalCompositeOperation = "source-in";
+    celTintCtx.fillStyle = "rgba(25, 12, 45, 0.28)";
+    celTintCtx.fillRect(0, 0, CEL_W, CEL_H);
+    celTintCtx.globalCompositeOperation = "destination-out";
+    celTintCtx.drawImage(celCanvas, 3, -3.5);
+    celTintCtx.globalCompositeOperation = "source-over";
+    ctx.drawImage(celTint, bx, by);
 
     // ---- 4. Rim light crescent along the lit edge ----
     celTintCtx.globalCompositeOperation = "source-over";
@@ -3719,6 +3746,21 @@ canvas#stage {
     // PT WHITE STAR centered high on chest, above the belly bulge
     drawZeStar(0, yBelly - 6);
 
+    // Shirt strain wrinkles radiating around the belly (Lula's camisa
+    // sempre um número menor) — subtle darker creases
+    ctx.strokeStyle = "rgba(0, 0, 0, 0.22)";
+    ctx.lineWidth = 1.1;
+    ctx.lineCap = "round";
+    ctx.beginPath();
+    ctx.moveTo(-halfBelly + 6, yBelly + 4);
+    ctx.quadraticCurveTo(-halfBelly + 14, yBelly + 7, -halfBelly + 20, yBelly + 6);
+    ctx.moveTo(halfBelly - 6, yBelly + 2);
+    ctx.quadraticCurveTo(halfBelly - 13, yBelly + 6, halfBelly - 19, yBelly + 5);
+    ctx.moveTo(-10, yWaist - 8);
+    ctx.quadraticCurveTo(0, yWaist - 10, 10, yWaist - 8);
+    ctx.stroke();
+    ctx.lineCap = "butt";
+
     // Head last (on top)
     drawZeHead(f, cyHead, rHead, s);
   }
@@ -3813,10 +3855,17 @@ canvas#stage {
 
     // ===== Eyes (small, warm squint) =====
     if (f.stance === "hurt") {
+      // Pain squeeze + flying sweat droplets
       ctx.fillStyle = "#111";
       ctx.fillRect(-9, cy, 5, 2);
       ctx.fillRect(4, cy, 5, 2);
+      ctx.fillStyle = "rgba(140, 210, 255, 0.9)";
+      ctx.beginPath(); ctx.ellipse(-r - 4, cy - 8, 2, 3, -0.5, 0, Math.PI * 2); ctx.fill();
+      ctx.beginPath(); ctx.ellipse(r + 3, cy - 11, 1.6, 2.5, 0.5, 0, Math.PI * 2); ctx.fill();
+      ctx.beginPath(); ctx.ellipse(r + 6, cy - 4, 1.2, 2, 0.7, 0, Math.PI * 2); ctx.fill();
     } else {
+      // Pupils track the opponent (+x is always the facing direction)
+      const look = 1.5;
       // Eye-socket subtle shadow
       ctx.fillStyle = "rgba(60, 30, 0, 0.20)";
       ctx.beginPath(); ctx.ellipse(-7, cy + 1, 5, 3, 0, 0, Math.PI * 2); ctx.fill();
@@ -3831,12 +3880,12 @@ canvas#stage {
       ctx.fill();
       // Iris/pupil
       ctx.fillStyle = "#1a1208";
-      ctx.beginPath(); ctx.arc(-7, cy + 1, 1.7, 0, Math.PI * 2); ctx.fill();
-      ctx.beginPath(); ctx.arc(7,  cy + 1, 1.7, 0, Math.PI * 2); ctx.fill();
+      ctx.beginPath(); ctx.arc(-7 + look, cy + 1, 1.7, 0, Math.PI * 2); ctx.fill();
+      ctx.beginPath(); ctx.arc(7 + look,  cy + 1, 1.7, 0, Math.PI * 2); ctx.fill();
       // Eye highlights
       ctx.fillStyle = "#fff";
-      ctx.beginPath(); ctx.arc(-6, cy + 0, 0.7, 0, Math.PI * 2); ctx.fill();
-      ctx.beginPath(); ctx.arc(8,  cy + 0, 0.7, 0, Math.PI * 2); ctx.fill();
+      ctx.beginPath(); ctx.arc(-6 + look, cy + 0, 0.7, 0, Math.PI * 2); ctx.fill();
+      ctx.beginPath(); ctx.arc(8 + look,  cy + 0, 0.7, 0, Math.PI * 2); ctx.fill();
       // Crow's-feet wrinkles (the friendly squint)
       ctx.strokeStyle = "rgba(60, 30, 0, 0.5)";
       ctx.lineWidth = 0.9; ctx.lineCap = "round";
@@ -4002,6 +4051,10 @@ canvas#stage {
       ctx.beginPath(); ctx.arc(ex + 11, ey - 3, 0.9, 0, Math.PI * 2); ctx.fill();
       ctx.beginPath(); ctx.arc(ex + 13, ey + 1, 0.9, 0, Math.PI * 2); ctx.fill();
       ctx.beginPath(); ctx.arc(ex + 12, ey + 5, 0.9, 0, Math.PI * 2); ctx.fill();
+      // Gold ring catching the light on the punching fist
+      ctx.strokeStyle = "#f5c518";
+      ctx.lineWidth = 1.8;
+      ctx.beginPath(); ctx.arc(ex + 8, ey + 2, 8, -0.5, 0.3); ctx.stroke();
       drawMotionLines(30, ey + 4, 4);
     } else if (ph === "active" && f.attackKind === "kick") {
       // Arms tucked / down-back for balance — slight curve back
@@ -4053,6 +4106,10 @@ canvas#stage {
       ctx.fillStyle = sh.skin;
       ctx.beginPath(); ctx.arc(31, yBelly + 20, 5.5, 0, Math.PI * 2); ctx.fill();
       outlinePath(1, "rgba(0,0,0,0.4)");
+      // Gold ring band on the ring finger
+      ctx.strokeStyle = "#f5c518";
+      ctx.lineWidth = 1.6;
+      ctx.beginPath(); ctx.arc(31, yBelly + 20, 5.5, 0.15, 0.75); ctx.stroke();
     }
 
     // KICK leg override (extended forward)
@@ -4387,10 +4444,43 @@ canvas#stage {
     drawEpaulette(-halfShoulder + 4, yShoulder + 1, -1, s);
     drawEpaulette(halfShoulder - 4, yShoulder + 1, 1, s);
 
+    // ===== Presidential sash (faixa presidencial) — green-yellow band
+    // running from the right shoulder down across the chest to the left
+    // hip, Brazil's most recognizable badge of office =====
+    ctx.save();
+    ctx.globalAlpha = 0.92;
+    const sashGrad = gradLin(halfShoulder - 8, yShoulder, -halfWaist + 6, yWaist,
+      "#0a9c40", "#067a30");
+    ctx.fillStyle = sashGrad;
+    ctx.beginPath();
+    ctx.moveTo(halfShoulder - 12, yShoulder + 2);
+    ctx.lineTo(halfShoulder - 2, yShoulder + 6);
+    ctx.lineTo(-halfWaist + 12, yWaist + 2);
+    ctx.lineTo(-halfWaist + 2, yWaist - 4);
+    ctx.closePath();
+    ctx.fill();
+    // Yellow center stripe of the sash
+    ctx.strokeStyle = "#ffdf00";
+    ctx.lineWidth = 2.4;
+    ctx.beginPath();
+    ctx.moveTo(halfShoulder - 7, yShoulder + 4);
+    ctx.lineTo(-halfWaist + 7, yWaist - 1);
+    ctx.stroke();
+    ctx.restore();
+
     // ===== Medal ribbons on left chest (3 stacked horizontal bars) =====
     drawMedalBar(-12, yChest - 4, s.medal2);     // blue
     drawMedalBar(-12, yChest + 1, s.medal3);     // red
     drawMedalBar(-12, yChest + 6, s.shirtHi);    // green
+    // Animated glint sweeping across the medals
+    const glint = (timeNow * 0.7) % 3;
+    if (glint < 1) {
+      ctx.save();
+      ctx.globalAlpha = 0.85 * Math.sin(glint * Math.PI);
+      ctx.fillStyle = "#fff";
+      drawStar(-16 + glint * 10, yChest - 2, 2.2, 4);
+      ctx.restore();
+    }
     // Yellow star pin on right chest
     ctx.fillStyle = s.accent;
     drawStar(11, yChest, 4, 5);
@@ -4636,7 +4726,12 @@ canvas#stage {
       ctx.fillStyle = "#111";
       ctx.fillRect(-9, cy + 1, 5, 2);
       ctx.fillRect(4, cy + 1, 5, 2);
+      ctx.fillStyle = "rgba(140, 210, 255, 0.9)";
+      ctx.beginPath(); ctx.ellipse(-rx - 4, cy - 7, 2, 3, -0.5, 0, Math.PI * 2); ctx.fill();
+      ctx.beginPath(); ctx.ellipse(rx + 3, cy - 10, 1.6, 2.5, 0.5, 0, Math.PI * 2); ctx.fill();
+      ctx.beginPath(); ctx.ellipse(rx + 6, cy - 3, 1.2, 2, 0.7, 0, Math.PI * 2); ctx.fill();
     } else {
+      const look = 1.5;   // pupils track the opponent
       // Eye sockets (deep set)
       ctx.fillStyle = "rgba(40, 20, 0, 0.22)";
       ctx.beginPath();
@@ -4658,9 +4753,9 @@ canvas#stage {
       // Pupils — dark, partially hidden by lid
       ctx.fillStyle = "#0e0e0e";
       ctx.beginPath();
-      ctx.arc(-7, cy + 1.5, 1.6, 0, Math.PI * 2); ctx.fill();
+      ctx.arc(-7 + look, cy + 1.5, 1.6, 0, Math.PI * 2); ctx.fill();
       ctx.beginPath();
-      ctx.arc(7,  cy + 1.5, 1.6, 0, Math.PI * 2); ctx.fill();
+      ctx.arc(7 + look,  cy + 1.5, 1.6, 0, Math.PI * 2); ctx.fill();
       // Upper lid line for squint
       ctx.strokeStyle = "rgba(0,0,0,0.5)";
       ctx.lineWidth = 1;
