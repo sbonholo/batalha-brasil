@@ -5908,10 +5908,12 @@ canvas#stage {
       ctx.fillRect(x, y, w, h);
       ctx.fillStyle = `rgba(255, 235, 120, ${0.6 + pulse * 0.4})`;
       ctx.font = "900 11px Impact, system-ui";
-      ctx.textAlign = mirror ? "right" : "left";
+      ctx.textAlign = "left";
       ctx.textBaseline = "middle";
-      // Sits in the HUD strip above the HP bar (names own the y=80 line)
-      ctx.fillText("★ SUPER PRONTO! (D)", mirror ? x + w : x, 16);
+      // Sits in the HUD strip above the HP bar (names own the y=80 line).
+      // Always left-anchored at the meter's start so the mirrored (P2)
+      // label doesn't slide under the HTML mute/fullscreen buttons.
+      ctx.fillText("★ SUPER PRONTO! (D)", x, 16);
     }
   }
 
