@@ -3761,6 +3761,11 @@ canvas#stage {
     ctx.stroke();
     ctx.lineCap = "butt";
 
+    // Champion's presidential sash (final celebration only)
+    if (f.wearSash) {
+      drawPresidentialSash(halfShoulder, yShoulder, halfWaist, yWaist);
+    }
+
     // Head last (on top)
     drawZeHead(f, cyHead, rHead, s);
   }
@@ -4444,29 +4449,11 @@ canvas#stage {
     drawEpaulette(-halfShoulder + 4, yShoulder + 1, -1, s);
     drawEpaulette(halfShoulder - 4, yShoulder + 1, 1, s);
 
-    // ===== Presidential sash (faixa presidencial) — green-yellow band
-    // running from the right shoulder down across the chest to the left
-    // hip, Brazil's most recognizable badge of office =====
-    ctx.save();
-    ctx.globalAlpha = 0.92;
-    const sashGrad = gradLin(halfShoulder - 8, yShoulder, -halfWaist + 6, yWaist,
-      "#0a9c40", "#067a30");
-    ctx.fillStyle = sashGrad;
-    ctx.beginPath();
-    ctx.moveTo(halfShoulder - 12, yShoulder + 2);
-    ctx.lineTo(halfShoulder - 2, yShoulder + 6);
-    ctx.lineTo(-halfWaist + 12, yWaist + 2);
-    ctx.lineTo(-halfWaist + 2, yWaist - 4);
-    ctx.closePath();
-    ctx.fill();
-    // Yellow center stripe of the sash
-    ctx.strokeStyle = "#ffdf00";
-    ctx.lineWidth = 2.4;
-    ctx.beginPath();
-    ctx.moveTo(halfShoulder - 7, yShoulder + 4);
-    ctx.lineTo(-halfWaist + 7, yWaist - 1);
-    ctx.stroke();
-    ctx.restore();
+    // ===== Presidential sash — only worn by the MATCH champion during
+    // the final celebration (see drawPresidentialSash) =====
+    if (f.wearSash) {
+      drawPresidentialSash(halfShoulder, yShoulder, halfWaist, yWaist);
+    }
 
     // ===== Medal ribbons on left chest (3 stacked horizontal bars) =====
     drawMedalBar(-12, yChest - 4, s.medal2);     // blue
@@ -4506,6 +4493,36 @@ canvas#stage {
 
     // Head last
     drawCapitaoHead(f, cyHead, rxHead, ryHead, s);
+  }
+
+  // Presidential sash (faixa presidencial) — green band with the yellow
+  // center stripe, right shoulder to left hip. Awarded to the match
+  // champion for the final celebration.
+  function drawPresidentialSash(halfShoulder, yShoulder, halfWaist, yWaist) {
+    ctx.save();
+    ctx.globalAlpha = 0.92;
+    ctx.fillStyle = gradLin(halfShoulder - 8, yShoulder, -halfWaist + 6, yWaist,
+      "#0a9c40", "#067a30");
+    ctx.beginPath();
+    ctx.moveTo(halfShoulder - 12, yShoulder + 2);
+    ctx.lineTo(halfShoulder - 2, yShoulder + 6);
+    ctx.lineTo(-halfWaist + 12, yWaist + 2);
+    ctx.lineTo(-halfWaist + 2, yWaist - 4);
+    ctx.closePath();
+    ctx.fill();
+    // Yellow center stripe
+    ctx.strokeStyle = "#ffdf00";
+    ctx.lineWidth = 2.4;
+    ctx.beginPath();
+    ctx.moveTo(halfShoulder - 7, yShoulder + 4);
+    ctx.lineTo(-halfWaist + 7, yWaist - 1);
+    ctx.stroke();
+    // Rosette knot at the hip
+    ctx.fillStyle = "#ffdf00";
+    ctx.beginPath(); ctx.arc(-halfWaist + 7, yWaist - 1, 3.4, 0, Math.PI * 2); ctx.fill();
+    ctx.fillStyle = "#0a9c40";
+    ctx.beginPath(); ctx.arc(-halfWaist + 7, yWaist - 1, 1.6, 0, Math.PI * 2); ctx.fill();
+    ctx.restore();
   }
 
   function drawCamoBlobs(s, yTop, yBot, hw) {
@@ -6045,7 +6062,8 @@ canvas#stage {
     const fakeP1 = { ...p1, x: 0, y: 0, vx: 0, vy: 0, hp: p1.maxHp,
       stance: "walk", stanceT: Math.floor(t * 30), stanceDur: 999, attackKind: null,
       hitConnected: false, facing: 1, blocking: false, onGround: true, flash: 0,
-      cd: { punch: 0, kick: 0, special: 0 } };
+      cd: { punch: 0, kick: 0, special: 0 },
+      wearSash: wins.p1 >= WINS_TO_WIN };   // match champion wears the faixa
     drawZe(fakeP1, t);
 
     // Bottle in his front hand. During the drink, the bottle tilts back
@@ -6100,7 +6118,8 @@ canvas#stage {
     const fakeP2 = { ...p2, x: 0, y: 0, vx: 0, vy: 0, hp: p2.maxHp,
       stance: "idle", stanceT: 0, stanceDur: 0, attackKind: null,
       hitConnected: false, facing: 1, blocking: false, onGround: true, flash: 0,
-      cd: { punch: 0, kick: 0, special: 0 } };
+      cd: { punch: 0, kick: 0, special: 0 },
+      wearSash: wins.p2 >= WINS_TO_WIN };   // match champion wears the faixa
     drawCapitao(fakeP2, t);
 
     if (celebrationVariant === "cap-pesca") {
