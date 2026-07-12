@@ -3653,7 +3653,7 @@ canvas#stage {
   // carved by the same silhouette offset toward the light, leaving a thin
   // lit crescent along the sun/moon-facing edge. This is the classic
   // 2D "cel + rim" trick and it makes flat vector art read as lit forms.
-  const CEL_W = 300, CEL_H = 210, CEL_OX = 150, CEL_OY = 176;
+  const CEL_W = 260, CEL_H = 190, CEL_OX = 130, CEL_OY = 158;
   const celCanvas = document.createElement("canvas");
   celCanvas.width = CEL_W; celCanvas.height = CEL_H;
   const celCtx = celCanvas.getContext("2d");
@@ -3725,7 +3725,9 @@ canvas#stage {
 
     const bx = f.x - CEL_OX, by = f.y - CEL_OY;
 
-    // ---- 2. Ink outline: silhouette stamped in 8 directions ----
+    // ---- 2. Ink outline: silhouette stamped in 4 directions (orthogonal
+    //      stamps at 2px read the same as 8 at this sprite size, at half
+    //      the composite cost) ----
     celTintCtx.globalCompositeOperation = "source-over";
     celTintCtx.clearRect(0, 0, CEL_W, CEL_H);
     celTintCtx.drawImage(celCanvas, 0, 0);
@@ -3737,10 +3739,6 @@ canvas#stage {
     ctx.drawImage(celTint, bx + O, by);
     ctx.drawImage(celTint, bx, by - O);
     ctx.drawImage(celTint, bx, by + O);
-    ctx.drawImage(celTint, bx - O * 0.7, by - O * 0.7);
-    ctx.drawImage(celTint, bx + O * 0.7, by - O * 0.7);
-    ctx.drawImage(celTint, bx - O * 0.7, by + O * 0.7);
-    ctx.drawImage(celTint, bx + O * 0.7, by + O * 0.7);
 
     // ---- 3. The sprite itself ----
     ctx.drawImage(celCanvas, bx, by);
