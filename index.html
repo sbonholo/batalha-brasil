@@ -152,17 +152,20 @@ canvas#stage {
   /* Hidden by default; the .show class is added on touch devices and on
      small viewports via @media query below. */
   display: none;
-  pointer-events: auto;
+  /* The container is a full-width strip that would otherwise sit on top
+     of the end-of-match buttons (z-index 4) and eat their taps on iOS.
+     Only the actual buttons receive pointer events. */
+  pointer-events: none;
   padding: 10px 14px env(safe-area-inset-bottom);
   z-index: 10;
   justify-content: space-between; align-items: flex-end;
 }
 #touch.show { display: flex; }
-.dpad { position: relative; width: 168px; height: 168px; pointer-events: auto; flex-shrink: 0; }
+.dpad { position: relative; width: 168px; height: 168px; pointer-events: none; flex-shrink: 0; }
 .actions {
   position: relative;
   display: grid; grid-template-columns: repeat(3, 60px); gap: 10px;
-  pointer-events: auto; flex-shrink: 0;
+  pointer-events: none; flex-shrink: 0;
 }
 .actions::before {
   content: "ATACAR";
@@ -174,6 +177,7 @@ canvas#stage {
   text-shadow: 0 1px 0 #000, 0 0 4px rgba(0,0,0,0.6);
 }
 .tbtn {
+  pointer-events: auto;
   background: rgba(0,0,0,0.55); color: #fff;
   border: 2px solid rgba(255,215,100,0.45);
   border-radius: 14px;
@@ -573,7 +577,7 @@ canvas#stage {
 #end-actions {
   position: fixed; left: 0; right: 0;
   bottom: calc(env(safe-area-inset-bottom) + 14px);
-  z-index: 4;
+  z-index: 20;    /* above the touch-controls overlay (10) */
   display: none;
   flex-direction: column; align-items: center;
   gap: 10px; padding: 0 16px;
@@ -584,6 +588,9 @@ canvas#stage {
   padding: 14px 18px; border: none; border-radius: 12px;
   font-weight: 900; font-size: 17px; letter-spacing: 1.5px;
   cursor: pointer;
+  pointer-events: auto;
+  touch-action: manipulation;
+  -webkit-tap-highlight-color: rgba(255, 215, 100, 0.35);
   font-family: "Impact","Arial Black", system-ui, sans-serif;
   background: linear-gradient(180deg, #3a4763, #1c2540);
   color: #fff;
@@ -6830,14 +6837,24 @@ canvas#stage {
     el("pause-modal").addEventListener("click", handlePauseModalAction);
     el("pause-modal").addEventListener("touchend", handlePauseModalAction, { passive: false });
 
-    // End-of-match actions
-    el("end-actions").addEventListener("click", (e) => {
+    // End-of-match actions. Same click+touchend dual listener as the pause
+    // modal — iOS fires touchend without a synthesized click when other
+    // touch layers partially consume the gesture.
+    let endActionHandling = false;
+    function handleEndAction(e) {
       const t = e.target.closest("[data-action]");
       if (!t) return;
+      if (endActionHandling) return;
+      endActionHandling = true;
+      if (e.type === "touchend") e.preventDefault();
+      e.stopPropagation();
       const action = t.dataset.action;
       if (action === "play-again") { audio.menuPick(); replayMatch(); }
       else if (action === "back-to-menu") { audio.menuBack(); backToTitle(); }
-    });
+      setTimeout(() => { endActionHandling = false; }, 350);
+    }
+    el("end-actions").addEventListener("click", handleEndAction);
+    el("end-actions").addEventListener("touchend", handleEndAction, { passive: false });
 
     // Mute button
     el("mute-btn").addEventListener("click", () => {
