@@ -121,11 +121,6 @@ canvas#stage {
   letter-spacing: 2px;
   position: relative;
 }
-.menu-btn.facil::after {
-  content: " ▶ JOGAR AGORA";
-  font-size: 11px; opacity: 0.85;
-  letter-spacing: 1px;
-}
 .menu-btn.medio   { background: linear-gradient(180deg, #ffe066 0%, #ffb13a 100%); box-shadow: 0 4px 0 rgba(0,0,0,0.4), 0 0 0 2px #c8902e; color: #1a0e00; }
 .menu-btn.dificil { background: linear-gradient(180deg, #ff6b6b 0%, #c8102e 100%); box-shadow: 0 4px 0 rgba(0,0,0,0.4), 0 0 0 2px #7a0a18; color: #2a0509; }
 .menu-btn.online {
@@ -3935,8 +3930,10 @@ body.in-menus #touch { display: none !important; }
       // proportional to the sprite's visible body.
       if (f.wearSash) {
         const hc = dh * (SPR.contentRatio || 0.8);   // visible body height
-        const ySh = -hc * 0.74, yWa = -hc * 0.40;    // shoulder / waist lines
-        const xSh = dw * 0.16, xWa = -dw * 0.14;
+        // Real faixa presidencial drapes over the RIGHT shoulder (viewer's
+        // left) down to the LEFT hip (viewer's right) → a "\" diagonal.
+        const ySh = -hc * 0.78, yWa = -hc * 0.38;    // shoulder / hip lines
+        const xSh = -dw * 0.17, xWa = dw * 0.15;
         ctx.save();
         ctx.globalAlpha = 0.95;
         ctx.strokeStyle = "#0a9c40";
@@ -6506,7 +6503,7 @@ body.in-menus #touch { display: none !important; }
 
     // ★★★ above his head once he's done drinking
     if (!drinkPhase) {
-      const starsY = sy - 240;
+      const starsY = sy - 300;
       ctx.fillStyle = "#ffdf00";
       ctx.strokeStyle = "#000";
       ctx.lineWidth = 2;
@@ -6517,10 +6514,12 @@ body.in-menus #touch { display: none !important; }
       ctx.fillText("★ ★ ★", sx, starsY + wobble);
     }
 
-    // Speech bubble — rotating famous quote (see ZE_WIN_QUOTES)
+    // Speech bubble — rotating famous quote (see ZE_WIN_QUOTES).
+    // Sits ABOVE the head (tail points down at the crown) so it never
+    // covers the champion's face during the celebration.
     const text = currentWinQuote || "QUE CACHAÇA BOA!";
     const bw = Math.max(240, text.length * 13 + 50);
-    drawSpeechBubble(sx - bw / 2 - 20, sy - 200, bw, 56, text, t);
+    drawSpeechBubble(sx - bw / 2 - 20, sy - 262, bw, 56, text, t);
   }
 
   function drawCapitaoCelebration(t) {
