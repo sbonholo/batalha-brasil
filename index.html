@@ -3881,7 +3881,7 @@ body.in-menus #touch { display: none !important; }
   // cells, feet bottom-aligned, character facing right.
   // ============================================================
   const ZE_SPRITE = {
-    img: new Image(), ready: false, cw: 74, ch: 108,
+    img: new Image(), ready: false, cw: 74, ch: 108, contentRatio: 0.85,
     anims: {
       idle:   { frames: [0, 1, 2, 3], fps: 5 },
       walk:   { frames: [4, 5, 6, 7, 8], fps: 10 },
@@ -3930,6 +3930,29 @@ body.in-menus #touch { display: none !important; }
     } else {
       ctx.drawImage(SPR.img, idx * SPR.cw, 0, SPR.cw, SPR.ch,
                     -dw / 2, -dh, dw, dh);
+      // Presidential sash on the match champion (final celebration):
+      // diagonal green band with yellow stripe, right shoulder → left hip,
+      // proportional to the sprite's visible body.
+      if (f.wearSash) {
+        const hc = dh * (SPR.contentRatio || 0.8);   // visible body height
+        const ySh = -hc * 0.74, yWa = -hc * 0.40;    // shoulder / waist lines
+        const xSh = dw * 0.16, xWa = -dw * 0.14;
+        ctx.save();
+        ctx.globalAlpha = 0.95;
+        ctx.strokeStyle = "#0a9c40";
+        ctx.lineWidth = 9;
+        ctx.lineCap = "round";
+        ctx.beginPath(); ctx.moveTo(xSh, ySh); ctx.lineTo(xWa, yWa); ctx.stroke();
+        ctx.strokeStyle = "#ffdf00";
+        ctx.lineWidth = 3;
+        ctx.beginPath(); ctx.moveTo(xSh, ySh); ctx.lineTo(xWa, yWa); ctx.stroke();
+        // Rosette at the hip
+        ctx.fillStyle = "#ffdf00";
+        ctx.beginPath(); ctx.arc(xWa, yWa, 4.5, 0, Math.PI * 2); ctx.fill();
+        ctx.fillStyle = "#0a9c40";
+        ctx.beginPath(); ctx.arc(xWa, yWa, 2.2, 0, Math.PI * 2); ctx.fill();
+        ctx.restore();
+      }
     }
     ctx.restore();
   }
@@ -4683,6 +4706,7 @@ body.in-menus #touch { display: none !important; }
       victory:{ frames: [21, 22, 21, 19], fps: 6 },
     },
     koLying: true,   // sheet has a real lying KO frame — no rotation needed
+    contentRatio: 0.75,
     scalePx: 181,    // his cells have more headroom — match Zé's stature
   };
   CAP_SPRITE.img.onload = () => { CAP_SPRITE.ready = true; drawSelectPortraits(); };
