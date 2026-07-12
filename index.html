@@ -2505,8 +2505,17 @@ canvas#stage {
       if (a1 && !a2) order = [p2, p1];
       else if (a2 && !a1) order = [p1, p2];
       else order = p1.x <= p2.x ? [p1, p2] : [p2, p1];
-      drawFighter(order[0]);
-      drawFighter(order[1]);
+      if (phase === "celebrate") {
+        // drawCelebration() re-draws the winner (or both, on a draw) as a
+        // large center-stage figure — hide the stage copy so the winner
+        // doesn't appear twice. The KO'd loser stays for context.
+        if (lastWinner === "p1")      drawFighter(p2);
+        else if (lastWinner === "p2") drawFighter(p1);
+        // draw: both are re-drawn by drawDrawCelebration — hide both
+      } else {
+        drawFighter(order[0]);
+        drawFighter(order[1]);
+      }
       drawAuras();
       drawEffects();
       drawHud();
