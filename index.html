@@ -2689,12 +2689,34 @@ canvas#stage {
       drawCloud(820, 95, 48);
     }
   }
+  // Realistic cumulus: multiple lobes with a flat base, self-shaded with a
+  // bright crown and a cool shadowed underside. The caller's fillStyle sets
+  // the round tint; shading layers go on top of it.
   function drawCloud(cx, cy, r) {
+    const baseY = cy + r * 0.42;
+    // Body lobes (caller tint)
     ctx.beginPath();
     ctx.arc(cx, cy, r, 0, Math.PI * 2);
-    ctx.arc(cx + r * 0.7, cy + 4, r * 0.8, 0, Math.PI * 2);
-    ctx.arc(cx - r * 0.7, cy + 4, r * 0.7, 0, Math.PI * 2);
+    ctx.arc(cx + r * 0.75, cy + r * 0.12, r * 0.78, 0, Math.PI * 2);
+    ctx.arc(cx - r * 0.78, cy + r * 0.15, r * 0.66, 0, Math.PI * 2);
+    ctx.arc(cx + r * 0.3, cy - r * 0.42, r * 0.6, 0, Math.PI * 2);
+    ctx.arc(cx - r * 0.35, cy - r * 0.3, r * 0.55, 0, Math.PI * 2);
+    // Flat base slab connecting the lobes
+    ctx.ellipse(cx, baseY - 3, r * 1.5, r * 0.32, 0, 0, Math.PI * 2);
     ctx.fill();
+    ctx.save();
+    // Sunlit crown
+    ctx.fillStyle = "rgba(255, 255, 255, 0.35)";
+    ctx.beginPath();
+    ctx.arc(cx + r * 0.15, cy - r * 0.45, r * 0.52, 0, Math.PI * 2);
+    ctx.arc(cx - r * 0.4, cy - r * 0.28, r * 0.4, 0, Math.PI * 2);
+    ctx.fill();
+    // Cool shadowed underside hugging the flat base
+    ctx.fillStyle = "rgba(90, 110, 140, 0.22)";
+    ctx.beginPath();
+    ctx.ellipse(cx, baseY - 2, r * 1.42, r * 0.22, 0, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.restore();
   }
 
   // ----- ATMOSPHERIC PERSPECTIVE -----
@@ -2752,6 +2774,28 @@ canvas#stage {
       const ry = horizonY + 1 + i * 2.5 + Math.sin(timeNow * 0.7 + i * 0.6) * 0.5;
       ctx.fillRect(0, ry, W, 0.8);
     }
+
+    // ----- Far ridge — a second, hazier hill layer for depth -----
+    const farRidge = (r === 1) ? "rgba(140, 165, 150, 0.40)"
+                   : (r === 3) ? "rgba(14, 18, 38, 0.60)"
+                   :             "rgba(95, 55, 75, 0.45)";
+    ctx.fillStyle = farRidge;
+    ctx.beginPath();
+    ctx.moveTo(0, horizonY - 4);
+    const farHills = [30, 46, 26, 52, 34, 44, 28];
+    const farSegW = W / (farHills.length - 1);
+    for (let i = 0; i < farHills.length - 1; i++) {
+      const x2 = (i + 1) * farSegW;
+      ctx.bezierCurveTo(
+        i * farSegW + farSegW * 0.4, horizonY - 4 - farHills[i],
+        i * farSegW + farSegW * 0.6, horizonY - 4 - farHills[i + 1],
+        x2, horizonY - 4 - farHills[i + 1] * 0.5
+      );
+    }
+    ctx.lineTo(W, horizonY + 12);
+    ctx.lineTo(0, horizonY + 12);
+    ctx.closePath();
+    ctx.fill();
 
     // ----- Cerrado plateau — soft rolling hills behind the city -----
     const plateauColor = (r === 1) ? "rgba(110, 132, 96, 0.65)"
@@ -2967,6 +3011,39 @@ canvas#stage {
     });
     ctx.fillStyle = pool;
     ctx.fillRect(cx - 300, GROUND_Y - 18, 600, 16);
+    // ----- Mirror reflection of the building in the espelho d'água -----
+    // The classic Brasília postcard: towers, dome and bowl reflected in
+    // the still water. Squashed flipped shapes, broken up by ripple lines.
+    ctx.save();
+    ctx.beginPath();
+    ctx.rect(cx - 300, GROUND_Y - 18, 600, 16);
+    ctx.clip();
+    ctx.globalAlpha = (r === 3) ? 0.38 : 0.26;
+    ctx.fillStyle = buildingColor;
+    // Towers plunge the full pool depth
+    ctx.fillRect(cx - 20, GROUND_Y - 18, 16, 16);
+    ctx.fillRect(cx + 4,  GROUND_Y - 18, 16, 16);
+    // Slab band
+    ctx.fillRect(cx - slabHalfW, GROUND_Y - 18, slabHalfW * 2, 5);
+    // Senate dome + Chamber bowl hang inverted below the waterline
+    ctx.beginPath(); ctx.ellipse(cx - 150, GROUND_Y - 13, 50, 5, 0, 0, Math.PI); ctx.fill();
+    ctx.beginPath(); ctx.ellipse(cx + 165, GROUND_Y - 13, 80, 4, 0, 0, Math.PI); ctx.fill();
+    // Night: reflected window glow specks in the tower reflections
+    if (r === 3) {
+      ctx.fillStyle = "#ffd84a";
+      for (let i = 0; i < 6; i++) {
+        ctx.fillRect(cx - 17 + (i % 2) * 26, GROUND_Y - 16 + (i * 5) % 14, 2, 1.4);
+      }
+    }
+    // Ripple breakup — thin erased bands sliding slowly across the mirror
+    ctx.globalCompositeOperation = "destination-out";
+    ctx.globalAlpha = 0.55;
+    for (let i = 0; i < 3; i++) {
+      const ry2 = GROUND_Y - 16 + i * 5 + Math.sin(timeNow * 1.1 + i * 2.1) * 1.2;
+      ctx.fillRect(cx - 300, ry2, 600, 1.3);
+    }
+    ctx.restore();
+
     // Horizontal shimmer highlights
     ctx.fillStyle = r === 3 ? "rgba(120, 160, 220, 0.30)" : "rgba(255, 255, 255, 0.30)";
     for (let i = 0; i < 4; i++) {
@@ -3083,6 +3160,27 @@ canvas#stage {
     // Window grid (6 cols × 5 rows = 30 per tower, 4×3px)
     drawTowerWindows(cx - 20, towerTop, 16, towerH, r);
     drawTowerWindows(cx + 4,  towerTop, 16, towerH, r);
+    // Curtain-wall glass reflecting the sky — vertical sheen over the
+    // window grid sells the towers as glass instead of painted concrete
+    const glass = cachedGradient("towerGlass" + r, () => {
+      const g = ctx.createLinearGradient(0, towerTop, 0, towerTop + towerH);
+      if (r === 1) {
+        g.addColorStop(0,   "rgba(170, 215, 255, 0.34)");
+        g.addColorStop(0.5, "rgba(120, 180, 235, 0.14)");
+        g.addColorStop(1,   "rgba(90, 140, 190, 0.05)");
+      } else if (r === 2) {
+        g.addColorStop(0,   "rgba(255, 150, 80, 0.30)");
+        g.addColorStop(0.5, "rgba(255, 120, 60, 0.12)");
+        g.addColorStop(1,   "rgba(120, 60, 60, 0.05)");
+      } else {
+        g.addColorStop(0,   "rgba(60, 90, 160, 0.20)");
+        g.addColorStop(1,   "rgba(10, 20, 50, 0.05)");
+      }
+      return g;
+    });
+    ctx.fillStyle = glass;
+    ctx.fillRect(cx - 20, towerTop, 16, towerH);
+    ctx.fillRect(cx + 4,  towerTop, 16, towerH);
 
     // ----- SENATE DOME (LEFT) — small convex hemisphere sitting on slab -----
     // In the photo the Senate dome is noticeably smaller than the Chamber
@@ -3090,7 +3188,19 @@ canvas#stage {
     const senateCx = cx - 150, senateBaseY = slabTop;
     const senateRx = 50;        // dome half-width
     const senateRy = 36;        // dome height (squat)
-    ctx.fillStyle = buildingColor;
+    // Contact shadow the dome casts on the slab roof (grounds it)
+    ctx.fillStyle = "rgba(0, 0, 0, 0.22)";
+    ctx.beginPath();
+    ctx.ellipse(senateCx + 4, senateBaseY + 2, senateRx + 4, 3.5, 0, 0, Math.PI * 2);
+    ctx.fill();
+    // Dome body with a real concrete tone curve (lit crown → shaded skirt)
+    ctx.fillStyle = cachedGradient("senateDome" + r, () => {
+      const g = ctx.createLinearGradient(0, senateBaseY - senateRy, 0, senateBaseY);
+      if (r === 1)      { g.addColorStop(0, "#ffffff"); g.addColorStop(0.6, "#ece9e0"); g.addColorStop(1, "#c9c4b6"); }
+      else if (r === 3) { g.addColorStop(0, "#2e3358"); g.addColorStop(1, "#161830"); }
+      else              { g.addColorStop(0, "#ffe2a0"); g.addColorStop(0.6, "#e8c87a"); g.addColorStop(1, "#b89150"); }
+      return g;
+    });
     ctx.beginPath();
     ctx.ellipse(senateCx, senateBaseY, senateRx, senateRy, 0, Math.PI, 2 * Math.PI, false);
     ctx.closePath();
@@ -3124,7 +3234,19 @@ canvas#stage {
     const chamberCx = cx + 165, chamberBaseY = slabTop;
     const chamberRx = 80;       // bowl half-width (wider than Senate)
     const chamberRy = 22;       // very shallow — saucer profile
-    ctx.fillStyle = buildingColor;
+    // Contact shadow under the saucer rim
+    ctx.fillStyle = "rgba(0, 0, 0, 0.22)";
+    ctx.beginPath();
+    ctx.ellipse(chamberCx + 4, chamberBaseY + 2, chamberRx + 4, 3.5, 0, 0, Math.PI * 2);
+    ctx.fill();
+    // Saucer with concrete tone curve
+    ctx.fillStyle = cachedGradient("chamberBowl" + r, () => {
+      const g = ctx.createLinearGradient(0, chamberBaseY - chamberRy, 0, chamberBaseY);
+      if (r === 1)      { g.addColorStop(0, "#ffffff"); g.addColorStop(0.6, "#ece9e0"); g.addColorStop(1, "#c9c4b6"); }
+      else if (r === 3) { g.addColorStop(0, "#2e3358"); g.addColorStop(1, "#161830"); }
+      else              { g.addColorStop(0, "#ffe2a0"); g.addColorStop(0.6, "#e8c87a"); g.addColorStop(1, "#b89150"); }
+      return g;
+    });
     ctx.beginPath();
     ctx.ellipse(chamberCx, chamberBaseY, chamberRx, chamberRy, 0, Math.PI, 2 * Math.PI, false);
     ctx.closePath();
