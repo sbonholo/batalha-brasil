@@ -941,6 +941,30 @@ body.in-menus #touch { display: none !important; }
     try { localStorage.setItem(STREAK_KEY, String(n)); } catch {}
   }
   let celebrationVariant = "default";  // which celebration skit to play
+
+  // Victory speech lines — famous catchphrases of the real politicians,
+  // rotated so consecutive wins never repeat the same line.
+  const ZE_WIN_QUOTES = [
+    "QUE CACHAÇA BOA!",
+    "O AP NÃO É MEU!",
+    "NUNCA ANTES NA HISTÓRIA!",
+    "FAZ UM L!",
+    "O BRASIL VOLTOU!",
+    "PICANHA E CERVEJINHA!",
+    "PERDEU, COMPANHEIRO!",
+  ];
+  const CAP_WIN_QUOTES = [
+    "PESCARIA BOA!",
+    "OLHA O GOLPE!",
+    "TÁ OK?",
+    "E DAÍ?",
+    "FOI SÓ UMA GRIPEZINHA!",
+    "IMBROCHÁVEL!",
+    "VAI PRA CUBA!",
+  ];
+  let zeQuoteIdx = Math.floor(Math.random() * 7) - 1;
+  let capQuoteIdx = Math.floor(Math.random() * 7) - 1;
+  let currentWinQuote = "";
   let endActionsShown = false;         // edge-flag so the matchEnd buttons fire exactly once
 
   const inputState = { p1: blankInputs(), p2: blankInputs() };
@@ -2295,11 +2319,16 @@ body.in-menus #touch { display: none !important; }
       // Pop into the celebration phase before the standard round-end overlay.
       phase = "celebrate"; phaseT = 0;
       audio.stopMusic();    // hush the loop so the fanfare reads
-      // Pick a random celebration variant for the winner
+      // Pick a random celebration variant for the winner, and rotate the
+      // victory line so every win gets a different famous quote
       if (winner === "p1") {
         celebrationVariant = Math.random() < 0.5 ? "ze-ap" : "ze-cachaca";
+        zeQuoteIdx = (zeQuoteIdx + 1) % ZE_WIN_QUOTES.length;
+        currentWinQuote = ZE_WIN_QUOTES[zeQuoteIdx];
       } else if (winner === "p2") {
         celebrationVariant = Math.random() < 0.5 ? "cap-pesca" : "cap-golpe";
+        capQuoteIdx = (capQuoteIdx + 1) % CAP_WIN_QUOTES.length;
+        currentWinQuote = CAP_WIN_QUOTES[capQuoteIdx];
       } else {
         celebrationVariant = "draw";
       }
@@ -6456,11 +6485,10 @@ body.in-menus #touch { display: none !important; }
       ctx.fillText("★ ★ ★", sx, starsY + wobble);
     }
 
-    // Speech bubble — variant-driven
-    const text = celebrationVariant === "ze-cachaca"
-      ? "QUE CACHAÇA BOA!"
-      : "O AP NÃO É MEU!";
-    drawSpeechBubble(sx - 200, sy - 200, 360, 56, text, t);
+    // Speech bubble — rotating famous quote (see ZE_WIN_QUOTES)
+    const text = currentWinQuote || "QUE CACHAÇA BOA!";
+    const bw = Math.max(240, text.length * 13 + 50);
+    drawSpeechBubble(sx - bw / 2 - 20, sy - 200, bw, 56, text, t);
   }
 
   function drawCapitaoCelebration(t) {
@@ -6548,12 +6576,14 @@ body.in-menus #touch { display: none !important; }
     }
     ctx.restore();
 
-    // Variant-driven text
+    // Rotating famous quote (see CAP_WIN_QUOTES); position follows variant
+    const capText = currentWinQuote || "PESCARIA BOA!";
+    const capBw = Math.max(220, capText.length * 13 + 50);
     if (celebrationVariant === "cap-pesca") {
-      drawSpeechBubble(sx + 80, sy - 240, 320, 56, "PESCARIA BOA!", t);
+      drawSpeechBubble(sx + 40, sy - 240, capBw, 56, capText, t);
     } else {
-      // "OLHA O GOLPE!" speech bubble + a flashing red "GOLPE!" stinger
-      drawSpeechBubble(sx - 220, sy - 240, 320, 56, "OLHA O GOLPE!", t);
+      // speech bubble + a flashing red "GOLPE!" stinger
+      drawSpeechBubble(sx - capBw + 60, sy - 240, capBw, 56, capText, t);
       // Flashing red GOLPE! every ~0.25s
       if (Math.floor(t * 4) % 2 === 0) {
         ctx.save();
