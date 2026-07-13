@@ -123,11 +123,6 @@ canvas#stage {
 }
 .menu-btn.medio   { background: linear-gradient(180deg, #ffe066 0%, #ffb13a 100%); box-shadow: 0 4px 0 rgba(0,0,0,0.4), 0 0 0 2px #c8902e; color: #1a0e00; }
 .menu-btn.dificil { background: linear-gradient(180deg, #ff6b6b 0%, #c8102e 100%); box-shadow: 0 4px 0 rgba(0,0,0,0.4), 0 0 0 2px #7a0a18; color: #2a0509; }
-.menu-btn.campeonato {
-  background: linear-gradient(180deg, #ffd84a 0%, #c8902e 100%);
-  box-shadow: 0 4px 0 rgba(0,0,0,0.4), 0 0 0 2px #8a5f10, 0 0 18px rgba(255, 216, 74, 0.35);
-  color: #2a1a00;
-}
 .menu-btn.online-open {
   background: linear-gradient(180deg, #5a8ad8 0%, #2a4a90 100%);
   box-shadow: 0 4px 0 rgba(0,0,0,0.4), 0 0 0 2px #1a2f60;
@@ -765,7 +760,6 @@ body.in-menus #touch { display: none !important; }
   <button class="menu-btn facil"   data-difficulty="facil">FÁCIL</button>
   <button class="menu-btn medio"   data-difficulty="medio">MÉDIO</button>
   <button class="menu-btn dificil" data-difficulty="dificil">DIFÍCIL</button>
-  <button class="menu-btn campeonato" id="menu-campeonato">🏆 CAMPEONATO</button>
   <button class="menu-btn online-open" id="menu-online">⚔️ JOGAR ONLINE</button>
   <div id="menu-streak" hidden></div>
 </div>
@@ -779,11 +773,11 @@ body.in-menus #touch { display: none !important; }
     <div id="online-step-pick">
       <button class="online-btn host" id="online-host">
         🏠 CRIAR SALA
-        <span class="online-sub">Você será o anfitrião (Lula)</span>
+        <span class="online-sub">Gera um código de 4 dígitos para compartilhar</span>
       </button>
       <button class="online-btn join" id="online-join">
         🚪 ENTRAR NA SALA
-        <span class="online-sub">Conectar com um amigo (Bolsonaro)</span>
+        <span class="online-sub">Digite o código do seu amigo</span>
       </button>
       <button class="online-btn random" id="online-random">
         🎲 OPONENTE ALEATÓRIO
@@ -1057,18 +1051,18 @@ body.in-menus #touch { display: none !important; }
   let matchup = { p1: "ze", p2: "capitao" };
 
   // ---------- CAMPEONATO ----------
-  // Each fighter climbs a fixed ladder: the arch-rival first (Zé↔Capitão,
-  // Mimi↔Jana), then the rest. First entry doubles as the default quick-play
-  // opponent. Difficulty ramps per stage.
+  // The campaign IS the default local mode: pick a difficulty, pick a
+  // fighter, then climb that fighter's fixed ladder — the arch-rival first
+  // (Zé↔Capitão, Mimi↔Jana), then the rest. The menu difficulty applies to
+  // the whole ladder, and wins auto-advance to the next stage.
   const CAMPAIGN_LADDERS = {
     ze:      ["capitao", "mimi", "jana"],
     capitao: ["ze", "jana", "mimi"],
     mimi:    ["jana", "ze", "capitao"],
     jana:    ["mimi", "capitao", "ze"],
   };
-  const CAMPAIGN_DIFFS = ["facil", "medio", "dificil"];
+  const CAMPAIGN_AUTO_FRAMES = 240;  // ~4s reading the win banner, then next stage
   let campaign = null;          // { playerKey, stage } while a campaign runs
-  let campaignPending = false;  // select screen is picking the campaign fighter
 
   // ============================================================
   // ENTITLEMENTS — free tier plays the classic duo; premium fighters need
@@ -2183,19 +2177,24 @@ body.in-menus #touch { display: none !important; }
     ensurePremiumSprites();   // kick off the lazy premium-strip download
     refreshPremiumCards();    // time-boxed unlocks may have expired
     const st = el("select-title");
-    if (st) st.textContent = campaignPending
-      ? "🏆 ESCOLHA SEU CANDIDATO" : "ESCOLHA SEU LUTADOR";
+    if (st) st.textContent = (typeof onlineMode !== "undefined" && onlineMode !== "off")
+      ? "⚔️ ESCOLHA SEU LUTADOR" : "🏆 ESCOLHA SEU CANDIDATO";
     hideMenu();
     showSelect();
     phase = "select";
     phaseT = 0;
   }
 
-  // Character select → card click goes here (classic duo: pick a side)
-  function startMatch(side) {
-    campaign = null;
-    matchup = { p1: "ze", p2: "capitao" };
-    playerSide = (side === "p2") ? "p2" : "p1";
+  // ---------- CAMPEONATO flow (the default local mode) ----------
+  function startCampaign(key) {
+    campaign = { playerKey: key, stage: 0 };
+    startCampaignStage();
+  }
+  function startCampaignStage() {
+    const ladder = CAMPAIGN_LADDERS[campaign.playerKey] || ["capitao"];
+    // The menu difficulty (currentDifficulty) applies to every stage
+    matchup = { p1: campaign.playerKey, p2: ladder[campaign.stage] };
+    playerSide = "p1";
     hideSelect();
     hidePauseBtn();   // showPauseBtn fires at the bottom of newMatch
     newMatch();
@@ -2203,41 +2202,18 @@ body.in-menus #touch { display: none !important; }
     // after ~10 seconds, never shown again in the same session.
     maybeShowTutorialHint();
   }
-
-  // Premium card click (quick play): the player fields the chosen fighter in
-  // the p1 slot against their arch-rival (ladder head: Mimi↔Jana).
-  function startMatchAs(key) {
-    campaign = null;
-    matchup = { p1: key, p2: (CAMPAIGN_LADDERS[key] || ["capitao"])[0] };
-    playerSide = "p1";
-    hideSelect();
-    hidePauseBtn();
-    newMatch();
-    maybeShowTutorialHint();
-  }
-
-  // ---------- CAMPEONATO flow ----------
-  function startCampaign(key) {
-    campaign = { playerKey: key, stage: 0 };
-    campaignPending = false;
-    startCampaignStage();
-  }
-  function startCampaignStage() {
-    const ladder = CAMPAIGN_LADDERS[campaign.playerKey] || ["capitao"];
-    matchup = { p1: campaign.playerKey, p2: ladder[campaign.stage] };
-    currentDifficulty = CAMPAIGN_DIFFS[Math.min(campaign.stage, CAMPAIGN_DIFFS.length - 1)];
-    playerSide = "p1";
-    hideSelect();
-    hidePauseBtn();
-    newMatch();
-    maybeShowTutorialHint();
-  }
-  // Route a select-screen pick to whichever mode the screen was opened for
+  // A select-screen pick starts that fighter's campaign — except online,
+  // where it's this peer's pick for the 1v1 (any fighter, mirrors allowed)
   function pickFighter(key) {
-    if (campaignPending) startCampaign(key);
-    else if (key === "ze") startMatch("p1");
-    else if (key === "capitao") startMatch("p2");
-    else startMatchAs(key);
+    if (onlineMode !== "off") {
+      if (onlinePicks.mine) return;   // already locked in
+      onlinePicks.mine = key;
+      try { if (onlineConn) onlineConn.send({ pick: key }); } catch {}
+      if (onlinePicks.theirs) onlineBeginMatch();
+      else setSelectWaiting("⏳ AGUARDANDO O OPONENTE ESCOLHER…");
+      return;
+    }
+    startCampaign(key);
   }
 
   // Tutorial hint shown only on the very first match of a session.
@@ -2258,7 +2234,6 @@ body.in-menus #touch { display: none !important; }
     phaseT = 0;
     paused = false;
     campaign = null;
-    campaignPending = false;
     endActionsShown = false;
     hidePauseModal();
     hideEndActions();
@@ -2387,13 +2362,13 @@ body.in-menus #touch { display: none !important; }
         else { paused = true; showPauseModal(); }
         e.preventDefault();
       } else if (phase === "select") {
-        campaignPending = false;
-        hideSelect(); phase = "title"; phaseT = 0; showMenu();
+        if (onlineMode !== "off") { onlineDisconnect("Você saiu da sala."); }
+        else { hideSelect(); phase = "title"; phaseT = 0; showMenu(); }
       }
     }
     if (e.code === "Enter") {
       if (phase === "title") { startSelect("medio"); }
-      else if (phase === "select") { startMatch(playerSide); }
+      else if (phase === "select") { pickFighter(playerSide === "p2" ? "capitao" : "ze"); }
       else if (phase === "matchEnd" && phaseT > 60) {
         if (campaign && matchResult) {
           // Mirror the primary end-action: advance / restart / retry
@@ -2819,6 +2794,18 @@ body.in-menus #touch { display: none !important; }
     if (phase === "matchEnd") {
       phaseT++;
       updateEffects();
+      // Campaign stage win with more ladder to climb: no buttons — the
+      // banner shows the next opponent and the fight starts by itself.
+      const ladder = campaign ? (CAMPAIGN_LADDERS[campaign.playerKey] || []) : [];
+      const autoNext = campaign && matchResult && matchResult.playerWon &&
+                       campaign.stage + 1 < ladder.length;
+      if (autoNext) {
+        if (phaseT >= CAMPAIGN_AUTO_FRAMES) {
+          campaign.stage++;
+          startCampaignStage();
+        }
+        return;
+      }
       // Show the end buttons once the K.O. settles. Use an edge flag so a
       // tab-hidden visibilitychange that warps phaseT past the threshold
       // can't lock us out of the buttons forever.
@@ -6869,6 +6856,10 @@ body.in-menus #touch { display: none !important; }
           const next = FIGHTERS_BY_KEY[ladder[campaign.stage + 1]];
           ctx.fillStyle = "#9be09a";
           ctx.fillText(`FASE ${campaign.stage + 1} VENCIDA — PRÓXIMO: ${next ? next.name : "?"}`, W / 2, H / 2 - 44);
+          const secs = Math.max(1, Math.ceil((CAMPAIGN_AUTO_FRAMES - phaseT) / 60));
+          ctx.font = "700 16px system-ui";
+          ctx.fillStyle = "#cfd6e0";
+          ctx.fillText(`próxima luta em ${secs}…`, W / 2, H / 2 - 20);
         } else {
           ctx.fillStyle = "#ff9a9a";
           ctx.fillText(`ELIMINADO NA FASE ${campaign.stage + 1} — TENTE DE NOVO!`, W / 2, H / 2 - 44);
@@ -7478,6 +7469,11 @@ body.in-menus #touch { display: none !important; }
   function attachConnHandlers(conn) {
     conn.on("data", (msg) => {
       if (msg && msg.keys) setOnlineRemoteInputs(msg.keys);
+      else if (msg && msg.pick && FIGHTERS_BY_KEY[msg.pick]) {
+        onlinePicks.theirs = msg.pick;
+        if (onlinePicks.mine) onlineBeginMatch();
+        else setSelectWaiting("Oponente escolheu — sua vez!");
+      }
     });
     conn.on("close", () => onlineDisconnect("Conexão encerrada"));
     conn.on("error", () => onlineDisconnect("Erro de conexão"));
@@ -7527,7 +7523,7 @@ body.in-menus #touch { display: none !important; }
         conn.on("open", () => {
           onlineMode = "host";
           setOnlineStatus("Conectado! Iniciando…");
-          setTimeout(() => onlineStartFight(), 600);
+          setTimeout(() => onlineOpenSelect(), 600);
         });
       });
     } catch (e) {
@@ -7554,7 +7550,7 @@ body.in-menus #touch { display: none !important; }
         conn.on("open", () => {
           onlineMode = "guest";
           setOnlineStatus("Conectado! Iniciando…");
-          setTimeout(() => onlineStartFight(), 600);
+          setTimeout(() => onlineOpenSelect(), 600);
         });
         conn.on("error", () => setOnlineStatus("Sala não encontrada.", true));
       });
@@ -7609,7 +7605,7 @@ body.in-menus #touch { display: none !important; }
         onlineConn = conn; attachConnHandlers(conn);
         onlineMode = "guest";
         setOnlineStatus("Oponente encontrado! Iniciando…");
-        setTimeout(() => onlineStartFight(), 600);
+        setTimeout(() => onlineOpenSelect(), 600);
       });
     };
     peer.on("open", tryNext);
@@ -7644,7 +7640,7 @@ body.in-menus #touch { display: none !important; }
       conn.on("open", () => {
         onlineMode = "host";
         setOnlineStatus("Oponente encontrado! Iniciando…");
-        setTimeout(() => onlineStartFight(), 600);
+        setTimeout(() => onlineOpenSelect(), 600);
       });
     });
   }
@@ -7661,18 +7657,31 @@ body.in-menus #touch { display: none !important; }
     if (mmRescanTimer) { clearTimeout(mmRescanTimer); mmRescanTimer = null; }
   }
 
-  function onlineStartFight() {
+  // Both peers pick a fighter (any fighter — mirror matches are fine) on the
+  // regular select screen; picks are exchanged over the data channel and the
+  // match starts once both arrived. Host always fields the p1 slot.
+  let onlinePicks = { mine: null, theirs: null };
+  function setSelectWaiting(text) {
+    const st = el("select-title");
+    if (st && phase === "select") st.textContent = text;
+  }
+  function onlineOpenSelect() {
     hideOnlineModal();
-    // Force the role-based player side; ignore character select.
-    // Online is always the classic duo — both peers must agree on the cast.
-    matchup = { p1: "ze", p2: "capitao" };
-    playerSide = (onlineMode === "host") ? "p1" : "p2";
+    campaign = null;               // online matches are single fights
+    onlinePicks = { mine: null, theirs: null };
     currentDifficulty = "medio";   // unused in online but keep set
+    startSelect(null);
+    el("online-badge").classList.add("show");
+    audio.stopTitleMusic();
+  }
+  function onlineBeginMatch() {
+    matchup = (onlineMode === "host")
+      ? { p1: onlinePicks.mine, p2: onlinePicks.theirs }
+      : { p1: onlinePicks.theirs, p2: onlinePicks.mine };
+    playerSide = (onlineMode === "host") ? "p1" : "p2";
     hideMenu();
     hideSelect();
     newMatch();
-    el("online-badge").classList.add("show");
-    audio.stopTitleMusic();
   }
 
   function showOnlineModal() {
@@ -7761,11 +7770,6 @@ body.in-menus #touch { display: none !important; }
       const diff = btn.dataset.difficulty;
       if (!diff) return; // online + campeonato handled separately below
       btn.addEventListener("click", () => { audio.menuPick(); startSelect(diff); });
-    });
-    el("menu-campeonato").addEventListener("click", () => {
-      audio.menuPick();
-      campaignPending = true;
-      startSelect(null);   // stage difficulty is set per opponent
     });
     el("menu-online").addEventListener("click", () => {
       audio.menuPick();
@@ -7878,7 +7882,7 @@ body.in-menus #touch { display: none !important; }
     refreshPremiumCards();
     el("select-back").addEventListener("click", () => {
       audio.menuBack();
-      campaignPending = false;
+      if (onlineMode !== "off") { onlineDisconnect("Você saiu da sala."); return; }
       hideSelect(); phase = "title"; phaseT = 0; showMenu();
     });
     // Render the small fighter portraits in the select cards
