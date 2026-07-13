@@ -123,6 +123,16 @@ canvas#stage {
 }
 .menu-btn.medio   { background: linear-gradient(180deg, #ffe066 0%, #ffb13a 100%); box-shadow: 0 4px 0 rgba(0,0,0,0.4), 0 0 0 2px #c8902e; color: #1a0e00; }
 .menu-btn.dificil { background: linear-gradient(180deg, #ff6b6b 0%, #c8102e 100%); box-shadow: 0 4px 0 rgba(0,0,0,0.4), 0 0 0 2px #7a0a18; color: #2a0509; }
+.menu-btn.campeonato {
+  background: linear-gradient(180deg, #ffd84a 0%, #c8902e 100%);
+  box-shadow: 0 4px 0 rgba(0,0,0,0.4), 0 0 0 2px #8a5f10, 0 0 18px rgba(255, 216, 74, 0.35);
+  color: #2a1a00;
+}
+.menu-btn.online-open {
+  background: linear-gradient(180deg, #5a8ad8 0%, #2a4a90 100%);
+  box-shadow: 0 4px 0 rgba(0,0,0,0.4), 0 0 0 2px #1a2f60;
+  color: #eaf2ff;
+}
 .menu-btn.online {
   background: linear-gradient(180deg, #3a4763 0%, #1c2540 100%);
   color: #93a1b3; cursor: not-allowed; opacity: 0.9;
@@ -348,10 +358,11 @@ body.in-menus #touch { display: none !important; }
   margin: 18px 0 8px;
 }
 #select-premium-row {
-  display: flex; align-items: stretch; justify-content: center;
+  display: flex; align-items: center; justify-content: center;
   gap: clamp(10px, 2vw, 24px);
-  width: 100%; max-width: 560px;
+  width: 100%; max-width: 640px;
 }
+.select-vs.premium-vs { -webkit-text-stroke: 2px #8a5fb0; }
 .select-card.premium {
   position: relative;
   border-color: #8a5fb0;
@@ -441,7 +452,7 @@ body.in-menus #touch { display: none !important; }
 /* Narrow viewports (phones in portrait): stack the two cards vertically
    so each gets full width and the VS divider compacts to a tiny badge. */
 @media (max-width: 600px) {
-  #select-row {
+  #select-row, #select-premium-row {
     flex-direction: column;
     gap: 14px;
     max-width: 360px;
@@ -610,6 +621,11 @@ body.in-menus #touch { display: none !important; }
   color: #fff;
   box-shadow: 0 4px 0 rgba(0,0,0,0.45), 0 0 0 2px #163966;
 }
+.online-btn.random {
+  background: linear-gradient(180deg, #c890f0 0%, #8a5fb0 100%);
+  color: #1a0a28;
+  box-shadow: 0 4px 0 rgba(0,0,0,0.45), 0 0 0 2px #5f3a80;
+}
 .online-sub {
   display: block; font-size: 11px; opacity: 0.85;
   font-weight: 700; letter-spacing: 0.5px;
@@ -749,6 +765,8 @@ body.in-menus #touch { display: none !important; }
   <button class="menu-btn facil"   data-difficulty="facil">FÁCIL</button>
   <button class="menu-btn medio"   data-difficulty="medio">MÉDIO</button>
   <button class="menu-btn dificil" data-difficulty="dificil">DIFÍCIL</button>
+  <button class="menu-btn campeonato" id="menu-campeonato">🏆 CAMPEONATO</button>
+  <button class="menu-btn online-open" id="menu-online">⚔️ JOGAR ONLINE</button>
   <div id="menu-streak" hidden></div>
 </div>
 
@@ -767,6 +785,10 @@ body.in-menus #touch { display: none !important; }
         🚪 ENTRAR NA SALA
         <span class="online-sub">Conectar com um amigo (Bolsonaro)</span>
       </button>
+      <button class="online-btn random" id="online-random">
+        🎲 OPONENTE ALEATÓRIO
+        <span class="online-sub">Encontrar qualquer jogador esperando</span>
+      </button>
     </div>
 
     <!-- Step 2a: hosting (room code displayed) -->
@@ -782,10 +804,10 @@ body.in-menus #touch { display: none !important; }
     <!-- Step 2b: joining (input) -->
     <div id="online-step-join" class="online-step" hidden>
       <p class="online-text">Digite o código da sala:</p>
-      <input id="online-code-input" type="text"
+      <input id="online-code-input" type="text" inputmode="numeric" pattern="[0-9]*"
              autocomplete="off" autocorrect="off" autocapitalize="characters"
-             spellcheck="false" maxlength="6"
-             placeholder="BR4921">
+             spellcheck="false" maxlength="4"
+             placeholder="4721">
       <button id="online-connect" class="online-go-btn">CONECTAR</button>
       <div id="online-join-status" class="online-status"></div>
     </div>
@@ -813,18 +835,19 @@ body.in-menus #touch { display: none !important; }
   </div>
   <div id="select-premium-title">✨ EXCLUSIVAS DA VERSÃO PAGA</div>
   <div id="select-premium-row">
-    <button class="select-card premium mimi locked" data-fighter="mimi" aria-label="Jogar como Mimi (exclusiva da versão paga)">
-      <canvas class="select-portrait" data-portrait="mimi" width="120" height="160"></canvas>
-      <div class="select-name">MIMI</div>
-      <div class="select-tag">EXECUTIVA</div>
-      <div class="select-days"></div>
-      <div class="select-go">JOGAR</div>
-      <div class="select-lock">🔒 DESBLOQUEAR</div>
-    </button>
     <button class="select-card premium jana locked" data-fighter="jana" aria-label="Jogar como Jana (exclusiva da versão paga)">
       <canvas class="select-portrait" data-portrait="jana" width="120" height="160"></canvas>
       <div class="select-name">JANA</div>
       <div class="select-tag">RAIZ</div>
+      <div class="select-days"></div>
+      <div class="select-go">JOGAR</div>
+      <div class="select-lock">🔒 DESBLOQUEAR</div>
+    </button>
+    <div class="select-vs premium-vs">VS</div>
+    <button class="select-card premium mimi locked" data-fighter="mimi" aria-label="Jogar como Mimi (exclusiva da versão paga)">
+      <canvas class="select-portrait" data-portrait="mimi" width="120" height="160"></canvas>
+      <div class="select-name">MIMI</div>
+      <div class="select-tag">EXECUTIVA</div>
       <div class="select-days"></div>
       <div class="select-go">JOGAR</div>
       <div class="select-lock">🔒 DESBLOQUEAR</div>
@@ -1032,6 +1055,20 @@ body.in-menus #touch { display: none !important; }
   // Which fighters each side fields in the next match (select screen sets it;
   // online/classic flows reset it to the founding duo).
   let matchup = { p1: "ze", p2: "capitao" };
+
+  // ---------- CAMPEONATO ----------
+  // Each fighter climbs a fixed ladder: the arch-rival first (Zé↔Capitão,
+  // Mimi↔Jana), then the rest. First entry doubles as the default quick-play
+  // opponent. Difficulty ramps per stage.
+  const CAMPAIGN_LADDERS = {
+    ze:      ["capitao", "mimi", "jana"],
+    capitao: ["ze", "jana", "mimi"],
+    mimi:    ["jana", "ze", "capitao"],
+    jana:    ["mimi", "capitao", "ze"],
+  };
+  const CAMPAIGN_DIFFS = ["facil", "medio", "dificil"];
+  let campaign = null;          // { playerKey, stage } while a campaign runs
+  let campaignPending = false;  // select screen is picking the campaign fighter
 
   // ============================================================
   // ENTITLEMENTS — free tier plays the classic duo; premium fighters need
@@ -2145,6 +2182,9 @@ body.in-menus #touch { display: none !important; }
     if (difficulty) currentDifficulty = difficulty;
     ensurePremiumSprites();   // kick off the lazy premium-strip download
     refreshPremiumCards();    // time-boxed unlocks may have expired
+    const st = el("select-title");
+    if (st) st.textContent = campaignPending
+      ? "🏆 ESCOLHA SEU CANDIDATO" : "ESCOLHA SEU LUTADOR";
     hideMenu();
     showSelect();
     phase = "select";
@@ -2153,6 +2193,7 @@ body.in-menus #touch { display: none !important; }
 
   // Character select → card click goes here (classic duo: pick a side)
   function startMatch(side) {
+    campaign = null;
     matchup = { p1: "ze", p2: "capitao" };
     playerSide = (side === "p2") ? "p2" : "p1";
     hideSelect();
@@ -2163,15 +2204,40 @@ body.in-menus #touch { display: none !important; }
     maybeShowTutorialHint();
   }
 
-  // Premium card click: the player fields the chosen fighter in the p1 slot
-  // and the CPU picks a random classic opponent.
+  // Premium card click (quick play): the player fields the chosen fighter in
+  // the p1 slot against their arch-rival (ladder head: Mimi↔Jana).
   function startMatchAs(key) {
-    matchup = { p1: key, p2: Math.random() < 0.5 ? "ze" : "capitao" };
+    campaign = null;
+    matchup = { p1: key, p2: (CAMPAIGN_LADDERS[key] || ["capitao"])[0] };
     playerSide = "p1";
     hideSelect();
     hidePauseBtn();
     newMatch();
     maybeShowTutorialHint();
+  }
+
+  // ---------- CAMPEONATO flow ----------
+  function startCampaign(key) {
+    campaign = { playerKey: key, stage: 0 };
+    campaignPending = false;
+    startCampaignStage();
+  }
+  function startCampaignStage() {
+    const ladder = CAMPAIGN_LADDERS[campaign.playerKey] || ["capitao"];
+    matchup = { p1: campaign.playerKey, p2: ladder[campaign.stage] };
+    currentDifficulty = CAMPAIGN_DIFFS[Math.min(campaign.stage, CAMPAIGN_DIFFS.length - 1)];
+    playerSide = "p1";
+    hideSelect();
+    hidePauseBtn();
+    newMatch();
+    maybeShowTutorialHint();
+  }
+  // Route a select-screen pick to whichever mode the screen was opened for
+  function pickFighter(key) {
+    if (campaignPending) startCampaign(key);
+    else if (key === "ze") startMatch("p1");
+    else if (key === "capitao") startMatch("p2");
+    else startMatchAs(key);
   }
 
   // Tutorial hint shown only on the very first match of a session.
@@ -2191,6 +2257,8 @@ body.in-menus #touch { display: none !important; }
     phase = "title";
     phaseT = 0;
     paused = false;
+    campaign = null;
+    campaignPending = false;
     endActionsShown = false;
     hidePauseModal();
     hideEndActions();
@@ -2240,7 +2308,31 @@ body.in-menus #touch { display: none !important; }
   function hidePauseBtn()     { const m = el("pause-btn");   if (m){ m.hidden = true;  } }
   function showPauseModal()   { const m = el("pause-modal"); if (m){ m.classList.add("show"); } }
   function hidePauseModal()   { const m = el("pause-modal"); if (m){ m.classList.remove("show"); } }
-  function showEndActions()   { const m = el("end-actions"); if (m){ m.classList.add("show"); } document.body.classList.add("in-menus"); }
+  // The primary end button adapts to campaign state: advance the ladder on a
+  // win, retry the same stage on a loss, restart the ladder after the title.
+  function configureEndActions() {
+    const primary = document.querySelector("#end-actions .end-btn.primary");
+    if (!primary) return;
+    if (!campaign || !matchResult) {
+      primary.textContent = "JOGAR NOVAMENTE";
+      primary.dataset.action = "play-again";
+      return;
+    }
+    const ladder = CAMPAIGN_LADDERS[campaign.playerKey] || [];
+    if (!matchResult.playerWon) {
+      primary.textContent = "TENTAR DE NOVO";
+      primary.dataset.action = "retry-stage";
+    } else if (campaign.stage + 1 < ladder.length) {
+      const next = FIGHTERS_BY_KEY[ladder[campaign.stage + 1]];
+      primary.textContent = "PRÓXIMA FASE: VS " + (next ? next.short : "?");
+      primary.dataset.action = "next-stage";
+    } else {
+      primary.textContent = "🏆 NOVO CAMPEONATO";
+      primary.dataset.action = "new-campaign";
+    }
+  }
+
+  function showEndActions()   { const m = el("end-actions"); if (m){ configureEndActions(); m.classList.add("show"); } document.body.classList.add("in-menus"); }
   function hideEndActions()   { const m = el("end-actions"); if (m){ m.classList.remove("show"); } }
   function updateMuteBtn(muted) {
     const m = el("mute-btn");
@@ -2295,13 +2387,25 @@ body.in-menus #touch { display: none !important; }
         else { paused = true; showPauseModal(); }
         e.preventDefault();
       } else if (phase === "select") {
+        campaignPending = false;
         hideSelect(); phase = "title"; phaseT = 0; showMenu();
       }
     }
     if (e.code === "Enter") {
       if (phase === "title") { startSelect("medio"); }
       else if (phase === "select") { startMatch(playerSide); }
-      else if (phase === "matchEnd" && phaseT > 60) { replayMatch(); }
+      else if (phase === "matchEnd" && phaseT > 60) {
+        if (campaign && matchResult) {
+          // Mirror the primary end-action: advance / restart / retry
+          const ladder = CAMPAIGN_LADDERS[campaign.playerKey] || [];
+          if (matchResult.playerWon) {
+            campaign.stage = campaign.stage + 1 < ladder.length ? campaign.stage + 1 : 0;
+          }
+          startCampaignStage();
+        } else {
+          replayMatch();
+        }
+      }
     }
     // Quick character pick from the keyboard during select
     if (phase === "select") {
@@ -6563,9 +6667,13 @@ body.in-menus #touch { display: none !important; }
 
     // Difficulty badge — small chip under the timer so players don't forget
     // which CPU level they're playing against. Color matches the menu button.
-    const diffLabel = currentDifficulty === "facil"   ? "FÁCIL"
-                    : currentDifficulty === "dificil" ? "DIFÍCIL"
-                    :                                   "MÉDIO";
+    let diffLabel = currentDifficulty === "facil"   ? "FÁCIL"
+                  : currentDifficulty === "dificil" ? "DIFÍCIL"
+                  :                                   "MÉDIO";
+    if (campaign) {
+      const total = (CAMPAIGN_LADDERS[campaign.playerKey] || []).length || 3;
+      diffLabel = `🏆 FASE ${campaign.stage + 1}/${total} · ${diffLabel}`;
+    }
     const diffColor = currentDifficulty === "facil"   ? "#6ee07a"
                     : currentDifficulty === "dificil" ? "#ff6b6b"
                     :                                   "#ffdf00";
@@ -6749,6 +6857,23 @@ body.in-menus #touch { display: none !important; }
       ctx.fillStyle = "#fff";
       ctx.font = "900 32px system-ui";
       ctx.fillText(playerWon ? winnerName : winnerName + " venceu...", W / 2, H / 2 - 6);
+      // Campaign banners: ladder cleared = national title; otherwise show
+      // which stage comes next / must be retried
+      if (campaign) {
+        const ladder = CAMPAIGN_LADDERS[campaign.playerKey] || [];
+        ctx.font = "900 22px Impact, system-ui";
+        if (playerWon && campaign.stage + 1 >= ladder.length) {
+          ctx.fillStyle = "#ffd84a";
+          ctx.fillText("🏆 CAMPEÃO DO DUELO BR! DERROTOU TODOS OS CANDIDATOS!", W / 2, H / 2 - 44);
+        } else if (playerWon) {
+          const next = FIGHTERS_BY_KEY[ladder[campaign.stage + 1]];
+          ctx.fillStyle = "#9be09a";
+          ctx.fillText(`FASE ${campaign.stage + 1} VENCIDA — PRÓXIMO: ${next ? next.name : "?"}`, W / 2, H / 2 - 44);
+        } else {
+          ctx.fillStyle = "#ff9a9a";
+          ctx.fillText(`ELIMINADO NA FASE ${campaign.stage + 1} — TENTE DE NOVO!`, W / 2, H / 2 - 44);
+        }
+      }
       // Match stats card — quantifies the fight and feeds the retry loop
       ctx.font = "700 17px system-ui";
       ctx.fillStyle = "#ffd84a";
@@ -7312,15 +7437,16 @@ body.in-menus #touch { display: none !important; }
     return peerJsLoading;
   }
 
+  // Room codes are 4 digits for easy voice/WhatsApp sharing. The digits are
+  // what players see and type; the actual PeerJS ID gets an app prefix so we
+  // don't collide with other apps on the public PeerServer namespace.
+  const PEER_ID_PREFIX = "duelobr-v1-";
   function genRoomCode() {
-    // 6-char alphanumeric room code (avoid 0/O and 1/I/L confusables)
-    const ALPHA = "ABCDEFGHJKMNPQRSTUVWXYZ23456789";
     let code = "";
-    for (let i = 0; i < 6; i++) {
-      code += ALPHA.charAt((Math.random() * ALPHA.length) | 0);
-    }
+    for (let i = 0; i < 4; i++) code += (Math.random() * 10) | 0;
     return code;
   }
+  function roomPeerId(code) { return PEER_ID_PREFIX + code; }
 
   // Apply remote raw inputs to inputState.p2 (the side the remote drives).
   function setOnlineRemoteInputs(keys) {
@@ -7373,7 +7499,8 @@ body.in-menus #touch { display: none !important; }
     showOnlineStep("pick");
   }
 
-  async function onlineHost() {
+  async function onlineHost(attempt) {
+    attempt = attempt || 0;
     setOnlineStatus("Carregando…");
     try { await loadPeerJs(); } catch { setOnlineStatus("Falha ao carregar PeerJS.", true); return; }
     onlineRoomCode = genRoomCode();
@@ -7381,13 +7508,18 @@ body.in-menus #touch { display: none !important; }
     showOnlineStep("host");
     setOnlineStatus("Conectando ao servidor…");
     try {
-      const peer = new window.Peer(onlineRoomCode, { debug: 1 });
+      const peer = new window.Peer(roomPeerId(onlineRoomCode), { debug: 1 });
       onlinePeer = peer;
       peer.on("open", () => setOnlineStatus("Aguardando oponente…"));
       peer.on("error", (err) => {
-        const msg = err && err.type === "unavailable-id"
-          ? "Código já em uso. Tente outro." : "Erro: " + (err && err.type);
-        setOnlineStatus(msg, true);
+        if (err && err.type === "unavailable-id") {
+          // 4-digit space is small — collide? roll a fresh code (up to 5x)
+          try { peer.destroy(); } catch {}
+          if (attempt < 5) { onlineHost(attempt + 1); }
+          else setOnlineStatus("Servidor cheio. Tente de novo.", true);
+          return;
+        }
+        setOnlineStatus("Erro: " + (err && err.type), true);
       });
       peer.on("connection", (conn) => {
         onlineConn = conn;
@@ -7404,11 +7536,11 @@ body.in-menus #touch { display: none !important; }
   }
 
   async function onlineJoin(code) {
-    if (!code || code.length !== 6) {
-      setOnlineStatus("Digite o código de 6 caracteres.", true);
+    code = (code || "").replace(/\D/g, "");
+    if (code.length !== 4) {
+      setOnlineStatus("Digite o código de 4 dígitos.", true);
       return;
     }
-    code = code.toUpperCase();
     setOnlineStatus("Carregando…");
     try { await loadPeerJs(); } catch { setOnlineStatus("Falha ao carregar PeerJS.", true); return; }
     setOnlineStatus("Conectando…");
@@ -7416,7 +7548,7 @@ body.in-menus #touch { display: none !important; }
       const peer = new window.Peer({ debug: 1 });
       onlinePeer = peer;
       peer.on("open", () => {
-        const conn = peer.connect(code, { reliable: true });
+        const conn = peer.connect(roomPeerId(code), { reliable: true });
         onlineConn = conn;
         attachConnHandlers(conn);
         conn.on("open", () => {
@@ -7430,6 +7562,103 @@ body.in-menus #touch { display: none !important; }
     } catch {
       setOnlineStatus("Erro ao conectar.", true);
     }
+  }
+
+  // ---------- RANDOM MATCHMAKING (no backend) ----------
+  // Poor-man's lobby over PeerJS: a fixed set of well-known slot IDs. A
+  // searcher first scans the slots as guest; if nobody is waiting it claims
+  // a free slot and waits as host. Waiting hosts periodically hop back to
+  // scanning (with jitter) so two simultaneous waiters eventually pair up.
+  const MM_SLOTS = 8;
+  let mmRescanTimer = null;
+  function mmSlotId(i) { return PEER_ID_PREFIX + "mm-" + i; }
+  function shuffledSlots() {
+    const a = Array.from({ length: MM_SLOTS }, (_, i) => i);
+    for (let i = a.length - 1; i > 0; i--) {
+      const j = (Math.random() * (i + 1)) | 0;
+      [a[i], a[j]] = [a[j], a[i]];
+    }
+    return a;
+  }
+  async function onlineRandom() {
+    setOnlineStatus("Carregando…");
+    try { await loadPeerJs(); } catch { setOnlineStatus("Falha ao carregar PeerJS.", true); return; }
+    showOnlineStep("host");
+    el("online-code-display").textContent = "🎲";
+    mmScan(shuffledSlots());
+  }
+  function mmScan(order) {
+    const peer = new window.Peer({ debug: 0 });
+    onlinePeer = peer;
+    let idx = 0, done = false, timer = null;
+    const tryNext = () => {
+      if (done) return;
+      if (idx >= order.length) {
+        done = true;
+        try { peer.destroy(); } catch {}
+        mmBecomeHost(shuffledSlots(), 0);
+        return;
+      }
+      const slot = order[idx++];
+      setOnlineStatus(`Procurando oponente… (${idx}/${order.length})`);
+      const conn = peer.connect(mmSlotId(slot), { reliable: true });
+      timer = setTimeout(() => { try { conn.close(); } catch {} tryNext(); }, 2000);
+      conn.on("open", () => {
+        if (done) return;
+        done = true; clearTimeout(timer);
+        onlineConn = conn; attachConnHandlers(conn);
+        onlineMode = "guest";
+        setOnlineStatus("Oponente encontrado! Iniciando…");
+        setTimeout(() => onlineStartFight(), 600);
+      });
+    };
+    peer.on("open", tryNext);
+    peer.on("error", (err) => {
+      if (done) return;
+      if (err && err.type === "peer-unavailable") { clearTimeout(timer); tryNext(); }
+      else if (err && (err.type === "network" || err.type === "server-error")) {
+        done = true;
+        setOnlineStatus("Erro de conexão. Tente de novo.", true);
+      }
+    });
+  }
+  function mmBecomeHost(order, idx) {
+    if (idx >= order.length) { setOnlineStatus("Fila cheia. Tente de novo em instantes.", true); return; }
+    const peer = new window.Peer(mmSlotId(order[idx]), { debug: 0 });
+    onlinePeer = peer;
+    let claimed = false;
+    peer.on("open", () => {
+      claimed = true;
+      setOnlineStatus("Ninguém na fila — esperando um desafiante…");
+      scheduleMmRescan();
+    });
+    peer.on("error", (err) => {
+      if (!claimed && err && err.type === "unavailable-id") {
+        try { peer.destroy(); } catch {}
+        mmBecomeHost(order, idx + 1);   // slot taken by another waiter
+      }
+    });
+    peer.on("connection", (conn) => {
+      clearMmRescan();
+      onlineConn = conn; attachConnHandlers(conn);
+      conn.on("open", () => {
+        onlineMode = "host";
+        setOnlineStatus("Oponente encontrado! Iniciando…");
+        setTimeout(() => onlineStartFight(), 600);
+      });
+    });
+  }
+  function scheduleMmRescan() {
+    clearMmRescan();
+    mmRescanTimer = setTimeout(() => {
+      if (onlineMode !== "off" || !onlinePeer) return;  // matched or cancelled
+      try { onlinePeer.destroy(); } catch {}
+      onlinePeer = null;
+      mmScan(shuffledSlots());
+    }, 6000 + Math.random() * 6000);
+  }
+  function clearMmRescan() {
+    if (mmRescanTimer) { clearTimeout(mmRescanTimer); mmRescanTimer = null; }
   }
 
   function onlineStartFight() {
@@ -7530,14 +7759,24 @@ body.in-menus #touch { display: none !important; }
     // Wire menu buttons → go to character select
     document.querySelectorAll("#menu .menu-btn").forEach((btn) => {
       const diff = btn.dataset.difficulty;
-      if (!diff) return; // online + other no-difficulty buttons handled separately
+      if (!diff) return; // online + campeonato handled separately below
       btn.addEventListener("click", () => { audio.menuPick(); startSelect(diff); });
     });
+    el("menu-campeonato").addEventListener("click", () => {
+      audio.menuPick();
+      campaignPending = true;
+      startSelect(null);   // stage difficulty is set per opponent
+    });
+    el("menu-online").addEventListener("click", () => {
+      audio.menuPick();
+      hideMenu();
+      showOnlineModal();
+    });
 
-    // Online modal handlers (modal infrastructure kept for future re-enable;
-    // the entry-point button has been removed from the menu for now)
+    // Online modal handlers
     el("online-host").addEventListener("click", () => { audio.menuPick(); onlineHost(); });
     el("online-join").addEventListener("click", () => { audio.menuPick(); showOnlineStep("join"); setOnlineStatus(""); });
+    el("online-random").addEventListener("click", () => { audio.menuPick(); onlineRandom(); });
     el("online-connect").addEventListener("click", () => {
       audio.menuPick();
       const code = (el("online-code-input").value || "").trim().toUpperCase();
@@ -7545,11 +7784,13 @@ body.in-menus #touch { display: none !important; }
     });
     el("online-cancel").addEventListener("click", () => {
       audio.menuBack();
+      clearMmRescan();
       // Tear down any pending peer/conn
       try { if (onlineConn) onlineConn.close(); } catch {}
       try { if (onlinePeer) onlinePeer.destroy(); } catch {}
       onlineConn = null; onlinePeer = null; onlineMode = "off";
       hideOnlineModal();
+      if (phase === "title") showMenu();   // menu was hidden when the modal opened
     });
     el("online-copy").addEventListener("click", async () => {
       try {
@@ -7566,14 +7807,17 @@ body.in-menus #touch { display: none !important; }
     });
     // Force uppercase + auto-trim on the code input
     el("online-code-input").addEventListener("input", (e) => {
-      const v = e.target.value.toUpperCase().replace(/[^A-Z0-9]/g, "").slice(0, 6);
+      const v = e.target.value.replace(/\D/g, "").slice(0, 4);
       e.target.value = v;
     });
 
     // Character select: clicking a card picks that fighter for the human
     document.querySelectorAll("#select .select-card:not(.premium)").forEach((btn) => {
       const side = btn.dataset.side;
-      btn.addEventListener("click", () => { audio.menuPick(); startMatch(side); });
+      btn.addEventListener("click", () => {
+        audio.menuPick();
+        pickFighter(side === "p2" ? "capitao" : "ze");
+      });
     });
 
     // Premium cards: play if unlocked, otherwise open the beta-code modal
@@ -7585,7 +7829,7 @@ body.in-menus #touch { display: none !important; }
     document.querySelectorAll("#select .select-card.premium").forEach((btn) => {
       const key = btn.dataset.fighter;
       btn.addEventListener("click", () => {
-        if (entitlements.has(key)) { audio.menuPick(); startMatchAs(key); return; }
+        if (entitlements.has(key)) { audio.menuPick(); pickFighter(key); return; }
         audio.menuPick();
         unlockTargetKey = key;
         el("unlock-status").textContent = ""; el("unlock-status").className = "";
@@ -7607,7 +7851,7 @@ body.in-menus #touch { display: none !important; }
           // Code covers the fighter whose card was clicked — into the fight
           status.textContent = "✔ DESBLOQUEADO! BOA LUTA!";
           status.className = "ok";
-          setTimeout(() => { hideUnlockModal(); startMatchAs(key); }, 900);
+          setTimeout(() => { hideUnlockModal(); pickFighter(key); }, 900);
         } else {
           // Valid code for a DIFFERENT fighter (e.g. Jana's code typed on
           // Mimi's card) — unlock it and let the player pick from the grid
@@ -7634,6 +7878,7 @@ body.in-menus #touch { display: none !important; }
     refreshPremiumCards();
     el("select-back").addEventListener("click", () => {
       audio.menuBack();
+      campaignPending = false;
       hideSelect(); phase = "title"; phaseT = 0; showMenu();
     });
     // Render the small fighter portraits in the select cards
@@ -7686,6 +7931,9 @@ body.in-menus #touch { display: none !important; }
       e.stopPropagation();
       const action = t.dataset.action;
       if (action === "play-again") { audio.menuPick(); replayMatch(); }
+      else if (action === "next-stage") { audio.menuPick(); campaign.stage++; startCampaignStage(); }
+      else if (action === "retry-stage") { audio.menuPick(); startCampaignStage(); }
+      else if (action === "new-campaign") { audio.menuPick(); campaign.stage = 0; startCampaignStage(); }
       else if (action === "back-to-menu") { audio.menuBack(); backToTitle(); }
       setTimeout(() => { endActionHandling = false; }, 350);
     }
