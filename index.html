@@ -369,6 +369,10 @@ body.in-menus #touch { display: none !important; }
   pointer-events: none;
 }
 .select-card.premium.unlocked .select-lock { display: none; }
+.select-days {
+  font-size: 9px; letter-spacing: 1px; color: #9be09a;
+  min-height: 11px; margin-top: 2px;
+}
 .select-card.premium.locked .select-portrait { filter: grayscale(1) brightness(0.6); }
 .select-card.premium.locked .select-go { visibility: hidden; }
 /* ---- Unlock (beta code) modal ---- */
@@ -813,6 +817,7 @@ body.in-menus #touch { display: none !important; }
       <canvas class="select-portrait" data-portrait="mimi" width="120" height="160"></canvas>
       <div class="select-name">MIMI</div>
       <div class="select-tag">EXECUTIVA</div>
+      <div class="select-days"></div>
       <div class="select-go">JOGAR</div>
       <div class="select-lock">🔒 DESBLOQUEAR</div>
     </button>
@@ -820,6 +825,7 @@ body.in-menus #touch { display: none !important; }
       <canvas class="select-portrait" data-portrait="jana" width="120" height="160"></canvas>
       <div class="select-name">JANA</div>
       <div class="select-tag">RAIZ</div>
+      <div class="select-days"></div>
       <div class="select-go">JOGAR</div>
       <div class="select-lock">🔒 DESBLOQUEAR</div>
     </button>
@@ -831,7 +837,7 @@ body.in-menus #touch { display: none !important; }
 <div id="unlock-modal" aria-hidden="true">
   <div id="unlock-box">
     <div id="unlock-title">🔒 LUTADORA EXCLUSIVA</div>
-    <p id="unlock-text">Em breve: desbloqueie esta lutadora por R$ 1 (compra única).<br>
+    <p id="unlock-text">Em breve: desbloqueie esta lutadora por R$ 1 (acesso por 30 dias).<br>
       Tem um código de acesso beta? Digite abaixo:</p>
     <input id="unlock-input" type="text" maxlength="24" placeholder="CÓDIGO BETA"
            autocomplete="off" autocorrect="off" autocapitalize="characters" spellcheck="false">
@@ -1044,27 +1050,56 @@ body.in-menus #touch { display: none !important; }
     "1ad30f53c13e5bf018669a9a66d1149072d169675a3d1cc661dd252fc591f966": ["mimi"],    // MIMI2026
     "0efd997e37af464565f0e74b7dc2388096adc42dcdc34f44d4b84a231d47b7e9": ["jana"],    // JANA2026
   };
+  // Every unlock (purchase or beta code) is time-boxed: access to a fighter
+  // lasts 30 days from the grant. Storage shape v2:
+  //   { v: 2, exp: { mimi: epochMs, "*": epochMs }, source, at }
+  // "*" covers all premium fighters. Expired entries simply fail has().
+  const UNLOCK_TTL_DAYS = 30;
   const entitlements = {
+    _load() {
+      let t = null;
+      try { t = JSON.parse(localStorage.getItem(UNLOCK_STORAGE_KEY)); } catch {}
+      if (!t) return null;
+      // Migrate v1 tokens (no expiry) from the earlier beta deploy: convert
+      // to v2 granting the standard TTL from first sight, so nobody who
+      // unlocked before this change gets silently relocked.
+      if (t.v !== 2) {
+        const exp = {};
+        const until = Date.now() + UNLOCK_TTL_DAYS * 864e5;
+        if (t.all === true) exp["*"] = until;
+        if (Array.isArray(t.fighters)) for (const k of t.fighters) exp[k] = until;
+        t = { v: 2, exp, source: t.source || "migrated-v1", at: new Date().toISOString() };
+        try { localStorage.setItem(UNLOCK_STORAGE_KEY, JSON.stringify(t)); } catch {}
+      }
+      return t;
+    },
     has(key) {
       const spec = FIGHTERS_BY_KEY[key];
       if (!spec || !spec.premium) return true;
-      try {
-        const t = JSON.parse(localStorage.getItem(UNLOCK_STORAGE_KEY));
-        return !!t && (t.all === true || (Array.isArray(t.fighters) && t.fighters.includes(key)));
-      } catch { return false; }
+      const t = this._load();
+      if (!t || !t.exp) return false;
+      const now = Date.now();
+      return (t.exp["*"] || 0) > now || (t.exp[key] || 0) > now;
     },
-    // scope: "all" or array of fighter keys — merges with what's already owned
+    // Days of access left for a fighter (ceil), 0 when locked/expired
+    daysLeft(key) {
+      const t = this._load();
+      if (!t || !t.exp) return 0;
+      const until = Math.max(t.exp["*"] || 0, t.exp[key] || 0);
+      return Math.max(0, Math.ceil((until - Date.now()) / 864e5));
+    },
+    // scope: "all" or array of fighter keys — each grant runs 30 days from
+    // now and merges with (extends over) whatever is already stored
     grant(scope, source) {
-      let cur = null;
-      try { cur = JSON.parse(localStorage.getItem(UNLOCK_STORAGE_KEY)); } catch {}
-      const next = {
-        all: !!(cur && cur.all === true),
-        fighters: (cur && Array.isArray(cur.fighters)) ? cur.fighters.slice() : [],
-        source, at: new Date().toISOString(),
-      };
-      if (scope === "all") next.all = true;
-      else for (const k of scope) if (!next.fighters.includes(k)) next.fighters.push(k);
-      try { localStorage.setItem(UNLOCK_STORAGE_KEY, JSON.stringify(next)); } catch {}
+      const cur = this._load();
+      const exp = (cur && cur.exp) ? { ...cur.exp } : {};
+      const until = Date.now() + UNLOCK_TTL_DAYS * 864e5;
+      if (scope === "all") exp["*"] = Math.max(exp["*"] || 0, until);
+      else for (const k of scope) exp[k] = Math.max(exp[k] || 0, until);
+      try {
+        localStorage.setItem(UNLOCK_STORAGE_KEY,
+          JSON.stringify({ v: 2, exp, source, at: new Date().toISOString() }));
+      } catch {}
     },
   };
   // Returns the code's scope ("all" | [keys]) or null when invalid.
@@ -2089,9 +2124,27 @@ body.in-menus #touch { display: none !important; }
   }
 
   // Title menu → difficulty button click goes here
+  // Sync premium card lock state + remaining-days badge with entitlements.
+  // Runs on boot, after an unlock, and on every select open — unlocks are
+  // time-boxed, so a card can flip back to locked between visits.
+  function refreshPremiumCards() {
+    document.querySelectorAll("#select .select-card.premium").forEach((btn) => {
+      const key = btn.dataset.fighter;
+      const owned = entitlements.has(key);
+      btn.classList.toggle("locked", !owned);
+      btn.classList.toggle("unlocked", owned);
+      const badge = btn.querySelector(".select-days");
+      if (badge) {
+        const d = entitlements.daysLeft(key);
+        badge.textContent = owned ? (d + (d === 1 ? " DIA RESTANTE" : " DIAS RESTANTES")) : "";
+      }
+    });
+  }
+
   function startSelect(difficulty) {
     if (difficulty) currentDifficulty = difficulty;
     ensurePremiumSprites();   // kick off the lazy premium-strip download
+    refreshPremiumCards();    // time-boxed unlocks may have expired
     hideMenu();
     showSelect();
     phase = "select";
@@ -7525,13 +7578,6 @@ body.in-menus #touch { display: none !important; }
 
     // Premium cards: play if unlocked, otherwise open the beta-code modal
     let unlockTargetKey = null;
-    function refreshPremiumCards() {
-      document.querySelectorAll("#select .select-card.premium").forEach((btn) => {
-        const owned = entitlements.has(btn.dataset.fighter);
-        btn.classList.toggle("locked", !owned);
-        btn.classList.toggle("unlocked", owned);
-      });
-    }
     function hideUnlockModal() {
       el("unlock-modal").classList.remove("show");
       el("unlock-modal").setAttribute("aria-hidden", "true");
