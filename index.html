@@ -352,11 +352,12 @@ body.in-menus #touch { display: none !important; }
   text-shadow: 0 2px 0 #000;
   margin: 18px 0 8px;
 }
-#select-premium-row {
+#select-premium-row, #select-premium-row2 {
   display: flex; align-items: center; justify-content: center;
   gap: clamp(10px, 2vw, 24px);
   width: 100%; max-width: 640px;
 }
+#select-premium-row2 { margin-top: 10px; }
 .select-vs.premium-vs { -webkit-text-stroke: 2px #8a5fb0; }
 .select-card.premium {
   position: relative;
@@ -447,7 +448,7 @@ body.in-menus #touch { display: none !important; }
 /* Narrow viewports (phones in portrait): stack the two cards vertically
    so each gets full width and the VS divider compacts to a tiny badge. */
 @media (max-width: 600px) {
-  #select-row, #select-premium-row {
+  #select-row, #select-premium-row, #select-premium-row2 {
     flex-direction: column;
     gap: 14px;
     max-width: 360px;
@@ -847,6 +848,25 @@ body.in-menus #touch { display: none !important; }
       <div class="select-lock">🔒 DESBLOQUEAR</div>
     </button>
   </div>
+  <div id="select-premium-row2">
+    <button class="select-card premium leao locked" data-fighter="leao" aria-label="Jogar como Leão (exclusivo da versão paga)">
+      <canvas class="select-portrait" data-portrait="leao" width="120" height="160"></canvas>
+      <div class="select-name">LEÃO</div>
+      <div class="select-tag">O COBRADOR</div>
+      <div class="select-days"></div>
+      <div class="select-go">JOGAR</div>
+      <div class="select-lock">🔒 DESBLOQUEAR</div>
+    </button>
+    <div class="select-vs premium-vs">VS</div>
+    <button class="select-card premium dudu locked" data-fighter="dudu" aria-label="Jogar como Dudu (exclusivo da versão paga)">
+      <canvas class="select-portrait" data-portrait="dudu" width="120" height="160"></canvas>
+      <div class="select-name">DUDU</div>
+      <div class="select-tag">O HERDEIRO</div>
+      <div class="select-days"></div>
+      <div class="select-go">JOGAR</div>
+      <div class="select-lock">🔒 DESBLOQUEAR</div>
+    </button>
+  </div>
   <button id="select-back">← VOLTAR</button>
   <p class="select-hint">O computador joga com o outro lutador.</p>
 </div>
@@ -1042,10 +1062,36 @@ body.in-menus #touch { display: none !important; }
     auraColor: "rgba(255, 120, 120, 0.55)",
     auraColor2: "rgba(255, 220, 120, 0.55)",
   };
+  const LEAO = {
+    key: "leao",
+    name: "LEÃO",
+    short: "LEÃO",
+    side: "p1",
+    premium: true,
+    skin: "#d8a883",
+    speed: 205,               // heavier bureaucrat — slower but relentless
+    jumpV: -630,
+    moveLabels: { punch: "MORDIDA DO LEÃO", kick: "MALHA FINA", special: "LEI DO IMPOSTO" },
+    auraColor: "rgba(255, 200, 60, 0.55)",
+    auraColor2: "rgba(160, 220, 255, 0.55)",
+  };
+  const DUDU = {
+    key: "dudu",
+    name: "DUDU",
+    short: "DUDU",
+    side: "p2",
+    premium: true,
+    skin: "#e0b088",
+    speed: 225,
+    jumpV: -650,
+    moveLabels: { punch: "VOZ DE PRISÃO", kick: "CASSETETADA", special: "CUMPRIR A LEI" },
+    auraColor: "rgba(90, 140, 220, 0.55)",
+    auraColor2: "rgba(255, 220, 80, 0.55)",
+  };
 
   // Roster registry — the select screen and match setup are driven by this,
   // so adding a fighter = add a spec + sprite + registry entry.
-  const FIGHTERS_BY_KEY = { ze: ZE, capitao: CAPITAO, mimi: MIMI, jana: JANA };
+  const FIGHTERS_BY_KEY = { ze: ZE, capitao: CAPITAO, mimi: MIMI, jana: JANA, leao: LEAO, dudu: DUDU };
   // Which fighters each side fields in the next match (select screen sets it;
   // online/classic flows reset it to the founding duo).
   let matchup = { p1: "ze", p2: "capitao" };
@@ -1056,10 +1102,12 @@ body.in-menus #touch { display: none !important; }
   // (Zé↔Capitão, Mimi↔Jana), then the rest. The menu difficulty applies to
   // the whole ladder, and wins auto-advance to the next stage.
   const CAMPAIGN_LADDERS = {
-    ze:      ["capitao", "mimi", "jana"],
-    capitao: ["ze", "jana", "mimi"],
-    mimi:    ["jana", "ze", "capitao"],
-    jana:    ["mimi", "capitao", "ze"],
+    ze:      ["capitao", "mimi", "jana", "leao", "dudu"],
+    capitao: ["ze", "jana", "mimi", "dudu", "leao"],
+    mimi:    ["jana", "ze", "capitao", "leao", "dudu"],
+    jana:    ["mimi", "capitao", "ze", "dudu", "leao"],
+    leao:    ["dudu", "ze", "capitao", "mimi", "jana"],
+    dudu:    ["leao", "capitao", "ze", "jana", "mimi"],
   };
   const CAMPAIGN_AUTO_FRAMES = 240;  // ~4s reading the win banner, then next stage
   let campaign = null;          // { playerKey, stage } while a campaign runs
@@ -1080,6 +1128,8 @@ body.in-menus #touch { display: none !important; }
     "d89d5a12118f2f78eebac0853d5f0c2e079a32838ee163b567cc119c7d90f16d": "all",       // FAIXAVERDE
     "1ad30f53c13e5bf018669a9a66d1149072d169675a3d1cc661dd252fc591f966": ["mimi"],    // MIMI2026
     "0efd997e37af464565f0e74b7dc2388096adc42dcdc34f44d4b84a231d47b7e9": ["jana"],    // JANA2026
+    "7240b74bb4ae13cbe6924a75834eb0d6bf352ca6990e34e66d98d32099072d20": ["leao"],    // LEAO2026
+    "54422b8c7f955c9a3a31e9f6d77ff402d81958b3ee4c53dd5b6d47f4ca89b39f": ["dudu"],    // DUDU2026
   };
   // Every unlock (purchase or beta code) is time-boxed: access to a fighter
   // lasts 30 days from the grant. Storage shape v2:
@@ -1240,11 +1290,26 @@ body.in-menus #touch { display: none !important; }
     "SEGURA A CHINELADA!",
     "É DELA! É DELA!",
   ];
+  const LEAO_WIN_QUOTES = [
+    "CAIU NA MALHA FINA!",
+    "IMPOSTO É AMOR!",
+    "COBRANÇA CONCLUÍDA!",
+    "O LEÃO AGRADECE!",
+    "DECLAROU, PAGOU!",
+  ];
+  const DUDU_WIN_QUOTES = [
+    "TÁ PRESO!",
+    "LEI É LEI!",
+    "CASO ENCERRADO!",
+    "SEM FIANÇA!",
+    "DIREITO AO SILÊNCIO!",
+  ];
   const WIN_QUOTES_BY_KEY = {
     ze: ZE_WIN_QUOTES, capitao: CAP_WIN_QUOTES,
     mimi: MIMI_WIN_QUOTES, jana: JANA_WIN_QUOTES,
+    leao: LEAO_WIN_QUOTES, dudu: DUDU_WIN_QUOTES,
   };
-  const winQuoteIdx = { ze: -1, capitao: -1, mimi: -1, jana: -1 };
+  const winQuoteIdx = { ze: -1, capitao: -1, mimi: -1, jana: -1, leao: -1, dudu: -1 };
   let currentWinQuote = "";
   let endActionsShown = false;         // edge-flag so the matchEnd buttons fire exactly once
 
@@ -5123,7 +5188,41 @@ body.in-menus #touch { display: none !important; }
     anims: premiumAnims(),
   };
   JANA_SPRITE.img.onload = () => { JANA_SPRITE.ready = true; drawSelectPortraits(); };
-  const PREMIUM_SPRITES = { mimi: MIMI_SPRITE, jana: JANA_SPRITE };
+  // Leão and Dudu strips are hand-picked frames from irregular sheets, so
+  // each carries its own anims map (indices = strip order set at pack time).
+  const LEAO_SPRITE = {
+    img: new Image(), ready: false, cw: 221, ch: 190,
+    contentRatio: 0.95, scalePx: 150, koLying: true,
+    url: "sprites/leao.png",
+    anims: {
+      idle:   { frames: [0] },
+      walk:   { frames: [1, 2], fps: 8 },
+      punchS: { frames: [3] }, punchA: { frames: [4] }, punchR: { frames: [3] },
+      kickS:  { frames: [5] }, kickA:  { frames: [6] }, kickR:  { frames: [5] },
+      specS:  { frames: [7] }, specA:  { frames: [8] }, specR:  { frames: [9] },
+      hurt:   { frames: [10] }, ko: { frames: [12] }, block: { frames: [9] },
+      jump:   { frames: [6] },
+      victory:{ frames: [13, 14, 15], fps: 4 },
+    },
+  };
+  LEAO_SPRITE.img.onload = () => { LEAO_SPRITE.ready = true; drawSelectPortraits(); };
+  const DUDU_SPRITE = {
+    img: new Image(), ready: false, cw: 186, ch: 184,
+    contentRatio: 0.95, scalePx: 146, koLying: true,
+    url: "sprites/dudu.png",
+    anims: {
+      idle:   { frames: [0] },
+      walk:   { frames: [1, 2], fps: 8 },
+      punchS: { frames: [3] }, punchA: { frames: [4] }, punchR: { frames: [3] },
+      kickS:  { frames: [5] }, kickA:  { frames: [6] }, kickR:  { frames: [5] },
+      specS:  { frames: [7] }, specA:  { frames: [8] }, specR:  { frames: [9] },
+      hurt:   { frames: [11] }, ko: { frames: [13] }, block: { frames: [10] },
+      jump:   { frames: [6] },
+      victory:{ frames: [14, 15, 16, 17], fps: 4 },
+    },
+  };
+  DUDU_SPRITE.img.onload = () => { DUDU_SPRITE.ready = true; drawSelectPortraits(); };
+  const PREMIUM_SPRITES = { mimi: MIMI_SPRITE, jana: JANA_SPRITE, leao: LEAO_SPRITE, dudu: DUDU_SPRITE };
 
   // Premium strips live as separate files so the (much more common) free
   // play doesn't pay their download; fetch starts when the select screen
@@ -6141,7 +6240,7 @@ body.in-menus #touch { display: none !important; }
   }
 
   // ---------- ROUND-3 SIDEKICKS ----------
-  // O Fiel (Zé's loyal ally) and O Herdeiro (Capitão's protégé) only appear in
+  // O Fiel (Zé's loyal ally) and O Sobrinho (Capitão's protégé) only appear in
   // round 3. They roam freely inside per-fighter zones, picking new
   // walking targets every 1-3 seconds. They face their target. When the
   // main fighter is KO'd they jog over to within ~40 px of the body.
@@ -6163,7 +6262,7 @@ body.in-menus #touch { display: none !important; }
   }
 
   // Roam zones depend on the current main-fighter positions (so O Fiel
-  // can't walk through Zé and O Herdeiro can't walk through Capitão).
+  // can't walk through Zé and O Sobrinho can't walk through Capitão).
   function fielZone() {
     return { lo: 60, hi: Math.max(70, p1.x - 50) };
   }
@@ -6354,7 +6453,7 @@ body.in-menus #touch { display: none !important; }
   }
 
   function drawHerdeiro(cx, cy, holdPhoneHigh, s) {
-    // O Herdeiro — selfie-snapping sidekick
+    // O Sobrinho — selfie-snapping sidekick
     const walking = s && Math.abs(s.vx) > 5;
     const facing = s && s.facing < 0 ? -1 : 1;
     let bob = walking
@@ -6453,7 +6552,7 @@ body.in-menus #touch { display: none !important; }
     ctx.fillRect(-22, -126 + bob, 44, 12);
     ctx.fillStyle = "#4a5d2e";
     ctx.font = "900 9px system-ui";
-    ctx.fillText("O HERDEIRO", 0, -120 + bob);
+    ctx.fillText("O SOBRINHO", 0, -120 + bob);
 
     ctx.restore();
   }
