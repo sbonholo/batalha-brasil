@@ -2435,7 +2435,9 @@ body.in-menus #touch { display: none !important; }
       if (phase === "title") { startSelect("medio"); }
       else if (phase === "select") { pickFighter(playerSide === "p2" ? "capitao" : "ze"); }
       else if (phase === "matchEnd" && phaseT > 60) {
-        if (campaign && matchResult) {
+        if (onlineMode !== "off") {
+          onlineRequestRematch();
+        } else if (campaign && matchResult) {
           // Mirror the primary end-action: advance / restart / retry
           const ladder = CAMPAIGN_LADDERS[campaign.playerKey] || [];
           if (matchResult.playerWon) {
@@ -2787,7 +2789,9 @@ body.in-menus #touch { display: none !important; }
   }
 
   function step() {
-    if (paused) return;
+    // Online, pausing locally must NOT halt the lockstep simulation — the
+    // peer's game would stall (old behavior silently desynced instead).
+    if (paused && onlineMode === "off") return;
     if (hitstop > 0) { hitstop--; updateEffects(); return; }
     refreshEdges();
 
@@ -2883,19 +2887,18 @@ body.in-menus #touch { display: none !important; }
 
     // ===== FIGHT =====
     if (onlineMode !== "off") {
-      // Online: each side is human-driven via the network.
-      //   Local human → inputState.p1 (always — that's where keyboard/touch lands)
-      //   Remote peer → inputState.p2 (writeed by data channel handler)
-      // Host plays p1, guest plays p2 — route accordingly.
+      // Online lockstep: both clients feed the engine the QUEUED inputs for
+      // this exact tick (never the live ones), so the simulations are
+      // byte-identical. Host fields p1, guest fields p2.
+      const mine = netInputsFor(netLocalQ, netTick);
+      const theirs = netInputsFor(netRemoteQ, netTick);
       if (onlineMode === "host") {
-        applyInputs(p1, inputState.p1);
-        applyInputs(p2, inputState.p2);
+        applyInputs(p1, mine);
+        applyInputs(p2, theirs);
       } else {
-        applyInputs(p1, inputState.p2);
-        applyInputs(p2, inputState.p1);
+        applyInputs(p1, theirs);
+        applyInputs(p2, mine);
       }
-      // Send our local input bools to the remote every game tick.
-      sendOnlineInputs();
     } else if (playerSide === "p1") {
       applyInputs(p1, inputState.p1);
       applyInputs(p2, aiInputs(p2, p1, currentDifficulty));
@@ -6696,6 +6699,18 @@ body.in-menus #touch { display: none !important; }
 
   // ---------- HUD: Brazilian-flag styled ----------
   function drawHud() {
+    // Online lockstep waiting on the peer (lag spike / backgrounded tab):
+    // freeze is intentional — say so instead of looking broken.
+    if (onlineMode !== "off" && netStall > 30) {
+      ctx.save();
+      ctx.textAlign = "center"; ctx.textBaseline = "middle";
+      ctx.fillStyle = "rgba(0,0,0,0.7)";
+      ctx.fillRect(W / 2 - 150, 108, 300, 30);
+      ctx.fillStyle = "#9cc6ff";
+      ctx.font = "700 15px system-ui";
+      ctx.fillText("⏳ aguardando oponente…", W / 2, 123);
+      ctx.restore();
+    }
     // Dark backdrop strip so names + bars stay readable over bright sky / sun.
     ctx.fillStyle = "rgba(0, 0, 0, 0.32)";
     ctx.fillRect(0, 0, W, 100);
@@ -7469,6 +7484,9 @@ body.in-menus #touch { display: none !important; }
   // MAIN LOOP
   // ============================================================
   let last = 0, acc = 0;
+  // Phases that must advance in lockstep online (identical tick counts on
+  // both clients — phase timers, rounds and wins all derive from them).
+  const NET_PHASES = { ready: 1, fight: 1, celebrate: 1, roundEnd: 1, matchEnd: 1 };
   function frame(now) {
     if (!last) last = now;
     const dt = Math.min(0.05, (now - last) / 1000);
@@ -7476,9 +7494,22 @@ body.in-menus #touch { display: none !important; }
     acc += dt;
     timeNow += dt;
     while (acc >= TICK_DT) {
-      step();
+      if (onlineMode !== "off" && NET_PHASES[phase]) {
+        netScheduleLocal();               // keep our inputs flowing even while stalled
+        if (!netRemoteQ.has(netTick)) {   // peer's input for this tick not here yet
+          netStall++;
+          break;
+        }
+        netStall = 0;
+        step();
+        netTick++;
+        netPrune();
+      } else {
+        step();
+      }
       acc -= TICK_DT;
     }
+    if (acc > 0.2) acc = 0.2;   // a long stall must not burst-fire ticks after
     render();
     requestAnimationFrame(frame);
   }
@@ -7531,10 +7562,11 @@ body.in-menus #touch { display: none !important; }
   // ONLINE MULTIPLAYER — PeerJS WebRTC peer-to-peer
   // ============================================================
   // Two-player 1v1 over the network. Host creates a room (Peer ID = room
-  // code, uppercase). Guest connects to that ID. Each frame we send the
-  // local human's input bools across the data channel; the remote bools
-  // land in inputState.p2 (via setOnlineRemoteInputs) so refreshEdges()
-  // computes per-frame edges naturally for both fighters.
+  // code). Guest connects to that ID. The fight itself runs as
+  // DETERMINISTIC LOCKSTEP: each side schedules its sampled inputs for
+  // tick N+DELAY, sends them ({t, keys}), and the engine only advances a
+  // tick once both sides' inputs for it are queued — see the lockstep
+  // block below.
   //
   // Roles:
   //   host  → fields the P1 slot (left)
@@ -7547,7 +7579,6 @@ body.in-menus #touch { display: none !important; }
   let onlinePeer = null;        // PeerJS Peer instance
   let onlineConn = null;        // PeerJS DataConnection
   let onlineRoomCode = "";      // 6-char uppercase code
-  let netSeq = 0;               // outgoing frame counter
   let peerJsLoaded = false;
   let peerJsLoading = null;     // Promise (debounce)
 
@@ -7568,7 +7599,7 @@ body.in-menus #touch { display: none !important; }
   // Room codes are 4 digits for easy voice/WhatsApp sharing. The digits are
   // what players see and type; the actual PeerJS ID gets an app prefix so we
   // don't collide with other apps on the public PeerServer namespace.
-  const PEER_ID_PREFIX = "duelobr-v1-";
+  const PEER_ID_PREFIX = "duelobr-v2-";  // v2 = lockstep protocol
   function genRoomCode() {
     let code = "";
     for (let i = 0; i < 4; i++) code += (Math.random() * 10) | 0;
@@ -7577,36 +7608,98 @@ body.in-menus #touch { display: none !important; }
   function roomPeerId(code) { return PEER_ID_PREFIX + code; }
 
   // Apply remote raw inputs to inputState.p2 (the side the remote drives).
-  function setOnlineRemoteInputs(keys) {
-    const i = inputState.p2;
-    i.left   = !!keys.left;
-    i.right  = !!keys.right;
-    i.up     = !!keys.up;
-    i.down   = !!keys.down;
-    i.punch  = !!keys.punch;
-    i.kick   = !!keys.kick;
-    i.special= !!keys.special;
+  // ---------- DETERMINISTIC LOCKSTEP ----------
+  // Both clients advance simulation tick N only when BOTH sides' inputs for
+  // tick N are known. Local inputs sampled at tick N are scheduled (and
+  // sent) for tick N+NET_INPUT_DELAY, so under normal latency neither side
+  // ever waits; a lag spike freezes both games briefly instead of letting
+  // them drift apart (the old streaming model let each phone simulate at
+  // its own pace, which desynced positions, HP and even the winner).
+  const NET_INPUT_DELAY = 4;        // ~67 ms input latency budget
+  let netTick = 0;                  // current lockstep simulation tick
+  let netLocalQ = new Map();        // tick -> our sampled keys
+  let netRemoteQ = new Map();       // tick -> peer's keys
+  let netStall = 0;                 // frames spent waiting on the peer
+
+  function netResetLockstep() {
+    netTick = 0;
+    netStall = 0;
+    netLocalQ = new Map();
+    netRemoteQ = new Map();
+    // The first DELAY ticks have no sampled input yet on either side —
+    // both clients agree they are blank, no packets needed.
+    const blank = { left:false, right:false, up:false, down:false,
+                    punch:false, kick:false, special:false };
+    for (let t = 0; t < NET_INPUT_DELAY; t++) {
+      netLocalQ.set(t, blank);
+      netRemoteQ.set(t, blank);
+    }
   }
 
-  // Send the local human's raw inputs to the remote peer.
-  function sendOnlineInputs() {
-    if (!onlineConn || !onlineConn.open) return;
+  // Sample the live local inputs as the input for tick netTick+DELAY and
+  // send them. Idempotent per target tick (safe to call while stalled).
+  function netScheduleLocal() {
+    const target = netTick + NET_INPUT_DELAY;
+    if (netLocalQ.has(target)) return;
     const i = inputState.p1;        // local always lives in p1
-    try {
-      onlineConn.send({
-        keys: {
-          left: !!i.left, right: !!i.right, up: !!i.up, down: !!i.down,
-          punch: !!i.punch, kick: !!i.kick, special: !!i.special,
-        },
-        seq: netSeq++,
-      });
-    } catch {}                       // swallow if channel closed mid-send
+    // Fold in the touch tap buffers: a fast touchstart+touchend can happen
+    // entirely between two samples, and mobile is the main online audience.
+    const keys = {
+      left: !!i.left, right: !!i.right, up: !!i.up, down: !!i.down,
+      punch: !!i.punch || inputBuffer.punch > 0,
+      kick: !!i.kick || inputBuffer.kick > 0,
+      special: !!i.special || inputBuffer.special > 0,
+    };
+    netLocalQ.set(target, keys);
+    if (onlineConn && onlineConn.open) {
+      try { onlineConn.send({ t: target, keys }); } catch {}
+    }
+  }
+
+  // Build an engine inputs object for one lockstep tick; edges are derived
+  // from the PREVIOUS tick in the same queue, so both clients compute the
+  // exact same edge on the exact same tick.
+  function netInputsFor(q, tick) {
+    const k = q.get(tick) || {}, pk = q.get(tick - 1) || {};
+    const o = blankInputs();
+    o.left = !!k.left; o.right = !!k.right; o.up = !!k.up; o.down = !!k.down;
+    o.punch = !!k.punch; o.kick = !!k.kick; o.special = !!k.special;
+    o.punchEdge   = o.punch   && !pk.punch;
+    o.kickEdge    = o.kick    && !pk.kick;
+    o.specialEdge = o.special && !pk.special;
+    return o;
+  }
+
+  function netPrune() {
+    if (netTick % 120 !== 0) return;
+    for (const q of [netLocalQ, netRemoteQ])
+      for (const t of q.keys()) if (t < netTick - 4) q.delete(t);
+  }
+
+  // Rematch must restart BOTH clients from tick 0: either player's click
+  // sends a ctrl message and restarts locally; the peer restarts on
+  // receive. Simultaneous clicks are fine — the phase guard makes the
+  // second trigger a no-op.
+  function onlineRematch() {
+    if (phase !== "matchEnd") return;   // already restarted (or not ended)
+    netResetLockstep();
+    hideEndActions();
+    newMatch();
+  }
+  function onlineRequestRematch() {
+    if (onlineConn && onlineConn.open) {
+      try { onlineConn.send({ ctrl: "rematch" }); } catch {}
+    }
+    onlineRematch();
   }
 
   function attachConnHandlers(conn) {
     conn.on("data", (msg) => {
-      if (msg && msg.keys) setOnlineRemoteInputs(msg.keys);
-      else if (msg && msg.pick && FIGHTERS_BY_KEY[msg.pick]) {
+      if (msg && msg.keys && msg.t !== undefined) {
+        netRemoteQ.set(msg.t, msg.keys);
+      } else if (msg && msg.ctrl === "rematch") {
+        onlineRematch();
+      } else if (msg && msg.pick && FIGHTERS_BY_KEY[msg.pick]) {
         onlinePicks.theirs = msg.pick;
         if (onlinePicks.mine) onlineBeginMatch();
         else setSelectWaiting("Oponente escolheu — sua vez!");
@@ -7816,6 +7909,7 @@ body.in-menus #touch { display: none !important; }
       ? { p1: onlinePicks.mine, p2: onlinePicks.theirs }
       : { p1: onlinePicks.theirs, p2: onlinePicks.mine };
     playerSide = (onlineMode === "host") ? "p1" : "p2";
+    netResetLockstep();
     hideMenu();
     hideSelect();
     newMatch();
@@ -8071,7 +8165,11 @@ body.in-menus #touch { display: none !important; }
       if (e.type === "touchend") e.preventDefault();
       e.stopPropagation();
       const action = t.dataset.action;
-      if (action === "play-again") { audio.menuPick(); replayMatch(); }
+      if (action === "play-again") {
+        audio.menuPick();
+        if (onlineMode !== "off") onlineRequestRematch();
+        else replayMatch();
+      }
       else if (action === "next-stage") { audio.menuPick(); campaign.stage++; startCampaignStage(); }
       else if (action === "retry-stage") { audio.menuPick(); startCampaignStage(); }
       else if (action === "new-campaign") { audio.menuPick(); campaign.stage = 0; startCampaignStage(); }
