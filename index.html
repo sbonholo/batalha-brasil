@@ -6830,57 +6830,95 @@ body.in-menus #touch { display: none !important; }
         drawBigBanner(label, "#ffdf00");
       }
     } else if (phase === "matchEnd") {
-      // Dim
-      ctx.fillStyle = "rgba(0,0,0,0.55)";
+      // Dim + vignette so the arena reads as a backdrop, not competition
+      ctx.fillStyle = "rgba(0,0,0,0.62)";
       ctx.fillRect(0, 0, W, H);
-      // Win/loss framed from the PLAYER's perspective — a loss must not
-      // look like a celebration. Gold VITÓRIA vs red DERROTA.
       const playerWon = matchResult ? matchResult.playerWon : true;
-      drawBigBanner(playerWon ? "VITÓRIA!" : "DERROTA!",
-                    playerWon ? "#ffdf00" : "#ff4455", H / 2 - 70);
+      const accent = playerWon ? "#ffdf00" : "#ff4455";
+      const a = Math.min(1, phaseT / 18);   // quick fade-in
       ctx.save();
+      ctx.globalAlpha = a;
       ctx.textAlign = "center"; ctx.textBaseline = "middle";
-      const winnerName = wins.p1 > wins.p2 ? p1.spec.name : (wins.p2 > wins.p1 ? p2.spec.name : "EMPATE");
-      ctx.fillStyle = "#fff";
-      ctx.font = "900 32px system-ui";
-      ctx.fillText(playerWon ? winnerName : winnerName + " venceu...", W / 2, H / 2 - 6);
-      // Campaign banners: ladder cleared = national title; otherwise show
-      // which stage comes next / must be retried
+
+      // Result card: one rounded panel, everything laid out top→down so the
+      // title, campaign line, winner and stats never overlap (the old layout
+      // drew the campaign text inside the title ribbon).
+      const pw = 660, phh = 320;
+      const px = W / 2 - pw / 2, py = H / 2 - phh / 2 - 10;
+      const grad = ctx.createLinearGradient(0, py, 0, py + phh);
+      grad.addColorStop(0, "rgba(16, 20, 34, 0.92)");
+      grad.addColorStop(1, "rgba(8, 10, 18, 0.92)");
+      ctx.fillStyle = grad;
+      ctx.strokeStyle = accent;
+      ctx.lineWidth = 3;
+      ctx.beginPath();
+      if (ctx.roundRect) ctx.roundRect(px, py, pw, phh, 18);
+      else ctx.rect(px, py, pw, phh);
+      ctx.fill(); ctx.stroke();
+      // Brazil accent bar across the card top
+      ctx.fillStyle = "#009c3b";
+      ctx.fillRect(px + 18, py + 8, pw - 36, 4);
+      ctx.fillStyle = "#ffdf00";
+      ctx.fillRect(px + 18, py + 12, pw - 36, 2);
+
+      // 1. Big result title — slight pop-in scale
+      const pop = 1 + Math.max(0, (18 - phaseT)) * 0.012;
+      ctx.save();
+      ctx.translate(W / 2, py + 62);
+      ctx.scale(pop, pop);
+      ctx.fillStyle = accent;
+      ctx.strokeStyle = "#111";
+      ctx.lineWidth = 6;
+      ctx.font = '900 64px "Impact","Arial Black",system-ui,sans-serif';
+      ctx.strokeText(playerWon ? "VITÓRIA!" : "DERROTA!", 0, 0);
+      ctx.fillText(playerWon ? "VITÓRIA!" : "DERROTA!", 0, 0);
+      ctx.restore();
+
+      // 2. Campaign status line, clearly below the title
+      let y = py + 116;
       if (campaign) {
         const ladder = CAMPAIGN_LADDERS[campaign.playerKey] || [];
-        ctx.font = "900 22px Impact, system-ui";
+        ctx.font = '900 21px "Impact","Arial Black",system-ui';
         if (playerWon && campaign.stage + 1 >= ladder.length) {
           ctx.fillStyle = "#ffd84a";
-          ctx.fillText("🏆 CAMPEÃO DO DUELO BR! DERROTOU TODOS OS CANDIDATOS!", W / 2, H / 2 - 44);
+          ctx.fillText("🏆 CAMPEÃO DO DUELO BR — DERROTOU TODOS OS CANDIDATOS!", W / 2, y);
         } else if (playerWon) {
           const next = FIGHTERS_BY_KEY[ladder[campaign.stage + 1]];
           ctx.fillStyle = "#9be09a";
-          ctx.fillText(`FASE ${campaign.stage + 1} VENCIDA — PRÓXIMO: ${next ? next.name : "?"}`, W / 2, H / 2 - 44);
+          ctx.fillText(`FASE ${campaign.stage + 1} VENCIDA — PRÓXIMO DESAFIANTE: ${next ? next.name : "?"}`, W / 2, y);
           const secs = Math.max(1, Math.ceil((CAMPAIGN_AUTO_FRAMES - phaseT) / 60));
-          ctx.font = "700 16px system-ui";
+          ctx.font = "700 15px system-ui";
           ctx.fillStyle = "#cfd6e0";
-          ctx.fillText(`próxima luta em ${secs}…`, W / 2, H / 2 - 20);
+          ctx.fillText(`próxima luta em ${secs}…`, W / 2, y + 26);
         } else {
           ctx.fillStyle = "#ff9a9a";
-          ctx.fillText(`ELIMINADO NA FASE ${campaign.stage + 1} — TENTE DE NOVO!`, W / 2, H / 2 - 44);
+          ctx.fillText(`ELIMINADO NA FASE ${campaign.stage + 1} — TENTE DE NOVO!`, W / 2, y);
         }
+        y += 54;
+      } else {
+        y += 8;
       }
-      // Match stats card — quantifies the fight and feeds the retry loop
-      ctx.font = "700 17px system-ui";
-      ctx.fillStyle = "#ffd84a";
-      let statY = H / 2 + 34;
+
+      // 3. Winner name
+      const winnerName = wins.p1 > wins.p2 ? p1.spec.name : (wins.p2 > wins.p1 ? p2.spec.name : "EMPATE");
+      ctx.fillStyle = "#fff";
+      ctx.font = "900 28px system-ui";
+      ctx.fillText(playerWon ? winnerName : winnerName + " venceu...", W / 2, y);
+      y += 40;
+
+      // 4. Match stats — quantifies the fight and feeds the retry loop
+      ctx.font = "700 16px system-ui";
       if (matchStats.maxCombo >= 2) {
-        ctx.fillText(`Seu maior combo: ${matchStats.maxCombo} hits`, W / 2, statY);
-        statY += 26;
+        ctx.fillStyle = "#ffd84a";
+        ctx.fillText(`Seu maior combo: ${matchStats.maxCombo} hits`, W / 2, y);
+        y += 24;
       }
       if (matchResult && matchResult.streak >= 2) {
         ctx.fillStyle = "#ff9a3a";
-        ctx.fillText(`🔥 ${matchResult.streak} vitórias seguidas!`, W / 2, statY);
-        statY += 26;
+        ctx.fillText(`🔥 ${matchResult.streak} vitórias seguidas!`, W / 2, y);
       } else if (matchResult && matchResult.lostStreak >= 2) {
         ctx.fillStyle = "#9cc6ff";
-        ctx.fillText(`Sequência de ${matchResult.lostStreak} vitórias encerrada — tente de novo!`, W / 2, statY);
-        statY += 26;
+        ctx.fillText(`Sequência de ${matchResult.lostStreak} vitórias encerrada — tente de novo!`, W / 2, y);
       }
       ctx.restore();
     }
