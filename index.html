@@ -4243,7 +4243,7 @@ body.in-menus #touch { display: none !important; }
     return "recovery";
   }
 
-  // ---------- ZÉ DA ESQUERDA (Lula parody) ----------
+  // ---------- ZÉ DA ESQUERDA (left-wing archetype) ----------
   // Short rotund body with massive belly bulge. All curves, no rectangles.
   // ============================================================
   // SPRITE RENDERER — pixel-art frames from the embedded atlas.
@@ -4473,7 +4473,7 @@ body.in-menus #touch { display: none !important; }
     // PT WHITE STAR centered high on chest, above the belly bulge
     drawZeStar(0, yBelly - 6);
 
-    // Shirt strain wrinkles radiating around the belly (Lula's camisa
+    // Shirt strain wrinkles radiating around the belly (Zé's camisa
     // sempre um número menor) — subtle darker creases
     ctx.strokeStyle = "rgba(0, 0, 0, 0.22)";
     ctx.lineWidth = 1.1;
@@ -4752,7 +4752,7 @@ body.in-menus #touch { display: none !important; }
     }
   }
 
-  // ===== Lula's curved arms — tapered cylinders, not rectangles =====
+  // ===== Zé's curved arms — tapered cylinders, not rectangles =====
   function drawZeArms(f, ph, yShoulder, yBelly, off, s) {
     const sh = s;
     const fistFill = gradRad(0, 0, 8, sh.skinHi, sh.skinShade);
@@ -4875,7 +4875,7 @@ body.in-menus #touch { display: none !important; }
     );
   }
 
-  // ===== Lula's legs — short stubby tapered cylinders + rounded boots =====
+  // ===== Zé's legs — short stubby tapered cylinders + rounded boots =====
   function drawZeLegs(f, off, yShift) {
     const yTop = -16 + yShift;
     const yBot = -2;             // boot top
@@ -5069,7 +5069,7 @@ body.in-menus #touch { display: none !important; }
     ctx.restore();
   }
 
-  // ---------- CAPITÃO DIREITA (Bolsonaro parody) ----------
+  // ---------- CAPITÃO DIREITA (right-wing archetype) ----------
   // Tall, lean, ramrod-straight military posture. All bezier curves.
   const CAP_SPRITE = {
     img: new Image(), ready: false, cw: 109, ch: 115,
@@ -5154,13 +5154,13 @@ body.in-menus #touch { display: none !important; }
     const ph = attackPhase(f);
     if (f.stance === "ko") { drawCapitaoKO(f); return; }
 
-    // Anatomy keypoints (taller than Lula!)
+    // Anatomy keypoints (taller than Zé!)
     const cyHead = -FH + 14 + yShift;       // head sits HIGH — top of head at y≈-114
-    const rxHead = 17;                       // narrow head (vs Lula's 24)
+    const rxHead = 17;                       // narrow head (vs Zé's 24)
     const ryHead = 22;
     const yShoulder = cyHead + ryHead - 4;  // shoulder line
     const yChest = yShoulder + 18;
-    const yWaist = -22 + yShift;            // waist (higher than Lula's belt for longer legs)
+    const yWaist = -22 + yShift;            // waist (higher than Zé's belt for longer legs)
     const halfShoulder = 22;                 // narrow shoulders
     const halfChest = 20;
     const halfWaist = 17;
@@ -6141,45 +6141,45 @@ body.in-menus #touch { display: none !important; }
   }
 
   // ---------- ROUND-3 SIDEKICKS ----------
-  // Haddad (PT companion to Lula) and Edu (Bolsonaro Jr) only appear in
+  // O Fiel (Zé's loyal ally) and O Herdeiro (Capitão's protégé) only appear in
   // round 3. They roam freely inside per-fighter zones, picking new
   // walking targets every 1-3 seconds. They face their target. When the
   // main fighter is KO'd they jog over to within ~40 px of the body.
-  let haddadState = null;
-  let eduState = null;
+  let fielState = null;
+  let herdeiroState = null;
   function resetSidekickState() {
     // Start in "waiting" mode with timer=0 so the very first call picks a
     // fresh random target and gets the sidekick walking immediately.
-    haddadState = {
+    fielState = {
       x: 130, y: GROUND_Y, vx: 0,
       targetX: 130, mode: "waiting", waitTimer: 0, facing: 1,
       cheerT: 0, sadT: 0,
     };
-    eduState = {
+    herdeiroState = {
       x: W - 130, y: GROUND_Y, vx: 0,
       targetX: W - 130, mode: "waiting", waitTimer: 0, facing: -1,
       cheerT: 0, sadT: 0,
     };
   }
 
-  // Roam zones depend on the current main-fighter positions (so Haddad
-  // can't walk through Lula and Edu can't walk through Capitão).
-  function haddadZone() {
+  // Roam zones depend on the current main-fighter positions (so O Fiel
+  // can't walk through Zé and O Herdeiro can't walk through Capitão).
+  function fielZone() {
     return { lo: 60, hi: Math.max(70, p1.x - 50) };
   }
-  function eduZone() {
+  function herdeiroZone() {
     return { lo: Math.min(W - 70, p2.x + 50), hi: W - 60 };
   }
 
   function updateSidekicks() {
     if (round !== 3 || phase !== "fight") return;
-    if (!haddadState || !eduState) return;
+    if (!fielState || !herdeiroState) return;
     // Fight reactions: cheer when the OPPONENT of your fighter gets hit,
     // slump when YOUR fighter takes one. (flash is freshly 6 on impact.)
-    if (p2.flash === 6) { haddadState.cheerT = 40; eduState.sadT = 45; }
-    if (p1.flash === 6) { eduState.cheerT = 40; haddadState.sadT = 45; }
-    stepSidekick(haddadState, p1, haddadZone());
-    stepSidekick(eduState,    p2, eduZone());
+    if (p2.flash === 6) { fielState.cheerT = 40; herdeiroState.sadT = 45; }
+    if (p1.flash === 6) { herdeiroState.cheerT = 40; fielState.sadT = 45; }
+    stepSidekick(fielState, p1, fielZone());
+    stepSidekick(herdeiroState,    p2, herdeiroZone());
   }
 
   // Move one sidekick toward its target; pick a new target after waiting at
@@ -6242,15 +6242,15 @@ body.in-menus #touch { display: none !important; }
     if (round !== 3) return;
     // Each sidekick only cheers for HIS fighter — skip when a premium
     // character holds that slot.
-    if (haddadState && p1 && p1.spec.key === "ze") {
-      drawHaddad(haddadState.x, GROUND_Y, haddadState.cheerT > 0, haddadState);
+    if (fielState && p1 && p1.spec.key === "ze") {
+      drawFiel(fielState.x, GROUND_Y, fielState.cheerT > 0, fielState);
     }
-    if (eduState && p2 && p2.spec.key === "capitao") {
-      drawEdu(eduState.x, GROUND_Y, eduState.cheerT > 0, eduState);
+    if (herdeiroState && p2 && p2.spec.key === "capitao") {
+      drawHerdeiro(herdeiroState.x, GROUND_Y, herdeiroState.cheerT > 0, herdeiroState);
     }
   }
 
-  function drawHaddad(cx, cy, fistPump, s) {
+  function drawFiel(cx, cy, fistPump, s) {
     // Bob + optional fist-pump when Zé scores.
     const walking = s && Math.abs(s.vx) > 5;
     const facing = s && s.facing < 0 ? -1 : 1;
@@ -6348,13 +6348,13 @@ body.in-menus #touch { display: none !important; }
     ctx.fillRect(-22, -126 + bob, 44, 12);
     ctx.fillStyle = "#c8102e";
     ctx.font = "900 9px system-ui";
-    ctx.fillText("HADDAD", 0, -120 + bob);
+    ctx.fillText("O FIEL", 0, -120 + bob);
 
     ctx.restore();
   }
 
-  function drawEdu(cx, cy, holdPhoneHigh, s) {
-    // Edu Bolsonaro - selfie-snapping sidekick
+  function drawHerdeiro(cx, cy, holdPhoneHigh, s) {
+    // O Herdeiro — selfie-snapping sidekick
     const walking = s && Math.abs(s.vx) > 5;
     const facing = s && s.facing < 0 ? -1 : 1;
     let bob = walking
@@ -6453,7 +6453,7 @@ body.in-menus #touch { display: none !important; }
     ctx.fillRect(-22, -126 + bob, 44, 12);
     ctx.fillStyle = "#4a5d2e";
     ctx.font = "900 9px system-ui";
-    ctx.fillText("EDU", 0, -120 + bob);
+    ctx.fillText("O HERDEIRO", 0, -120 + bob);
 
     ctx.restore();
   }
@@ -6888,7 +6888,7 @@ body.in-menus #touch { display: none !important; }
 
   // ---------- CELEBRATION DANCES ----------
   // Runs during the 'celebrate' phase (180 frames / ~3 s) right before the
-  // standard round-end overlay. Lula does a cachaça shuffle, Capitão does
+  // standard round-end overlay. Zé does a cachaça shuffle, Capitão does
   // a fishing-rod skit then a salute, and a draw kicks off a synchronized
   // samba step. Speech bubbles deliver the political punchlines.
   function drawCelebration() {
@@ -6927,7 +6927,7 @@ body.in-menus #touch { display: none !important; }
     ctx.restore();
   }
 
-  // Lula's celebration — both variants share the cachaça-tilt drinking
+  // Zé's celebration — both variants share the cachaça-tilt drinking
   // animation (vertical → ~70° → vertical over 0.5s) plus a head-tilt that
   // sways the entire figure with the bottle. After the drink, sways L-R
   // and a ★★★ appears above his head. Variant only changes the speech.
@@ -7400,8 +7400,8 @@ body.in-menus #touch { display: none !important; }
   // computes per-frame edges naturally for both fighters.
   //
   // Roles:
-  //   host  → plays as P1 (Zé / Lula side, left)
-  //   guest → plays as P2 (Capitão / Bolsonaro side, right)
+  //   host  → fields the P1 slot (left)
+  //   guest → fields the P2 slot (right)
   //
   // Single-player mode is preserved exactly; the engine only checks
   // `onlineMode !== "off"` to swap input routing during the fight phase.
