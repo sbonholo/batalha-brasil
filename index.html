@@ -1102,8 +1102,10 @@ body.in-menus #touch { display: none !important; }
   // (Zé↔Capitão, Mimi↔Jana), then the rest. The menu difficulty applies to
   // the whole ladder, and wins auto-advance to the next stage.
   const CAMPAIGN_LADDERS = {
-    ze:      ["capitao", "mimi", "jana", "leao", "dudu"],
-    capitao: ["ze", "jana", "mimi", "dudu", "leao"],
+    // Orders are hand-picked by the owner (Zé and Capitão confirmed;
+    // remaining four pending their sequences and using placeholders).
+    ze:      ["capitao", "dudu", "mimi", "leao", "jana"],
+    capitao: ["ze", "leao", "jana", "dudu", "mimi"],
     mimi:    ["jana", "ze", "capitao", "leao", "dudu"],
     jana:    ["mimi", "capitao", "ze", "dudu", "leao"],
     leao:    ["dudu", "ze", "capitao", "mimi", "jana"],
