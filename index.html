@@ -601,6 +601,51 @@ body.in-menus #touch { display: none !important; }
 #fs-btn:hover { background: rgba(20,20,20,0.7); }
 #fs-btn:active { transform: scale(0.94); }
 
+/* ---------- Region flag switcher (top-left, menus only) ---------- */
+#region-btn {
+  position: fixed; top: calc(env(safe-area-inset-top) + 8px); left: 12px; z-index: 100;
+  background: rgba(0,0,0,0.55);
+  border: 2px solid rgba(255, 215, 100, 0.55); border-radius: 10px;
+  height: 36px; padding: 0 9px; cursor: pointer;
+  font-size: 20px; line-height: 1;
+  display: none; align-items: center; gap: 5px;
+  -webkit-tap-highlight-color: transparent;
+}
+body.in-menus #region-btn { display: flex; }
+#region-btn:active { transform: scale(0.94); }
+#region-btn .chev { font-size: 9px; color: #ffd84a; }
+#region-modal {
+  position: fixed; inset: 0; z-index: 60;
+  display: none; align-items: center; justify-content: center;
+  background: rgba(6, 8, 16, 0.75); backdrop-filter: blur(3px);
+}
+#region-modal.show { display: flex; }
+#region-box {
+  width: min(92vw, 380px);
+  background: linear-gradient(180deg, #16203a, #0a0f1e);
+  border: 3px solid #ffd84a; border-radius: 16px; padding: 20px;
+  text-align: center; font-family: "Impact","Arial Black", system-ui, sans-serif;
+  color: #fff; letter-spacing: 1px;
+}
+#region-title { font-size: 18px; color: #ffd84a; margin-bottom: 14px; }
+.region-item {
+  width: 100%; margin-bottom: 10px; padding: 12px 14px; cursor: pointer;
+  display: flex; align-items: center; gap: 12px;
+  background: rgba(255,255,255,0.06); border: 2px solid #2a3658; border-radius: 12px;
+  font: 900 18px "Impact","Arial Black", system-ui; color: #fff; letter-spacing: 1px;
+}
+.region-item .rflag { font-size: 26px; }
+.region-item.active { border-color: #6ee07a; background: rgba(110,224,122,0.12); }
+.region-item.soon { opacity: 0.55; cursor: default; }
+.region-item .rsoon {
+  margin-left: auto; font: 700 10px system-ui; color: #ffd84a;
+  letter-spacing: 1px; border: 1px solid #8a6f2a; border-radius: 6px; padding: 2px 6px;
+}
+#region-cancel {
+  margin-top: 6px; padding: 8px 14px; background: none; border: 0; cursor: pointer;
+  font: 700 13px system-ui; color: #9cb0cc; letter-spacing: 1px;
+}
+
 #pause-modal {
   position: fixed; inset: 0; z-index: 7;
   display: none;
@@ -965,6 +1010,15 @@ body.in-menus #touch { display: none !important; }
 
 <button id="fs-btn" aria-label="Tela cheia">⛶</button>
 <button id="mute-btn" aria-label="Som ligado / desligado">🔊</button>
+<button id="region-btn" aria-label="Mudar região"><span id="region-flag">🇧🇷</span><span class="chev">▼</span></button>
+
+<div id="region-modal" aria-hidden="true">
+  <div id="region-box">
+    <div id="region-title">🌎 ESCOLHA A REGIÃO</div>
+    <div id="region-list"></div>
+    <button id="region-cancel">FECHAR</button>
+  </div>
+</div>
 
 <div id="online-badge">🌐 ONLINE</div>
 
@@ -1365,6 +1419,41 @@ body.in-menus #touch { display: none !important; }
   const crowd = [];
   let titlePulse = 0;
   let timeNow = 0;                     // animation seconds since boot
+  // ============================================================
+  // REGIONS — multi-region framework (Brasil, USA, … later others).
+  // Each region will carry its own roster, background, theme and UI strings;
+  // for now BR holds all current content and US is a placeholder until its
+  // fighters + White House background land. Auto-detected from the browser
+  // locale/timezone (private, offline), overridable via the corner flag.
+  // ============================================================
+  const REGIONS = {
+    br: { id: "br", flag: "🇧🇷", label: "Brasil", ready: true },
+    us: { id: "us", flag: "🇺🇸", label: "USA",    ready: false },
+  };
+  function detectRegion() {
+    try { const s = localStorage.getItem("bb_region"); if (s && REGIONS[s] && REGIONS[s].ready) return s; } catch {}
+    const lang = (navigator.language || "").toLowerCase();
+    let tz = "";
+    try { tz = (Intl.DateTimeFormat().resolvedOptions().timeZone || "").toLowerCase(); } catch {}
+    const looksUS = lang === "en" || lang.startsWith("en-us") ||
+      /new_york|los_angeles|chicago|denver|phoenix|anchorage|honolulu|detroit/.test(tz);
+    const pick = looksUS ? "us" : "br";
+    return (REGIONS[pick] && REGIONS[pick].ready) ? pick : "br";
+  }
+  let currentRegion = detectRegion();
+  function applyRegion() {
+    // BR is the live content; US roster/background/strings get wired in here
+    // as they land. For now this just reflects the flag in the corner button.
+    const r = REGIONS[currentRegion] || REGIONS.br;
+    const fl = el("region-flag"); if (fl) fl.textContent = r.flag;
+  }
+  function setRegion(id) {
+    if (!REGIONS[id] || !REGIONS[id].ready) return;
+    currentRegion = id;
+    try { localStorage.setItem("bb_region", id); } catch {}
+    applyRegion();
+  }
+
   let currentDifficulty = "medio";     // facil | medio | dificil
   let playerSide = "p1";               // "p1" = playing Zé (left); "p2" = playing Capitão (right)
   let paused = false;                  // pause modal open
@@ -8398,6 +8487,37 @@ body.in-menus #touch { display: none !important; }
       if (!nowMuted) audio.menuClick();
     });
     updateMuteBtn(audio.isMuted());
+
+    // ---- Region flag switcher ----
+    function hideRegionModal() {
+      el("region-modal").classList.remove("show");
+      el("region-modal").setAttribute("aria-hidden", "true");
+    }
+    function buildRegionList() {
+      const list = el("region-list"); if (!list) return;
+      list.innerHTML = "";
+      for (const id of Object.keys(REGIONS)) {
+        const r = REGIONS[id];
+        const b = document.createElement("button");
+        b.className = "region-item" + (id === currentRegion ? " active" : "") + (r.ready ? "" : " soon");
+        b.innerHTML = `<span class="rflag">${r.flag}</span><span class="rlabel">${r.label}</span>`
+          + (r.ready ? "" : `<span class="rsoon">EM BREVE</span>`);
+        if (r.ready) b.addEventListener("click", () => {
+          audio.menuPick(); setRegion(id); buildRegionList(); hideRegionModal();
+        });
+        list.appendChild(b);
+      }
+    }
+    el("region-btn").addEventListener("click", () => {
+      audio.menuPick(); buildRegionList();
+      el("region-modal").classList.add("show");
+      el("region-modal").setAttribute("aria-hidden", "false");
+    });
+    el("region-cancel").addEventListener("click", () => { audio.menuBack(); hideRegionModal(); });
+    el("region-modal").addEventListener("click", (e) => {
+      if (e.target === el("region-modal")) hideRegionModal();
+    });
+    applyRegion();
 
     // Fullscreen toggle button — for users who escape fullscreen and
     // want to re-enter, or to manually exit.
