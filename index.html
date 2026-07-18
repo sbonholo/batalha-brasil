@@ -161,11 +161,12 @@ canvas#stage {
   /* Hidden by default; the .show class is added on touch devices and on
      small viewports via @media query below. */
   display: none;
+  /* extra side breathing room so the ESPECIAL button/label clears the edge */
   /* The container is a full-width strip that would otherwise sit on top
      of the end-of-match buttons (z-index 4) and eat their taps on iOS.
      Only the actual buttons receive pointer events. */
   pointer-events: none;
-  padding: 10px 14px env(safe-area-inset-bottom);
+  padding: 10px max(20px, env(safe-area-inset-right)) env(safe-area-inset-bottom) max(20px, env(safe-area-inset-left));
   z-index: 10;
   justify-content: space-between; align-items: flex-end;
 }
@@ -292,11 +293,19 @@ body.in-menus #touch { display: none !important; }
 #select {
   position: fixed; inset: 0; z-index: 3;
   display: none;
-  flex-direction: column; align-items: center; justify-content: center;
+  /* top-align + scroll: with 6 fighters the roster can exceed a short
+     landscape phone (or 720p), and justify-content:center would hide the
+     title AND the newest paid fighters off both edges. Top-align keeps the
+     header reachable; the landscape rules below compact it to fit. */
+  flex-direction: column; align-items: center; justify-content: flex-start;
+  overflow-y: auto; -webkit-overflow-scrolling: touch;
   background: rgba(10, 14, 26, 0.55);
-  padding: env(safe-area-inset-top) 16px env(safe-area-inset-bottom);
+  padding: max(env(safe-area-inset-top), 14px) 16px max(env(safe-area-inset-bottom), 14px);
   backdrop-filter: blur(2px);
 }
+/* Spacers center the roster when it fits and collapse to 0 (top-align +
+   scroll) when it doesn't. */
+#select::before, #select::after { content: ""; flex: 1 1 0; min-height: 0; }
 #select.show { display: flex; }
 #select-title {
   font-family: "Impact","Arial Black", system-ui, sans-serif;
@@ -477,14 +486,35 @@ body.in-menus #touch { display: none !important; }
     -webkit-text-stroke: 1px #c8102e;
   }
 }
-/* Short landscape phones: keep horizontal but enlarge cards so they're
-   not cramped against the VS divider. */
-@media (orientation: landscape) and (max-height: 500px) {
-  #select-row { gap: 8px; max-width: 100%; }
-  .select-card { min-height: 0; padding: 10px 8px; }
-  .select-portrait { width: 64px; height: 84px; }
-  .select-name { font-size: 14px; }
-  .select-go   { padding: 8px 12px; font-size: 13px; min-height: 40px; }
+/* Short landscape phones: compact ALL three rows so the full six-fighter
+   roster (title + free duo + two paid rows + back) fits without scrolling. */
+/* Mid tier: laptops / 720p desktop — three fighter rows overflow a 720px
+   window at full card size, so shrink portraits and margins to fit. */
+@media (max-height: 800px) and (min-height: 541px) {
+  #select-title { font-size: 24px; margin: 0 0 8px; }
+  #select-premium-title { margin: 8px 0 5px; }
+  #select-premium-row2 { margin-top: 8px; }
+  .select-card { min-height: 0; padding: 8px 12px; }
+  .select-portrait { width: 84px; height: 106px; }
+  .select-name { font-size: 15px; margin-top: 3px; }
+  .select-go { margin-top: 5px; padding: 6px 12px; font-size: 12px; }
+}
+@media (orientation: landscape) and (max-height: 540px) {
+  #select-title { font-size: 16px; letter-spacing: 2px; margin: 0 0 4px; }
+  #select-row, #select-premium-row, #select-premium-row2 { gap: 8px; max-width: 100%; }
+  #select-premium-title { font-size: 10px; margin: 5px 0 3px; }
+  #select-premium-row2 { margin-top: 4px; }
+  .select-card { min-height: 0; padding: 4px 8px; border-width: 2px; border-radius: 12px; }
+  .select-portrait { width: 46px; height: 58px; }
+  .select-name { font-size: 11px; margin-top: 1px; }
+  .select-tag  { font-size: 8px; }
+  .select-days { font-size: 8px; min-height: 9px; margin-top: 0; }
+  /* whole card is the tap target on touch — drop the chip to save height */
+  .select-go   { display: none; }
+  .select-lock { font-size: 11px; border-radius: 10px; }
+  .select-vs   { font-size: 20px; }
+  #select-back { margin-top: 4px; padding: 5px 14px; font-size: 13px; }
+  .select-hint { display: none; }
 }
 
 /* ---------- Pause button + modal ---------- */
@@ -873,9 +903,9 @@ body.in-menus #touch { display: none !important; }
 
 <div id="unlock-modal" aria-hidden="true">
   <div id="unlock-box">
-    <div id="unlock-title">🔒 LUTADORA EXCLUSIVA</div>
-    <p id="unlock-text">Em breve: desbloqueie esta lutadora por R$ 1 (acesso por 30 dias).<br>
-      Tem um código de acesso beta? Digite abaixo:</p>
+    <div id="unlock-title">🔒 PERSONAGEM EXCLUSIVO</div>
+    <p id="unlock-text">Desbloqueio por R$ 1 (acesso por 30 dias) chega em breve.<br>
+      Já tem um código de acesso beta? Digite abaixo:</p>
     <input id="unlock-input" type="text" maxlength="24" placeholder="CÓDIGO BETA"
            autocomplete="off" autocorrect="off" autocapitalize="characters" spellcheck="false">
     <button id="unlock-go">DESBLOQUEAR</button>
@@ -2302,10 +2332,26 @@ body.in-menus #touch { display: none !important; }
     tutorialShown = true;
     const t = el("tutorial-hint");
     if (!t) return;
-    t.classList.add("show");
-    t.classList.remove("fade");
-    setTimeout(() => { t.classList.add("fade"); }, 9000);
-    setTimeout(() => { t.classList.remove("show"); t.classList.remove("fade"); }, 10000);
+    // Touch-first on phones (the main audience): lead with the on-screen
+    // controls, not keyboard keys the device doesn't have.
+    const isTouch = ("ontouchstart" in window) || (navigator.maxTouchPoints || 0) > 0
+                    || window.innerWidth <= 900 || window.innerHeight <= 600;
+    t.innerHTML = isTouch
+      ? '<span class="head">CONTROLES</span>'
+        + 'D-pad para mover · <b>▲</b> pular · <b>▼</b> defender<br>'
+        + 'Botões <b>A</b> soco · <b>S</b> chute · <b>D</b> especial'
+      : '<span class="head">CONTROLES</span>'
+        + '<b>Setas</b> para mover · <b>↑</b> pular · <b>↓</b> defender<br>'
+        + '<b>A</b> soco · <b>S</b> chute · <b>D</b> especial';
+    // Delay past the READY-phase banners (ROUND!/PRONTOS?/LUTAR!) so the hint
+    // doesn't overlap them in the center of the screen.
+    setTimeout(() => {
+      if (phase === "title" || phase === "select") return;   // bailed out early
+      t.classList.add("show");
+      t.classList.remove("fade");
+      setTimeout(() => { t.classList.add("fade"); }, 8000);
+      setTimeout(() => { t.classList.remove("show"); t.classList.remove("fade"); }, 9000);
+    }, 1900);
   }
 
   function backToTitle() {
