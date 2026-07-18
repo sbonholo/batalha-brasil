@@ -437,13 +437,36 @@ body.in-menus #touch { display: none !important; }
   font: 700 18px "Courier New", monospace; letter-spacing: 3px;
   text-align: center; text-transform: uppercase;
 }
+#unlock-buy {
+  width: 100%; padding: 14px; cursor: pointer;
+  background: linear-gradient(180deg, #6ee07a, #2bb054);
+  border: 0; border-radius: 10px;
+  box-shadow: 0 4px 0 rgba(0,0,0,0.4), 0 0 18px rgba(110,224,122,0.3);
+  font: 900 18px "Impact","Arial Black", system-ui; color: #082a12;
+  letter-spacing: 1.5px;
+}
+#unlock-or {
+  font: 700 11px system-ui; color: #a898c0; letter-spacing: 2px;
+  margin: 12px 0 8px;
+}
 #unlock-go {
-  width: 100%; margin-top: 10px; padding: 12px;
+  width: 100%; margin-top: 10px; padding: 11px;
   background: linear-gradient(180deg, #c890f0, #8a5fb0);
   border: 0; border-radius: 10px; cursor: pointer;
-  font: 900 16px "Impact","Arial Black", system-ui; color: #1a0a28;
-  letter-spacing: 2px;
+  font: 900 14px "Impact","Arial Black", system-ui; color: #1a0a28;
+  letter-spacing: 1.5px;
 }
+#unlock-pix { margin-top: 12px; }
+#unlock-pix-qr {
+  width: 180px; height: 180px; image-rendering: pixelated;
+  border-radius: 10px; background: #fff; display: block; margin: 0 auto 8px;
+}
+#unlock-pix-copy {
+  width: 100%; padding: 10px; cursor: pointer;
+  background: #0e0818; border: 2px solid #8a5fb0; border-radius: 10px;
+  font: 700 13px system-ui; color: #e8c8ff; letter-spacing: 0.5px;
+}
+#unlock-pix-status { margin-top: 8px; font: 700 13px system-ui; color: #9be09a; }
 #unlock-cancel {
   margin-top: 10px; padding: 8px 14px;
   background: none; border: 0; cursor: pointer;
@@ -921,12 +944,19 @@ body.in-menus #touch { display: none !important; }
 <div id="unlock-modal" aria-hidden="true">
   <div id="unlock-box">
     <div id="unlock-title">🔒 PERSONAGEM EXCLUSIVO</div>
-    <p id="unlock-text">Desbloqueio por R$ 1 (acesso por 30 dias) chega em breve.<br>
-      Já tem um código de acesso beta? Digite abaixo:</p>
+    <p id="unlock-text">Desbloqueie este personagem por R$ 1 — acesso por 30 dias.</p>
+    <button id="unlock-buy">💳 COMPRAR — R$ 1</button>
+    <div id="unlock-or">— ou —</div>
     <input id="unlock-input" type="text" maxlength="24" placeholder="CÓDIGO BETA"
            autocomplete="off" autocorrect="off" autocapitalize="characters" spellcheck="false">
-    <button id="unlock-go">DESBLOQUEAR</button>
+    <button id="unlock-go">DESBLOQUEAR COM CÓDIGO</button>
     <div id="unlock-status"></div>
+    <!-- Pix payment panel (shown after COMPRAR when the backend is live) -->
+    <div id="unlock-pix" hidden>
+      <img id="unlock-pix-qr" alt="QR Code Pix" />
+      <button id="unlock-pix-copy">📋 Copiar código Pix</button>
+      <div id="unlock-pix-status">Aguardando pagamento…</div>
+    </div>
     <button id="unlock-cancel">CANCELAR</button>
   </div>
 </div>
@@ -1168,6 +1198,25 @@ body.in-menus #touch { display: none !important; }
   // arrives with the payment backend, which will issue signed tokens here.
   // ============================================================
   const UNLOCK_STORAGE_KEY = "bb_premium";
+  // ---- Payment backend (Supabase Edge Function; see backend/README.md) ----
+  // Empty = purchases disabled: the COMPRAR button shows an honest "em breve"
+  // and only beta codes unlock. Fill BOTH to go live — no other client change
+  // is needed (the entitlement shape already matches the server's).
+  const PAY_API = "";        // e.g. https://<ref>.supabase.co/functions/v1/duelobr-pay
+  const PAY_ANON_KEY = "";   // the project's publishable / anon key
+  // Stable per-device id so a purchase can be tied to this browser.
+  function getDeviceId() {
+    let id = null;
+    try { id = localStorage.getItem("bb_device"); } catch {}
+    if (!id) {
+      id = "d" + Math.random().toString(36).slice(2) + Date.now().toString(36);
+      try { localStorage.setItem("bb_device", id); } catch {}
+    }
+    return id;
+  }
+  const payHeaders = () => PAY_ANON_KEY
+    ? { apikey: PAY_ANON_KEY, authorization: `Bearer ${PAY_ANON_KEY}` } : {};
+
   // hash → scope ("all" or a list of fighter keys). Sales are per fighter
   // (one-time R$1 unlock each), so codes carry the same granularity the
   // future payment backend will use for its signed tokens.
@@ -1230,7 +1279,35 @@ body.in-menus #touch { display: none !important; }
           JSON.stringify({ v: 2, exp, source, at: new Date().toISOString() }));
       } catch {}
     },
+    // Merge server-authoritative entitlements (exact expiries) into the local
+    // cache so purchased fighters unlock and keep working offline until expiry.
+    setServerEntitlements(list) {
+      const cur = this._load();
+      const exp = (cur && cur.exp) ? { ...cur.exp } : {};
+      for (const e of (list || [])) {
+        const t = Date.parse(e.exp);
+        if (t > Date.now()) exp[e.key] = Math.max(exp[e.key] || 0, t);
+      }
+      try {
+        localStorage.setItem(UNLOCK_STORAGE_KEY,
+          JSON.stringify({ v: 2, exp, source: "purchase", at: new Date().toISOString() }));
+      } catch {}
+    },
   };
+  // Pull this device's active entitlements from the backend (if configured)
+  // and merge them locally. Safe no-op until PAY_API is set.
+  async function syncEntitlements() {
+    if (!PAY_API) return;
+    try {
+      const r = await fetch(`${PAY_API}?action=entitlements&device=${encodeURIComponent(getDeviceId())}`,
+        { headers: payHeaders() });
+      const j = await r.json();
+      if (j && Array.isArray(j.entitlements)) {
+        entitlements.setServerEntitlements(j.entitlements);
+        if (typeof refreshPremiumCards === "function") refreshPremiumCards();
+      }
+    } catch {}
+  }
   // Returns the code's scope ("all" | [keys]) or null when invalid.
   async function checkUnlockCode(raw) {
     const norm = (raw || "").toUpperCase().replace(/[^A-Z0-9]/g, "");
@@ -2302,6 +2379,7 @@ body.in-menus #touch { display: none !important; }
     if (difficulty) currentDifficulty = difficulty;
     ensurePremiumSprites();   // kick off the lazy premium-strip download
     refreshPremiumCards();    // time-boxed unlocks may have expired
+    syncEntitlements();       // pull purchased unlocks from the backend (no-op if off)
     const st = el("select-title");
     if (st) st.textContent = (typeof onlineMode !== "undefined" && onlineMode !== "off")
       ? "⚔️ ESCOLHA SEU LUTADOR" : "🏆 ESCOLHA SEU CANDIDATO";
@@ -8033,6 +8111,7 @@ body.in-menus #touch { display: none !important; }
 
     // Free-to-play: skip paywall, jump straight to the menu.
     showMenu();
+    syncEntitlements();   // refresh any purchased unlocks (no-op until PAY_API set)
     // Title soundtrack starts as soon as the AudioContext is woken on the
     // first user gesture (we'll kick it off from firstGestureWake below).
 
@@ -8149,10 +8228,62 @@ body.in-menus #touch { display: none !important; }
         unlockTargetKey = key;
         el("unlock-status").textContent = ""; el("unlock-status").className = "";
         el("unlock-input").value = "";
+        stopPixPoll(); el("unlock-pix").hidden = true;
         el("unlock-modal").classList.add("show");
         el("unlock-modal").setAttribute("aria-hidden", "false");
-        el("unlock-input").focus();
       });
+    });
+
+    // ---- COMPRAR (Pix via the payment backend) ----
+    let pixPoll = null;
+    function stopPixPoll() { if (pixPoll) { clearInterval(pixPoll); pixPoll = null; } }
+    let pixCopyText = "";
+    el("unlock-buy").addEventListener("click", async () => {
+      const status = el("unlock-status");
+      audio.menuPick();
+      if (!PAY_API) {
+        status.textContent = "💳 Compra por R$ 1 chega em breve! Use um código beta por enquanto.";
+        status.className = "";
+        return;
+      }
+      status.textContent = "Gerando cobrança Pix…"; status.className = "";
+      try {
+        const r = await fetch(`${PAY_API}?action=create`, {
+          method: "POST",
+          headers: { ...payHeaders(), "content-type": "application/json" },
+          body: JSON.stringify({ device: getDeviceId(), fighter: unlockTargetKey }),
+        });
+        const j = await r.json();
+        if (!j.orderId) { status.textContent = "✖ Não foi possível gerar o Pix. Tente de novo."; status.className = "bad"; return; }
+        status.textContent = "";
+        pixCopyText = j.qr || "";
+        if (j.qrBase64) el("unlock-pix-qr").src = "data:image/png;base64," + j.qrBase64;
+        el("unlock-pix-qr").style.display = j.qrBase64 ? "block" : "none";
+        el("unlock-pix-status").textContent = "Escaneie o QR ou copie o código. Aguardando pagamento…";
+        el("unlock-pix").hidden = false;
+        // poll order status until paid
+        stopPixPoll();
+        pixPoll = setInterval(async () => {
+          try {
+            const s = await fetch(`${PAY_API}?action=status&order=${encodeURIComponent(j.orderId)}`,
+              { headers: payHeaders() }).then(x => x.json());
+            if (s.status === "paid") {
+              stopPixPoll();
+              entitlements.setServerEntitlements(s.entitlements);
+              refreshPremiumCards();
+              const key = unlockTargetKey;
+              el("unlock-pix-status").textContent = "✔ Pagamento confirmado! Boa luta!";
+              setTimeout(() => { hideUnlockModal(); if (key && entitlements.has(key)) pickFighter(key); }, 1000);
+            }
+          } catch {}
+        }, 3000);
+      } catch {
+        status.textContent = "✖ Erro de conexão. Tente de novo."; status.className = "bad";
+      }
+    });
+    el("unlock-pix-copy").addEventListener("click", async () => {
+      try { await navigator.clipboard.writeText(pixCopyText); el("unlock-pix-copy").textContent = "✔ Código copiado!"; }
+      catch { el("unlock-pix-copy").textContent = pixCopyText ? pixCopyText.slice(0, 24) + "…" : "—"; }
     });
     el("unlock-go").addEventListener("click", async () => {
       const status = el("unlock-status");
@@ -8186,9 +8317,9 @@ body.in-menus #touch { display: none !important; }
       if (e.key === "Enter") el("unlock-go").click();
       e.stopPropagation();   // don't let game keybinds see typing
     });
-    el("unlock-cancel").addEventListener("click", () => { audio.menuBack(); hideUnlockModal(); });
+    el("unlock-cancel").addEventListener("click", () => { audio.menuBack(); stopPixPoll(); hideUnlockModal(); });
     el("unlock-modal").addEventListener("click", (e) => {
-      if (e.target === el("unlock-modal")) hideUnlockModal();
+      if (e.target === el("unlock-modal")) { stopPixPoll(); hideUnlockModal(); }
     });
     refreshPremiumCards();
     el("select-back").addEventListener("click", () => {
