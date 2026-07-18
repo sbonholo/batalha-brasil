@@ -2181,6 +2181,7 @@ body.in-menus #touch { display: none !important; }
       x: side === "p1" ? 280 : W - 280,
       y: GROUND_Y, vx: 0, vy: 0,
       hp: MAX_HP, maxHp: MAX_HP,
+      dmgMult: 1,            // campaign stage scaling buffs the CPU's hits/HP
       facing: side === "p1" ? 1 : -1,
       stance: "idle", stanceT: 0, stanceDur: 0,
       attackKind: null, hitConnected: false,
@@ -2195,11 +2196,23 @@ body.in-menus #touch { display: none !important; }
     };
   }
 
+  // Campaign ramp: each stage's CPU is 10% stronger than the last — more
+  // HP and harder hits (fase 1 = base, fase 5 = 1.4x). Solo campaign only;
+  // online and quick play are untouched.
+  function applyCampaignBuff() {
+    if (!campaign || onlineMode !== "off") return;
+    const mult = 1 + 0.1 * campaign.stage;
+    p2.dmgMult = mult;
+    p2.maxHp = Math.round(MAX_HP * mult);
+    p2.hp = p2.maxHp;
+  }
+
   function newMatch() {
     // Gameplay begins — touch controls become relevant again
     document.body.classList.remove("in-menus");
     p1 = makeFighter(FIGHTERS_BY_KEY[matchup.p1] || ZE, "p1");
     p2 = makeFighter(FIGHTERS_BY_KEY[matchup.p2] || CAPITAO, "p2");
+    applyCampaignBuff();
     round = 1;
     wins.p1 = 0; wins.p2 = 0;
     timer = ROUND_TIME;
@@ -2391,6 +2404,7 @@ body.in-menus #touch { display: none !important; }
     const keepP2 = p2 ? p2.superMeter : 0;
     p1 = makeFighter(FIGHTERS_BY_KEY[matchup.p1] || ZE, "p1");
     p2 = makeFighter(FIGHTERS_BY_KEY[matchup.p2] || CAPITAO, "p2");
+    applyCampaignBuff();
     p1.superMeter = keepP1;
     p2.superMeter = keepP2;
     timer = ROUND_TIME;
@@ -2667,6 +2681,8 @@ body.in-menus #touch { display: none !important; }
       const isSuper = att.superActive && att.attackKind === "special";
       let dmg = blocked ? Math.max(1, Math.round(m.dmg * 0.2)) : m.dmg;
       if (isSuper) dmg = blocked ? 10 : 34;   // super hits hard, even blocked
+      // Campaign scaling: each stage's CPU hits harder (dmgMult 1.0 → 1.4)
+      dmg = Math.max(1, Math.round(dmg * (att.dmgMult || 1)));
       def.hp = Math.max(0, def.hp - dmg);
       // Super meter economy: land hits to build fast, take hits to build
       // some, block to build a little. Burned to 0 when the super fires.
