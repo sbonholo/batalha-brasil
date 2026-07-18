@@ -1102,13 +1102,12 @@ body.in-menus #touch { display: none !important; }
   // (Zé↔Capitão, Mimi↔Jana), then the rest. The menu difficulty applies to
   // the whole ladder, and wins auto-advance to the next stage.
   const CAMPAIGN_LADDERS = {
-    // Orders are hand-picked by the owner (Zé and Capitão confirmed;
-    // remaining four pending their sequences and using placeholders).
+    // Stage orders are hand-picked by the owner for all six fighters.
     ze:      ["capitao", "dudu", "mimi", "leao", "jana"],
     capitao: ["ze", "leao", "jana", "dudu", "mimi"],
     mimi:    ["jana", "leao", "ze", "dudu", "capitao"],
     jana:    ["mimi", "dudu", "capitao", "leao", "ze"],
-    leao:    ["dudu", "ze", "capitao", "mimi", "jana"],
+    leao:    ["dudu", "mimi", "capitao", "jana", "ze"],
     dudu:    ["leao", "jana", "ze", "mimi", "capitao"],
   };
   const CAMPAIGN_AUTO_FRAMES = 240;  // ~4s reading the win banner, then next stage
