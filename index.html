@@ -1790,6 +1790,7 @@ body.in-menus #region-btn { display: flex; }
     ulUnlockedName:  ["✔ DESBLOQUEADA: {0}!", "✔ UNLOCKED: {0}!"],
     ulInvalid:       ["✖ Código inválido.", "✖ Invalid code."],
     ulAllFighters:   ["TODAS", "ALL"],
+    drawBubble:      ["NÃO FOI DESSA VEZ!", "NOT THIS TIME!"],
   };
   function L(key, ...args) {
     const row = TXT[key];
@@ -5144,24 +5145,36 @@ body.in-menus #region-btn { display: flex; }
         // left) down to the LEFT hip (viewer's right) → a "\" diagonal.
         const ySh = -hc * 0.78 - lift, yWa = -hc * 0.38 - lift;  // shoulder / hip
         const xSh = -dw * 0.17, xWa = dw * 0.15;
+        // Region-flag sash: BR green+yellow, US red+white with a blue rosette.
+        const sash = currentRegion === "us"
+          ? { band: "#b22234", stripe: "#ffffff", rose1: "#3c3b6e", rose2: "#ffffff" }
+          : { band: "#0a9c40", stripe: "#ffdf00", rose1: "#ffdf00", rose2: "#0a9c40" };
         ctx.save();
         ctx.globalAlpha = 0.95;
-        ctx.strokeStyle = "#0a9c40";
+        ctx.strokeStyle = sash.band;
         ctx.lineWidth = 9;
         ctx.lineCap = "round";
         ctx.beginPath(); ctx.moveTo(xSh, ySh); ctx.lineTo(xWa, yWa); ctx.stroke();
-        ctx.strokeStyle = "#ffdf00";
+        ctx.strokeStyle = sash.stripe;
         ctx.lineWidth = 3;
         ctx.beginPath(); ctx.moveTo(xSh, ySh); ctx.lineTo(xWa, yWa); ctx.stroke();
         // Rosette at the hip
-        ctx.fillStyle = "#ffdf00";
+        ctx.fillStyle = sash.rose1;
         ctx.beginPath(); ctx.arc(xWa, yWa, 4.5, 0, Math.PI * 2); ctx.fill();
-        ctx.fillStyle = "#0a9c40";
+        ctx.fillStyle = sash.rose2;
         ctx.beginPath(); ctx.arc(xWa, yWa, 2.2, 0, Math.PI * 2); ctx.fill();
         ctx.restore();
       }
     }
     ctx.restore();
+  }
+
+  // Dispatch a direct (non-buffered) fighter draw by spec key — used by the
+  // celebration skits which render fighters straight to the main canvas.
+  function drawFighterByKey(f, t) {
+    if (f.spec.key === "ze") drawZe(f, t);
+    else if (f.spec.key === "capitao") drawCapitao(f, t);
+    else drawPremium(f, t);
   }
 
   function drawZe(f, t) {
@@ -6018,7 +6031,7 @@ body.in-menus #region-btn { display: flex; }
   const US_SPRITES = {
     hope:      usSprite("hope",      232, 204, 150),
     dealmaker: usSprite("dealmaker", 219, 203, 148),
-    advocate:  usSprite("advocate",  225, 346, 152),
+    advocate:  usSprite("advocate",  295, 346, 152),
     madam:     usSprite("madam",     182, 192, 150),
     bebest:    usSprite("bebest",    266, 273, 154),
     podium:    usSprite("podium",    169, 233, 152),
@@ -8050,7 +8063,7 @@ body.in-menus #region-btn { display: flex; }
       stance: "walk", stanceT: Math.floor(t * 30), stanceDur: 999, attackKind: null,
       hitConnected: false, facing: 1, blocking: false, onGround: true, flash: 0,
       cd: { punch: 0, kick: 0, special: 0 } };
-    drawZe(fakeP1, t);
+    drawFighterByKey(fakeP1, t);
     ctx.restore();
 
     ctx.save();
@@ -8061,12 +8074,12 @@ body.in-menus #region-btn { display: flex; }
       stance: "walk", stanceT: Math.floor(t * 30), stanceDur: 999, attackKind: null,
       hitConnected: false, facing: -1, blocking: false, onGround: true, flash: 0,
       cd: { punch: 0, kick: 0, special: 0 } };
-    drawCapitao(fakeP2, t);
+    drawFighterByKey(fakeP2, t);
     ctx.restore();
 
     // Two side-by-side bubbles
-    drawSpeechBubble(W / 2 - 360, GROUND_Y - 230, 280, 50, "NÃO FOI DESSA VEZ!", t);
-    drawSpeechBubble(W / 2 + 80,  GROUND_Y - 230, 280, 50, "NÃO FOI DESSA VEZ!", t);
+    drawSpeechBubble(W / 2 - 360, GROUND_Y - 230, 280, 50, L("drawBubble"), t);
+    drawSpeechBubble(W / 2 + 80,  GROUND_Y - 230, 280, 50, L("drawBubble"), t);
   }
 
   // Cachaça bottle: brown glass + neck + "51" white label.
