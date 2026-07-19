@@ -4864,13 +4864,16 @@ body.in-menus #region-btn { display: flex; }
     const fpX = px, fpTop = colTop - 34, fpH = 46;
     ctx.strokeStyle = "#dedede"; ctx.lineWidth = 2;
     ctx.beginPath(); ctx.moveTo(fpX, fpTop); ctx.lineTo(fpX, fpTop - fpH); ctx.stroke();
-    const wave = Math.sin(timeNow * 3) * 3;
-    ctx.fillStyle = "#b22234";
-    ctx.fillRect(fpX + 1, fpTop - fpH, 26, 16 + wave * 0.2);
+    // Mini US flag: red/white stripes + a solid blue canton (no tiny stars —
+    // they read as noise at this size).
+    const fw2 = 26, fh2 = 16, fy2 = fpTop - fpH;
+    const stripeH = fh2 / 4;
+    for (let s = 0; s < 4; s++) {
+      ctx.fillStyle = s % 2 === 0 ? "#b22234" : "#ffffff";
+      ctx.fillRect(fpX + 1, fy2 + s * stripeH, fw2, stripeH);
+    }
     ctx.fillStyle = "#3c3b6e";
-    ctx.fillRect(fpX + 1, fpTop - fpH, 11, 8);
-    ctx.fillStyle = "#fff";
-    for (let s = 0; s < 4; s++) ctx.fillRect(fpX + 3 + (s % 2) * 4, fpTop - fpH + 2 + ((s / 2) | 0) * 3, 1, 1);
+    ctx.fillRect(fpX + 1, fy2, fw2 * 0.42, stripeH * 2);
 
     // ---- Foreground fountain silhouette ----
     ctx.fillStyle = r === 3 ? "rgba(20,30,60,0.7)" : "rgba(230,235,240,0.55)";
@@ -7544,19 +7547,23 @@ body.in-menus #region-btn { display: flex; }
     drawRoundDots(wins.p1, 30, 92, false);
     drawRoundDots(wins.p2, W - 30, 92, true);
 
-    // Timer (yellow rhombus)
+    // Timer rhombus — flag colors of the active region (BR green/yellow/blue,
+    // US red/white/blue).
     const tNum = Math.ceil(timer);
+    const rhombus = currentRegion === "us"
+      ? { outer: "#b22234", mid: "#ffffff", inner: "#3c3b6e" }
+      : { outer: "#009c3b", mid: "#ffdf00", inner: "#002776" };
     ctx.save();
     ctx.translate(W / 2, 50);
-    ctx.fillStyle = "#009c3b";
+    ctx.fillStyle = rhombus.outer;
     ctx.beginPath();
     ctx.moveTo(0, -34); ctx.lineTo(56, 0); ctx.lineTo(0, 34); ctx.lineTo(-56, 0); ctx.closePath();
     ctx.fill();
-    ctx.fillStyle = "#ffdf00";
+    ctx.fillStyle = rhombus.mid;
     ctx.beginPath();
     ctx.moveTo(0, -28); ctx.lineTo(46, 0); ctx.lineTo(0, 28); ctx.lineTo(-46, 0); ctx.closePath();
     ctx.fill();
-    ctx.fillStyle = "#002776";
+    ctx.fillStyle = rhombus.inner;
     ctx.beginPath(); ctx.arc(0, 0, 22, 0, Math.PI * 2); ctx.fill();
     ctx.fillStyle = "#fff";
     ctx.font = "900 22px system-ui";
