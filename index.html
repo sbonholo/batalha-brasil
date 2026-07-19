@@ -566,6 +566,10 @@ body:not([data-region="us"]) [data-region="us"] { display: none !important; }
   #select-row, #select-premium-row, #select-premium-row2, .select-row-region { gap: 8px; max-width: 100%; }
   #select-premium-title, .premium-title-us { font-size: 10px; margin: 5px 0 3px; }
   #select-premium-row2, .select-row-region.premium-row-us { margin-top: 4px; }
+  /* US roster runs a hair taller than BR here; trim its spacing so the
+     bottom premium row clears the fold on short landscape phones. */
+  .premium-title-us { margin: 2px 0 2px; }
+  .select-row-region.premium-row-us { margin-top: 2px; }
   .select-card { min-height: 0; padding: 4px 8px; border-width: 2px; border-radius: 12px; }
   .select-portrait { width: 46px; height: 58px; }
   .select-name { font-size: 11px; margin-top: 1px; }
