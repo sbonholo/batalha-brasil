@@ -171,6 +171,21 @@ canvas#stage {
   padding: 6px 14px;
   border-radius: 999px;
 }
+/* Sets the online button apart from the three difficulty buttons — a thin
+   centered rule with a soft glow, so ONLINE reads as a distinct mode. */
+.menu-sep {
+  width: min(360px, 92vw);
+  display: flex; align-items: center; justify-content: center;
+  opacity: 0.6;
+}
+.menu-sep span {
+  height: 2px; width: 70%;
+  background: linear-gradient(90deg, transparent, rgba(255,215,100,0.55), transparent);
+  border-radius: 2px;
+}
+/* Portrait-only accent bar under the hero art (region-flag colors) — frames
+   the hero and blends its base into the menu instead of a hard black cut. */
+#hero-accent { display: none; }
 
 /* ---------- Touch controls ---------- */
 #touch {
@@ -291,6 +306,19 @@ body.in-menus #touch { display: none !important; }
     bottom: max(env(safe-area-inset-bottom), 14px);
     justify-content: space-between;
     gap: 6px;
+  }
+  /* Region-flag accent bar right at the hero's base — frames the art and
+     blends it into the menu (a soft dark glow softens the seam). */
+  body.in-menus #hero-accent {
+    display: block;
+    position: fixed; left: 0; right: 0;
+    top: calc(env(safe-area-inset-top) + 54px + 56.25vw - 3px);
+    height: 3px; z-index: 2; pointer-events: none;
+    background: linear-gradient(90deg, #009c3b 0 33.3%, #ffdf00 33.3% 66.6%, #002776 66.6% 100%);
+    box-shadow: 0 0 16px 5px rgba(4, 6, 14, 0.75), 0 -12px 20px 2px rgba(4, 6, 14, 0.45);
+  }
+  body.in-menus[data-region="us"] #hero-accent {
+    background: linear-gradient(90deg, #b22234 0 33.3%, #ffffff 33.3% 66.6%, #3c3b6e 66.6% 100%);
   }
   /* Tutorial hint sits BELOW the canvas instead of covering the fight */
   #tutorial-hint {
@@ -645,6 +673,22 @@ body:not([data-region="us"]) [data-region="us"] { display: none !important; }
 body.in-menus #region-btn { display: flex; }
 #region-btn:active { transform: scale(0.94); }
 #region-btn .chev { font-size: 9px; color: #ffd84a; }
+/* "NEW" teaser pill on the flag — nudges players to discover the region
+   switcher (shows until they open the region picker once). */
+#region-new {
+  position: absolute; top: -9px; right: -10px;
+  background: linear-gradient(180deg, #ff5a5a, #c8102e);
+  color: #fff; font: 900 8px "Impact","Arial Black",system-ui,sans-serif;
+  letter-spacing: 0.5px; padding: 2px 5px; border-radius: 8px;
+  border: 1.5px solid #fff; white-space: nowrap;
+  box-shadow: 0 1px 4px rgba(0,0,0,0.5);
+  animation: regionNewPulse 1.4s ease-in-out infinite;
+}
+@keyframes regionNewPulse {
+  0%, 100% { transform: scale(1);    }
+  50%      { transform: scale(1.12); }
+}
+@media (prefers-reduced-motion: reduce) { #region-new { animation: none; } }
 #region-modal {
   position: fixed; inset: 0; z-index: 60;
   display: none; align-items: center; justify-content: center;
@@ -901,12 +945,16 @@ body.in-menus #region-btn { display: flex; }
 <div id="stage-wrap">
   <canvas id="stage" width="960" height="540"></canvas>
 </div>
+<!-- Portrait-only: frames the base of the hero art and blends it into the
+     menu with a region-flag accent bar. Shown only on the menu screens. -->
+<div id="hero-accent" aria-hidden="true"></div>
 
 <div id="menu" aria-hidden="true">
   <div id="menu-title">ESCOLHA A DIFICULDADE</div>
   <button class="menu-btn facil"   data-difficulty="facil">FÁCIL</button>
   <button class="menu-btn medio"   data-difficulty="medio">MÉDIO</button>
   <button class="menu-btn dificil" data-difficulty="dificil">DIFÍCIL</button>
+  <div class="menu-sep" aria-hidden="true"><span></span></div>
   <button class="menu-btn online-open" id="menu-online">⚔️ JOGAR ONLINE</button>
   <div id="menu-streak" hidden></div>
 </div>
@@ -1096,7 +1144,7 @@ body.in-menus #region-btn { display: flex; }
 
 <button id="fs-btn" aria-label="Tela cheia">⛶</button>
 <button id="mute-btn" aria-label="Som ligado / desligado">🔊</button>
-<button id="region-btn" aria-label="Mudar região"><span id="region-flag">🇧🇷</span><span class="chev">▼</span></button>
+<button id="region-btn" aria-label="Mudar região"><span id="region-flag">🇧🇷</span><span class="chev">▼</span><span id="region-new" hidden>NOVO 🇺🇸</span></button>
 
 <div id="region-modal" aria-hidden="true">
   <div id="region-box">
@@ -9131,8 +9179,21 @@ body.in-menus #region-btn { display: flex; }
         list.appendChild(b);
       }
     }
+    // "NEW" teaser on the flag: show for BR players who haven't opened the
+    // region picker yet, nudging them to discover the USA region.
+    const REGION_SEEN_KEY = "bb_seen_regions";
+    function refreshRegionNew() {
+      const n = el("region-new"); if (!n) return;
+      let seen = false; try { seen = localStorage.getItem(REGION_SEEN_KEY) === "1"; } catch {}
+      n.hidden = !(currentRegion === "br" && !seen);
+    }
+    function markRegionsSeen() {
+      try { localStorage.setItem(REGION_SEEN_KEY, "1"); } catch {}
+      refreshRegionNew();
+    }
+    refreshRegionNew();
     el("region-btn").addEventListener("click", () => {
-      audio.menuPick(); buildRegionList();
+      audio.menuPick(); buildRegionList(); markRegionsSeen();
       el("region-modal").classList.add("show");
       el("region-modal").setAttribute("aria-hidden", "false");
     });
