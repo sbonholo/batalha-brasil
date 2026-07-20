@@ -5170,6 +5170,38 @@ body.in-menus #region-btn { display: flex; }
     return "idle";
   }
 
+  // Per-frame opaque content bounds (source px), measured once from the
+  // strip. Used to anchor the presidential sash to the ACTUAL figure in each
+  // frame — victory/action poses are shorter than the cell, so cell-relative
+  // geometry made the sash overshoot past the head. Same-origin / data-URI
+  // sprites only, so getImageData never taints.
+  function spriteBboxes(SPR) {
+    if (SPR._bboxes !== undefined) return SPR._bboxes;
+    SPR._bboxes = null;
+    try {
+      const n = Math.max(1, Math.round(SPR.img.width / SPR.cw));
+      const c = document.createElement("canvas");
+      c.width = SPR.img.width; c.height = SPR.ch;
+      const x = c.getContext("2d", { willReadFrequently: true });
+      x.drawImage(SPR.img, 0, 0);
+      const d = x.getImageData(0, 0, c.width, c.height).data, W = c.width;
+      const boxes = [];
+      for (let i = 0; i < n; i++) {
+        let top = SPR.ch, bot = -1, lft = SPR.cw, rgt = -1;
+        for (let yy = 0; yy < SPR.ch; yy++)
+          for (let xx = 0; xx < SPR.cw; xx++)
+            if (d[(yy * W + i * SPR.cw + xx) * 4 + 3] > 40) {
+              if (yy < top) top = yy; if (yy > bot) bot = yy;
+              if (xx < lft) lft = xx; if (xx > rgt) rgt = xx;
+            }
+        boxes.push(bot < top ? { top: 0, bot: SPR.ch - 1, lft: 0, rgt: SPR.cw - 1 }
+                             : { top, bot, lft, rgt });
+      }
+      SPR._bboxes = boxes;
+    } catch { SPR._bboxes = null; }
+    return SPR._bboxes;
+  }
+
   function drawSprite(SPR, f, t) {
     const anim = SPR.anims[spriteAnimFor(f)] || SPR.anims.idle;
     const idx = anim.frames.length === 1 ? anim.frames[0]
@@ -5194,32 +5226,46 @@ body.in-menus #region-btn { display: flex; }
       ctx.drawImage(SPR.img, idx * SPR.cw, 0, SPR.cw, SPR.ch,
                     -dw / 2, -dh - lift, dw, dh);
       // Presidential sash on the match champion (final celebration):
-      // diagonal green band with yellow stripe, right shoulder → left hip,
-      // proportional to the sprite's visible body.
+      // a diagonal band draped shoulder → opposite hip. Anchored to the
+      // frame's ACTUAL figure bounds (not the cell), so it stays on the
+      // torso for every pose instead of shooting past the head.
       if (f.wearSash) {
-        const hc = dh * (SPR.contentRatio || 0.8);   // visible body height
-        // Real faixa presidencial drapes over the RIGHT shoulder (viewer's
-        // left) down to the LEFT hip (viewer's right) → a "\" diagonal.
-        const ySh = -hc * 0.78 - lift, yWa = -hc * 0.38 - lift;  // shoulder / hip
-        const xSh = -dw * 0.17, xWa = dw * 0.15;
+        const bb = spriteBboxes(SPR) && spriteBboxes(SPR)[idx];
+        let ySh, yWa, xSh, xWa, band;
+        if (bb) {
+          // Map source rows/cols to display space (feet ≈ y=0, up is -).
+          const yb = -lift - dh * (1 - bb.bot / SPR.ch);   // figure bottom (feet)
+          const yt = -lift - dh * (1 - bb.top / SPR.ch);   // figure top (head)
+          const fh = yb - yt;                               // figure height
+          const fcx = ((bb.lft + bb.rgt) / 2 - SPR.cw / 2) * (dw / SPR.cw); // torso center x
+          const fw = (bb.rgt - bb.lft) * (dw / SPR.cw);     // figure width
+          ySh = yb - fh * 0.72;   yWa = yb - fh * 0.34;      // shoulder / hip heights
+          xSh = fcx - fw * 0.20;  xWa = fcx + fw * 0.16;     // "\" across the torso
+          band = Math.max(6, fw * 0.16);
+        } else {
+          const hc = dh * (SPR.contentRatio || 0.8);
+          ySh = -hc * 0.78 - lift; yWa = -hc * 0.38 - lift;
+          xSh = -dw * 0.17; xWa = dw * 0.15; band = 9;
+        }
         // Region-flag sash: BR green+yellow, US red+white with a blue rosette.
         const sash = currentRegion === "us"
           ? { band: "#b22234", stripe: "#ffffff", rose1: "#3c3b6e", rose2: "#ffffff" }
           : { band: "#0a9c40", stripe: "#ffdf00", rose1: "#ffdf00", rose2: "#0a9c40" };
         ctx.save();
         ctx.globalAlpha = 0.95;
+        ctx.lineCap = "butt";
         ctx.strokeStyle = sash.band;
-        ctx.lineWidth = 9;
-        ctx.lineCap = "round";
+        ctx.lineWidth = band;
         ctx.beginPath(); ctx.moveTo(xSh, ySh); ctx.lineTo(xWa, yWa); ctx.stroke();
         ctx.strokeStyle = sash.stripe;
-        ctx.lineWidth = 3;
+        ctx.lineWidth = Math.max(2, band * 0.3);
         ctx.beginPath(); ctx.moveTo(xSh, ySh); ctx.lineTo(xWa, yWa); ctx.stroke();
         // Rosette at the hip
+        const rr = Math.max(4, band * 0.6);
         ctx.fillStyle = sash.rose1;
-        ctx.beginPath(); ctx.arc(xWa, yWa, 4.5, 0, Math.PI * 2); ctx.fill();
+        ctx.beginPath(); ctx.arc(xWa, yWa, rr, 0, Math.PI * 2); ctx.fill();
         ctx.fillStyle = sash.rose2;
-        ctx.beginPath(); ctx.arc(xWa, yWa, 2.2, 0, Math.PI * 2); ctx.fill();
+        ctx.beginPath(); ctx.arc(xWa, yWa, rr * 0.5, 0, Math.PI * 2); ctx.fill();
         ctx.restore();
       }
     }
