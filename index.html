@@ -284,8 +284,13 @@ body.in-menus #touch { display: none !important; }
   /* Menu hugs the canvas bottom edge (canvas is 56.25vw tall) instead
      of floating far below at the screen bottom */
   #menu {
-    bottom: auto;
+    /* Span the whole band from just under the hero to the bottom safe area
+       and distribute the title + buttons + streak evenly, so the lower
+       third isn't a dead black void. */
     top: calc(env(safe-area-inset-top) + 54px + 57vw);
+    bottom: max(env(safe-area-inset-bottom), 14px);
+    justify-content: space-between;
+    gap: 6px;
   }
   /* Tutorial hint sits BELOW the canvas instead of covering the fight */
   #tutorial-hint {
